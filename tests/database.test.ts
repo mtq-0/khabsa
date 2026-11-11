@@ -5,8 +5,6 @@ import { StatsService } from '../src/server/stats/stats.ts';
 import { csvToItems, parseCsv } from '../src/server/content/csv.ts';
 import { seed } from '../src/server/db/seed/seed.ts';
 import { Storage } from '../src/server/storage/storage.ts';
-import { join } from 'node:path';
-import { mkdirSync, mkdtempSync } from 'node:fs';
 
 let db: Db;
 const user = async (name: string, guest = false) =>
@@ -24,8 +22,7 @@ beforeAll(async () => {
   await db.query(`create role authenticated nologin`);
   await db.query(`grant usage on schema public to anon, authenticated`);
   await migrate(db);
-  mkdirSync(join(process.cwd(), '.tools'), { recursive: true });
-  await seed(db, new Storage(join(mkdtempSync(join(process.cwd(), '.tools', 'db-')), 'storage')));
+  await seed(db, new Storage(db));
 });
 afterAll(async () => db?.close());
 
@@ -165,5 +162,24 @@ describe('db adapter', () => {
     expect((await db.query('update users set xp = xp where id = $1', [id])).rowCount).toBe(1);
     const tx = await db.transaction((q) => q.query('select 1 from users where id = $1', [id]));
     expect(tx.rowCount).toBe(1);
+  });
+});
+
+describe('file storage in Postgres (no disk needed)', () => {
+  it('round-trips binary files, rejects unsafe keys, deletes', async () => {
+    const st = new Storage(db);
+    const key = 'private/images/00000000-0000-4000-8000-000000000001.webp';
+    const data = Buffer.from([0, 1, 2, 250, 255, 0, 10]);
+    await st.put(key, data);
+    expect(Buffer.compare((await new Storage(db).get(key))!, data)).toBe(0); // fresh instance: read from DB, not cache
+    await expect(st.put('../../etc/passwd', 'x')).rejects.toThrow();
+    await expect(st.get('private/images/x.webp')).rejects.toThrow();
+    await st.delete(key);
+    expect(await st.get(key)).toBeNull();
+    expect(await new Storage(db).get(key)).toBeNull();
+  });
+  it('seeded picture images are stored in the database', async () => {
+    const r = await db.query<{ n: number }>(`select count(*)::int as n from files f join images i on i.storage_key = f.key`);
+    expect(r.rows[0].n).toBeGreaterThanOrEqual(552);
   });
 });

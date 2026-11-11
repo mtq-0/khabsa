@@ -37,8 +37,7 @@ export async function buildApp(config: Config, opts: { db?: Db; log?: boolean } 
   const db = opts.db ?? (await createDb(config.databaseUrl));
   if (config.databaseUrl.startsWith('pglite:') && config.databaseUrl !== 'pglite:memory') await mkdir(config.databaseUrl.slice(7), { recursive: true }).catch(() => {});
   await migrate(db, (m) => console.log('[db]', m));
-  const storage = new Storage(config.storageDir);
-  await mkdir(storage.publicDir, { recursive: true });
+  const storage = new Storage(db, config.storageDir);
   if (config.seedOnBoot) await seed(db, storage, (m) => console.log('[seed]', m));
 
   const app = Fastify({
@@ -134,7 +133,14 @@ export async function buildApp(config: Config, opts: { db?: Db; log?: boolean } 
   adminRoutes(app, ctx);
 
   // ------------------------------------------------------------- static
-  await app.register(fastifyStatic, { root: resolve(storage.publicDir), prefix: '/media/', decorateReply: false, maxAge: '7d', immutable: true });
+  // public media (avatars) are stored in the database; file names are random uuids so they can be cached forever
+  app.get('/media/avatars/:file', async (req, reply) => {
+    const file = String((req.params as { file: string }).file);
+    if (!/^[a-f0-9-]{36}\.webp$/.test(file)) throw new AppError('NOT_FOUND');
+    const data = await storage.get(`public/avatars/${file}`);
+    if (!data) throw new AppError('NOT_FOUND');
+    return reply.header('Content-Type', 'image/webp').header('Cache-Control', 'public, max-age=31536000, immutable').header('X-Content-Type-Options', 'nosniff').send(data);
+  });
   const clientDir = resolve(config.clientDir);
   const hasClient = existsSync(join(clientDir, 'index.html'));
   if (hasClient) {

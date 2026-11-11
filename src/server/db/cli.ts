@@ -9,7 +9,7 @@ const config = loadConfig();
 const db = await createDb(config.databaseUrl);
 try {
   await migrate(db, console.log);
-  if (cmd === 'seed') await seed(db, new Storage(config.storageDir), console.log);
+  if (cmd === 'seed') await seed(db, new Storage(db, config.storageDir), console.log);
   else if (cmd === 'make-admin') {
     if (!arg) throw new Error('usage: npm run make-admin -- someone@example.com');
     const r = await db.query(`update users set role = 'admin' where lower(email) = lower($1) and not is_guest`, [arg]);
