@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { GAME_IDS, GAMES, type GameId } from '../../shared/games.ts';
 import { GameArt, PageTitle, cx } from '../components/ui.tsx';
+import { api } from '../lib/api.ts';
 
 export default function GamesPage() {
   const [enabled, setEnabled] = useState<Record<string, boolean>>({});
   const [tag, setTag] = useState<string | null>(null);
   useEffect(() => {
-    fetch('/api/platform')
-      .then((r) => r.json())
-      .then((d: { games: { id: GameId; enabled: boolean }[] }) => setEnabled(Object.fromEntries(d.games.map((g) => [g.id, g.enabled]))))
+    api<{ games: { id: GameId; enabled: boolean }[] }>('/api/platform')
+      .then((d) => setEnabled(Object.fromEntries(d.games.map((g) => [g.id, g.enabled]))))
       .catch(() => {});
   }, []);
   const tags = useMemo(() => Array.from(new Set(GAME_IDS.flatMap((id) => GAMES[id].tags))), []);

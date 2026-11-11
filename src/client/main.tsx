@@ -1,6 +1,7 @@
 import { StrictMode, Suspense, lazy, Component, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router';
+import { createBrowserRouter, createHashRouter, RouterProvider, type RouteObject } from 'react-router';
+import { PAGES } from './lib/mode.ts';
 import '@fontsource-variable/readex-pro';
 import '@fontsource/lalezar/arabic-400.css';
 import '@fontsource/lalezar/latin-400.css';
@@ -58,7 +59,7 @@ const page = (el: ReactNode) => (
   </ErrorBoundary>
 );
 
-const router = createBrowserRouter([
+const allRoutes: RouteObject[] = [
   {
     element: <Layout />,
     children: [
@@ -81,7 +82,15 @@ const router = createBrowserRouter([
       { path: '*', element: page(<NotFoundPage />) },
     ],
   },
-]);
+];
+
+// GitHub Pages edition: no server, so account/social/admin pages are left out,
+// and a hash router is used because static hosting has no SPA fallback.
+const SERVER_ONLY = ['/play', '/u/:username', '/friends', '/leaderboard', '/achievements', '/packs', '/login', '/register', '/admin/*'];
+const routes: RouteObject[] = PAGES
+  ? allRoutes.map((r) => ({ ...r, children: r.children?.filter((c) => !SERVER_ONLY.includes(c.path ?? '')) }) as RouteObject)
+  : allRoutes;
+const router = PAGES ? createHashRouter(routes) : createBrowserRouter(routes);
 
 void useSession.getState().load();
 

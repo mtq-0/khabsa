@@ -5,6 +5,7 @@ import type { RoomView } from '../../shared/protocol.ts';
 import { api } from '../lib/api.ts';
 import { useRoomContext } from '../lib/room.ts';
 import { Button, GameArt, Toggle, cx, toast } from '../components/ui.tsx';
+import { PAGES } from '../lib/mode.ts';
 
 function useCategories(gameId: GameId) {
   const [cats, setCats] = useState<{ slug: string; name: string; emoji: string; items?: number }[]>([]);
@@ -93,7 +94,7 @@ export function Lobby({ view }: { view: RoomView }) {
   const me = view.members.find((m) => m.id === view.you);
   const game = GAMES[view.selectedGame];
   const cats = useCategories(view.selectedGame);
-  const packs = usePacks(view.selectedGame, isHost);
+  const packs = usePacks(view.selectedGame, isHost && !PAGES);
   const [starting, setStarting] = useState(false);
   const [draft, setDraft] = useState<GameSettings>(view.settings);
   useEffect(() => setDraft(view.settings), [view.settings, view.selectedGame]);
@@ -156,7 +157,7 @@ export function Lobby({ view }: { view: RoomView }) {
           {game.settings.map((f) => (
             <SettingInput key={f.key} f={f} value={draft[f.key] ?? f.default} disabled={!isHost} cats={cats} onChange={(v) => void save({ ...draft, [f.key]: v as never })} />
           ))}
-          {isHost && view.selectedGame !== 'outsider-picture' && (
+          {isHost && !PAGES && view.selectedGame !== 'outsider-picture' && (
             <label className="block sm:col-span-2">
               <span className="label">حزمة المحتوى</span>
               <select

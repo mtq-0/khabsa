@@ -1,23 +1,25 @@
 import { defineConfig } from '@playwright/test';
 
 const PORT = 3333;
+/** Set LIVE_URL to run the journeys against a deployed server instead of a local one. */
+const LIVE = process.env.LIVE_URL;
 
 export default defineConfig({
   testDir: 'e2e',
   // voice needs a LiveKit server: see playwright.voice.config.ts
-  testIgnore: /voice\.spec\.ts/,
+  testIgnore: /(voice|pages)\.spec\.ts/,
   timeout: 120_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: LIVE ?? `http://localhost:${PORT}`,
     locale: 'ar',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  webServer: {
+  webServer: LIVE ? undefined : {
     command: 'node src/server/index.ts',
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,

@@ -18,7 +18,7 @@ export class RateLimiter {
     this.capacity = capacity;
     this.refillPerMs = capacity / (perSeconds * 1000);
     this.timer = setInterval(() => this.prune(), 60_000);
-    this.timer.unref();
+    this.timer.unref?.();
   }
 
   /** Returns true when the action is allowed. */

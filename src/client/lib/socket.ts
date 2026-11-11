@@ -1,8 +1,8 @@
-import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
+import { createSocket, type Sock } from './socketTransport.ts';
 import type { ErrorCode } from '../../shared/errors.ts';
 import { ERROR_MESSAGES_AR } from '../../shared/errors.ts';
-import type { ClientToServerEvents, ServerToClientEvents } from '../../shared/protocol.ts';
+import type { ClientToServerEvents } from '../../shared/protocol.ts';
 
 export type ConnStatus = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'offline' | 'auth-failed';
 
@@ -15,7 +15,6 @@ interface ConnState {
 
 export const useConnection = create<ConnState>(() => ({ status: 'idle', attempts: 0, lastError: null, rtt: null }));
 
-type Sock = Socket<ServerToClientEvents, ClientToServerEvents>;
 let socket: Sock | null = null;
 let pingTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -26,17 +25,7 @@ let pingTimer: ReturnType<typeof setInterval> | null = null;
  */
 export function getSocket(): Sock {
   if (socket) return socket;
-  const s: Sock = io({
-    path: '/socket.io',
-    transports: ['websocket', 'polling'],
-    withCredentials: true,
-    reconnection: true,
-    reconnectionAttempts: 12,
-    reconnectionDelay: 800,
-    reconnectionDelayMax: 8000,
-    randomizationFactor: 0.4,
-    timeout: 12_000,
-  });
+  const s: Sock = createSocket();
   socket = s;
   useConnection.setState({ status: 'connecting' });
   s.on('connect', () => {

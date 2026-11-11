@@ -4,6 +4,7 @@ import { DoorOpen } from 'lucide-react';
 import { normalizeRoomCode, ROOM_CODE_RE } from '../../shared/protocol.ts';
 import { GAMES, type GameId } from '../../shared/games.ts';
 import { api, ApiError, errorText } from '../lib/api.ts';
+import { PAGES } from '../lib/mode.ts';
 import { RequireSession } from '../components/GuestGate.tsx';
 import { Button, PageTitle } from '../components/ui.tsx';
 
@@ -27,6 +28,11 @@ function JoinForm() {
     const c = normalizeRoomCode(code);
     if (!ROOM_CODE_RE.test(c)) {
       setErr({ text: 'رمز الغرفة لازم يكون 6 أحرف أو أرقام إنجليزية (بدون O و I و 0 و 1).', retry: false });
+      return;
+    }
+    if (PAGES) {
+      // no server to ask: the room page connects to the host and reports precise errors
+      nav(`/r/${c}`);
       return;
     }
     setBusy(true);

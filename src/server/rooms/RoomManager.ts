@@ -25,7 +25,7 @@ import {
 } from '../../shared/protocol.ts';
 import type { Db } from '../db/db.ts';
 import type { ContentRepo } from '../content/content.ts';
-import { KIND_FOR_GAME } from '../content/content.ts';
+import { KIND_FOR_GAME } from '../games/kinds.ts';
 import type { StatsService } from '../stats/stats.ts';
 import type { Platform } from '../platform.ts';
 import type { EngineRegistry } from '../games/registry.ts';
@@ -127,7 +127,7 @@ export class RoomManager {
     this.rng = deps.rng ?? Math.random;
     this.now = deps.now ?? Date.now;
     this.sweeper = setInterval(() => void this.sweep(), 15_000);
-    this.sweeper.unref();
+    this.sweeper.unref?.(); // optional: also runs in browsers (GitHub Pages edition)
   }
 
   // -------------------------------------------------------------------------
@@ -174,7 +174,10 @@ export class RoomManager {
     throw new AppError('SERVER_ERROR', 'ما قدرنا نولّد رمز غرفة.');
   }
 
-  async create(user: UserRow, opts: { visibility?: unknown; capacity?: unknown; gameId?: unknown; name?: unknown; requestId?: unknown }): Promise<{ code: string }> {
+  async create(user: UserRow, opts: { visibility?: unknown; capacity?: unknown; gameId?: unknown; name?: unknown; requestId?: unknown },
+    /** fixed code: only used by the browser-hosted (GitHub Pages) edition */
+    fixedCode?: string,
+  ): Promise<{ code: string }> {
     const platform = await this.deps.platform.settings();
     const requestId = typeof opts.requestId === 'string' ? opts.requestId.slice(0, 64) : null;
     const prev = this.createRequests.get(user.id);
@@ -185,7 +188,8 @@ export class RoomManager {
     const capacity = Math.max(2, Math.min(maxCap, Number.isInteger(opts.capacity) ? (opts.capacity as number) : 8));
     const gameId: GameId = isGameId(opts.gameId) ? opts.gameId : 'outsider-word';
     const name = maskProfanity(cleanText(opts.name, 40)) || `غرفة ${user.display_name}`;
-    const code = this.generateCode();
+    if (fixedCode !== undefined && (!ROOM_CODE_RE.test(fixedCode) || this.rooms.has(fixedCode))) throw new AppError('CONFLICT');
+    const code = fixedCode ?? this.generateCode();
     const id = randomUUID();
     const now = this.now();
     try {
@@ -811,6 +815,12 @@ export class RoomManager {
   // -------------------------------------------------------------------------
   // lifecycle, persistence, recovery
   // -------------------------------------------------------------------------
+  /** Close a room for everyone (browser-hosted edition: the hosting tab leaves). */
+  async closeRoom(rawCode: string, reason: string) {
+    const room = this.rooms.get(rawCode);
+    if (room) await this.withLock(room, () => this.close(room, reason)).catch(() => {});
+  }
+
   private async close(room: Room, reason: string) {
     if (room.closed) return;
     room.closed = true;

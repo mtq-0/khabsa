@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Copy, LogOut, MessageCircle, Share2, SkipForward, Square, UserPlus, Users, Gamepad2 } from 'lucide-react';
 import { GAMES } from '../../shared/games.ts';
@@ -7,6 +7,12 @@ import { api, errorText } from '../lib/api.ts';
 import { RoomContext, useRoom } from '../lib/room.ts';
 import { useConnection } from '../lib/socket.ts';
 import { useSession } from '../lib/session.ts';
+import { PAGES, isHostTab, roomLink } from '../lib/mode.ts';
+
+import { loadHostBadge } from '../lib/pagesExtras.ts';
+
+// Pages edition only (pulls in the in-browser game server)
+const HostBadge = loadHostBadge ? lazy(loadHostBadge) : null;
 import { RequireSession } from '../components/GuestGate.tsx';
 import { Avatar, Button, Modal, Spinner, Tabs, copyText, cx, toast } from '../components/ui.tsx';
 import { Lobby } from '../room/Lobby.tsx';
@@ -94,7 +100,8 @@ function RoomInner({ code }: { code: string }) {
 
   const view = room.view;
   const isHost = view.hostId === view.you;
-  const link = `${location.origin}/r/${view.code}`;
+  const link = roomLink(view.code);
+  const hostTab = isHostTab(view.code);
 
   const share = async () => {
     const text = `تعال العب معنا ${GAMES[view.selectedGame].name} على خبصة! 🎮 رمز الغرفة: ${view.code}`;
@@ -120,7 +127,7 @@ function RoomInner({ code }: { code: string }) {
 
   return (
     <RoomContext.Provider value={room}>
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         {/* header */}
         <div className="card flex flex-wrap items-center gap-3 p-3">
           <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
@@ -136,7 +143,7 @@ function RoomInner({ code }: { code: string }) {
             <Button size="sm" variant="secondary" icon={<Share2 className="size-4" />} onClick={() => void share()}>
               <span className="hidden sm:inline">شارك</span>
             </Button>
-            <Button size="sm" variant="secondary" icon={<UserPlus className="size-4" />} onClick={() => setInviteOpen(true)}>
+            <Button size="sm" variant="secondary" icon={<UserPlus className="size-4" />} onClick={() => setInviteOpen(true)} data-testid="invite-btn">
               <span className="hidden sm:inline">اعزم</span>
             </Button>
             <Button
@@ -144,7 +151,8 @@ function RoomInner({ code }: { code: string }) {
               variant="ghost"
               icon={<LogOut className="size-4" />}
               onClick={async () => {
-                if (view.status === 'playing' && !confirm('اللعبة شغالة. متأكد بدك تطلع؟')) return;
+                if (hostTab && !confirm('إنت المضيف: إذا طلعت الغرفة رح تسكر للكل. متأكد؟')) return;
+                if (!hostTab && view.status === 'playing' && !confirm('اللعبة شغالة. متأكد بدك تطلع؟')) return;
                 await room.leave();
                 nav('/');
               }}
@@ -153,6 +161,12 @@ function RoomInner({ code }: { code: string }) {
             />
           </div>
         </div>
+
+        {HostBadge && (
+          <Suspense fallback={null}>
+            <HostBadge code={view.code} />
+          </Suspense>
+        )}
 
         {/* mobile tabs */}
         <div className="lg:hidden">
@@ -167,8 +181,8 @@ function RoomInner({ code }: { code: string }) {
           />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[260px_1fr_320px]">
-          <aside className={cx('space-y-3', tab === 'players' ? 'block' : 'hidden lg:block')}>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
+          <aside className={cx('min-w-0 space-y-3', tab === 'players' ? 'block' : 'hidden lg:block')}>
             <div className="card p-3">
               <VoicePanel view={view} />
             </div>
@@ -176,14 +190,14 @@ function RoomInner({ code }: { code: string }) {
               <PlayersPanel view={view} />
             </div>
           </aside>
-          <section className={cx(tab === 'game' ? 'block' : 'hidden lg:block')}>
+          <section className={cx('min-w-0', tab === 'game' ? 'block' : 'hidden lg:block')}>
             <div className="lg:hidden mb-3">
               <VoicePanel view={view} />
             </div>
             {stage}
             {isHost && view.status === 'playing' && <HostControls />}
           </section>
-          <aside className={cx('card p-3 lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]', tab === 'chat' ? 'block' : 'hidden lg:block')}>
+          <aside className={cx('card min-w-0 p-3 lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]', tab === 'chat' ? 'block' : 'hidden lg:block')}>
             <ChatPanel view={view} compact={tab === 'chat'} />
           </aside>
         </div>
@@ -244,7 +258,7 @@ function InviteModal({ open, onClose, view, link }: { open: boolean; onClose: ()
   const [recent, setRecent] = useState<(PublicUser & { online: boolean })[]>([]);
   const [sent, setSent] = useState<Record<string, boolean>>({});
   useEffect(() => {
-    if (!open || !user) return;
+    if (!open || !user || PAGES) return;
     api<{ friends: (PublicUser & { online: boolean })[]; recent: (PublicUser & { online: boolean })[] }>('/api/friends')
       .then((r) => {
         setFriends(r.friends);
@@ -275,7 +289,9 @@ function InviteModal({ open, onClose, view, link }: { open: boolean; onClose: ()
         <a className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-bold text-ink-950" href={`https://wa.me/?text=${encodeURIComponent(`تعال العب معنا على خبصة 🎮 ${link}`)}`} target="_blank" rel="noopener noreferrer">
           ابعت على واتساب
         </a>
-        {user?.isGuest ? (
+        {PAGES ? (
+          <p className="text-center text-sm text-ink-400">انسخ الرابط أو ابعته على واتساب. أصحابك بيفتحوه وبيدخلوا مباشرة.</p>
+        ) : user?.isGuest ? (
           <p className="text-center text-sm text-ink-400">
             <Link to="/register" className="text-volt-300 underline">سجّل حساب</Link> لتضيف أصحاب وتعزمهم مباشرة.
           </p>

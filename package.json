@@ -16,7 +16,10 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:voice": "playwright test -c playwright.voice.config.ts",
-    "check": "npm run typecheck && npm test && npm run build && npm run test:e2e"
+    "check": "npm run typecheck && npm test && npm run build && npm run test:e2e",
+    "build:pages": "vite build --mode pages && node scripts/build-pages-content.ts dist-pages && node -e \"require('fs').writeFileSync('dist-pages/.nojekyll','')\"",
+    "preview:pages": "node scripts/serve-pages.mjs",
+    "test:pages": "playwright test -c playwright.pages.config.ts"
   },
   "license": "UNLICENSED",
   "type": "module",
@@ -32,6 +35,7 @@
     "livekit-client": "^2.23.0",
     "livekit-server-sdk": "^2.19.3",
     "lucide-react": "^1.72.0",
+    "peerjs": "^1.5.5",
     "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

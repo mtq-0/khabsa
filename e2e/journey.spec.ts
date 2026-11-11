@@ -47,6 +47,8 @@ test('full journey: create, invite link, chat, play مين برا السالفة
     await expect(p.page.getByTestId('ready-btn')).toBeVisible();
   }
   await expect(host.page.getByTestId('players-list').locator('li')).toHaveCount(3);
+  // regression: the room lobby must fit phone screens (no horizontal overflow / zoom-out)
+  for (const p of [p2]) expect(await p.page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.documentElement.clientWidth) - screen.width)).toBeLessThanOrEqual(1);
 
   // chat
   await host.page.getByTestId('chat-input').fill('أهلاً يا شلة 👋');
@@ -209,4 +211,16 @@ test('registered user flow and admin dashboard access control', async ({ browser
   await other.page.goto('/admin');
   await expect(other.page.getByText('هالصفحة للإدارة بس')).toBeVisible();
   await other.ctx.close();
+});
+
+test('room lobby fits a phone screen when the host is on a phone (regression: zoomed-out lobby)', async ({ browser }) => {
+  const { page, ctx } = await player(browser, 'iPhone 13');
+  await page.goto('/create');
+  await guest(page, 'مضيف موبايل');
+  await page.getByTestId('create-submit').click();
+  await expect(page.getByTestId('select-game-taboo')).toBeVisible();
+  // the layout viewport must not be wider than the phone (mobile browsers zoom out when it is)
+  const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.documentElement.clientWidth) - screen.width);
+  expect(overflow).toBeLessThanOrEqual(1);
+  await ctx.close();
 });

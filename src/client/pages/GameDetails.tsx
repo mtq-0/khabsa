@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { Plus, Zap } from 'lucide-react';
 import { GAMES, isGameId } from '../../shared/games.ts';
 import { Button, GameArt } from '../components/ui.tsx';
+import { PAGES } from '../lib/mode.ts';
 import NotFoundPage from './NotFound.tsx';
 
 export default function GameDetailsPage() {
@@ -33,9 +34,11 @@ export default function GameDetailsPage() {
             <Button size="lg" icon={<Plus className="size-5" />} onClick={() => nav(`/create?game=${id}`)} data-testid="create-with-game">
               اعمل غرفة بهاللعبة
             </Button>
-            <Button size="lg" variant="secondary" icon={<Zap className="size-5" />} onClick={() => nav(`/play?game=${id}`)}>
-              لعب سريع
-            </Button>
+            {!PAGES && (
+              <Button size="lg" variant="secondary" icon={<Zap className="size-5" />} onClick={() => nav(`/play?game=${id}`)}>
+                لعب سريع
+              </Button>
+            )}
           </div>
           <h2 className="mt-10 text-2xl font-bold">طريقة اللعب</h2>
           <ol className="mt-4 space-y-3">

@@ -4,6 +4,7 @@ import type { ChatMessage, RoomView } from '../../shared/protocol.ts';
 import { api, errorText } from '../lib/api.ts';
 import { useRoomContext } from '../lib/room.ts';
 import { useVoice } from '../voice/voiceStore.ts';
+import { PAGES } from '../lib/mode.ts';
 import { Avatar, Button, Modal, cx, toast } from '../components/ui.tsx';
 
 const EMOJIS = ['😂', '🤣', '😅', '😎', '🤔', '🙄', '😱', '🔥', '👏', '❤️', '😭', '🕵️', '👀', '🤐', '💀', '🎉'];
@@ -54,7 +55,7 @@ export function PlayersPanel({ view }: { view: RoomView }) {
                 <option value="1">كهربائي</option>
               </select>
             )}
-            {m.id !== view.you && (
+            {m.id !== view.you && (isHost || !PAGES) && (
               <button className="rounded-lg p-1 text-ink-400 hover:bg-white/10" onClick={() => setMenu(menu === m.id ? null : m.id)} aria-label="خيارات اللاعب">
                 <MoreVertical className="size-4" />
               </button>
@@ -87,15 +88,17 @@ export function PlayersPanel({ view }: { view: RoomView }) {
                     </button>
                   </>
                 )}
-                <button
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/10"
-                  onClick={() => {
-                    setMenu(null);
-                    setReport(m.id);
-                  }}
-                >
-                  <Flag className="size-4" /> بلّغ عنه
-                </button>
+                {!PAGES && (
+                  <button
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/10"
+                    onClick={() => {
+                      setMenu(null);
+                      setReport(m.id);
+                    }}
+                  >
+                    <Flag className="size-4" /> بلّغ عنه
+                  </button>
+                )}
               </div>
             )}
           </li>
