@@ -13,7 +13,7 @@ import { limits as makeLimits } from '../../server/security/rateLimit.ts';
 import { cleanText } from '../../server/security/text.ts';
 import type { UserRow } from '../../server/auth/auth.ts';
 import type { RoomView } from '../../shared/protocol.ts';
-import { BrowserContent, imageUrls } from './content.ts';
+import { BrowserContent, imageUrl, primeImages } from './content.ts';
 import { LocalDb, forgetStoredRoom } from './localDb.ts';
 import { PEER_OPTIONS, Peer, loopbackPair, peerIdFor, peerLink, type Link, type Msg } from './link.ts';
 import type { LocalIdentity } from './identity.ts';
@@ -146,7 +146,7 @@ export class Hub {
         games: async () => ({}),
         invalidate() {},
       } as unknown as RoomDeps['platform'],
-      engines: createEngines({ sign: (id) => imageUrls.get(id) ?? '' }),
+      engines: createEngines({ sign: (id) => imageUrl(id) }),
       voiceAvailable: false,
       idleMinutes: 60,
     };
@@ -160,6 +160,8 @@ export class Hub {
     const hub = new Hub(code);
     current = hub;
     await hub.rooms.restore();
+    // pictures of a restored game are not in memory any more: load them again before anyone looks
+    for (const r of hub.rooms.rooms.values()) if (r.game) await primeImages(JSON.stringify(r.game)).catch(() => {});
     if (!hub.rooms.roomByCode(code)) {
       const rec = hostingRecord(code);
       await hub.rooms.create(userRow({ id: host.id, name: host.displayName, avatar: host.avatar }), rec?.opts ?? {}, code);

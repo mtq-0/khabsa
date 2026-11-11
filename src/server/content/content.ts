@@ -8,6 +8,13 @@ import { cleanText } from '../security/text.ts';
 export const CONTENT_KINDS: ContentKind[] = ['word', 'question-pair', 'picture-pair', 'most-likely', 'taboo-card', 'trivia', 'draw-word'];
 
 const t = (max: number) => z.string().transform((s) => cleanText(s, max)).pipe(z.string().min(1).max(max));
+const httpsLink = (hosts: RegExp) => z.url({ protocol: /^https$/, hostname: hosts }).max(400);
+const PHOTO_CREDIT = z.object({
+  author: t(200),
+  license: t(40),
+  licenseUrl: httpsLink(/^(creativecommons\.org|commons\.wikimedia\.org|en\.wikipedia\.org)$/).optional(), // none for public domain
+  page: httpsLink(/^commons\.wikimedia\.org$/),
+});
 
 /** Validation schema for each content kind's data payload. */
 export const CONTENT_SCHEMAS: Record<ContentKind, z.ZodType<Record<string, unknown>>> = {
@@ -19,7 +26,15 @@ export const CONTENT_SCHEMAS: Record<ContentKind, z.ZodType<Record<string, unkno
   }),
   'draw-word': z.object({ word: t(30), alternatives: z.array(t(30)).max(5).optional() }),
   'question-pair': z.object({ majority: t(160), outsider: t(160) }).refine((d) => d.majority !== d.outsider, 'السؤالين لازم يكونوا مختلفين'),
-  'picture-pair': z.object({ a: z.uuid(), b: z.uuid(), labelA: t(60), labelB: t(60), mode: z.enum(['normal', 'hard']) }),
+  'picture-pair': z.object({
+    a: z.uuid(),
+    b: z.uuid(),
+    labelA: t(60),
+    labelB: t(60),
+    mode: z.enum(['normal', 'hard']),
+    /** attribution for real photos (free licenses), shown when the round is revealed */
+    credits: z.object({ a: PHOTO_CREDIT, b: PHOTO_CREDIT }).optional(),
+  }),
   'most-likely': z.object({ text: t(160) }),
   'taboo-card': z.object({ word: t(40), forbidden: z.array(t(30)).min(3).max(6), alternatives: z.array(t(40)).max(5).optional() }),
   trivia: z

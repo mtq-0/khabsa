@@ -1,10 +1,10 @@
 /**
  * Generates the game content for the GitHub Pages (browser-hosted) edition.
- * Output: <outDir>/content/content.json and <outDir>/content/pictures.json
+ * Output: <outDir>/content/{content.json, pictures.json, word-images.json, photos/*.webp}
  * The pictures file is only downloaded by the hosting browser when a
  * picture game starts; other players only ever receive their own picture.
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CATEGORIES } from '../src/server/db/seed/categories.ts';
 import { DRAW_WORDS, OUTSIDER_WORDS, parseWord } from '../src/server/db/seed/words.ts';
@@ -13,6 +13,7 @@ import { MOST_LIKELY, TABOO_CARDS } from '../src/server/db/seed/party.ts';
 import { TRIVIA } from '../src/server/db/seed/trivia.ts';
 import { generatePicturePairs } from '../src/server/db/seed/pictures.ts';
 import { renderWordPicture } from '../src/server/db/seed/wordPictures.ts';
+import { PHOTOS_DIR, itemCredit, photoPairs } from '../src/server/db/seed/photoSeed.ts';
 import type { ContentItem } from '../src/server/games/types.ts';
 
 const outDir = process.argv[2] ?? 'dist-pages';
@@ -43,7 +44,23 @@ for (const [cat, d, question, ...opts] of TRIVIA) add('trivia', cat, DIFF[d], { 
 
 const pictures: ContentItem[] = [];
 const images: Record<string, string> = {};
+// real photos (static files under content/photos/, fetched by the host only when picked)
+const photos = photoPairs();
+const photoLabels = new Set(photos.flatMap((p) => [p.labelA, p.labelB]));
+const photoKeys = new Set<string>();
+photos.forEach((p, i) => {
+  photoKeys.add(p.keyA).add(p.keyB);
+  pictures.push({
+    id: `photo-pair-${i + 1}`,
+    kind: 'picture-pair',
+    category: p.category,
+    difficulty: 'medium',
+    data: { a: `photo-${p.keyA}`, b: `photo-${p.keyB}`, labelA: p.labelA, labelB: p.labelB, mode: 'normal', credits: { a: itemCredit(p.creditA), b: itemCredit(p.creditB) } },
+  });
+});
 generatePicturePairs().forEach((p, i) => {
+  // illustrated pairs showing the same subjects as a photo pair are replaced (hard ones stay)
+  if (p.mode === 'normal' && (photoLabels.has(p.labelA) || photoLabels.has(p.labelB))) return;
   const a = `img-${i}-a`;
   const b = `img-${i}-b`;
   images[a] = p.svgA;
@@ -56,4 +73,6 @@ mkdirSync(dir, { recursive: true });
 writeFileSync(join(dir, 'content.json'), JSON.stringify({ categories: CATEGORIES, items }));
 writeFileSync(join(dir, 'pictures.json'), JSON.stringify({ items: pictures, images }));
 writeFileSync(join(dir, 'word-images.json'), JSON.stringify({ images: wordImages }));
-console.log(`pages content: ${items.length} items, ${pictures.length} picture pairs, ${Object.keys(wordImages).length} word pictures -> ${dir}`);
+mkdirSync(join(dir, 'photos'), { recursive: true });
+for (const k of photoKeys) copyFileSync(join(PHOTOS_DIR, `${k}.webp`), join(dir, 'photos', `${k}.webp`));
+console.log(`pages content: ${items.length} items, ${pictures.length} picture pairs (${photos.length} real photos), ${Object.keys(wordImages).length} word pictures -> ${dir}`);

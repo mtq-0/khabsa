@@ -270,3 +270,86 @@ test('sound and visual effects: a correct guess plays sounds, shows +points and 
   for (const p of [host, g]) expect(p.errors).toEqual([]);
   for (const p of [host, g]) await p.ctx.close();
 });
+
+test('مين برا الرسمة with real photos: private photos, then both photos with their credits', async ({ browser }) => {
+  const names = ['أبو سند', 'سلمى', 'زيد'];
+  const all = await Promise.all(names.map(() => player(browser, null)));
+  const [host] = all;
+  await host.page.goto('/');
+  await host.page.getByTestId('create-room').click();
+  await guest(host.page, names[0]);
+  await host.page.getByTestId('create-submit').click();
+  await expect(host.page).toHaveURL(/\/r\/[A-Z2-9]{6}$/);
+  const code = host.page.url().split('/').pop()!;
+  for (const [i, p] of all.entries()) {
+    if (!i) continue;
+    await p.page.goto(`/r/${code}`);
+    await guest(p.page, names[i]);
+    await expect(p.page.getByTestId('ready-btn')).toBeVisible();
+  }
+  await host.page.getByTestId('select-game-outsider-picture').click();
+  // Jordan only has real photos (Petra, Wadi Rum, …)
+  await host.page.locator('select:has(option[value="jordan"])').selectOption('jordan');
+  await host.page.locator('input[type=range]').first().fill('1');
+  for (const p of all.slice(1)) await p.page.getByTestId('ready-btn').click();
+  await expect(host.page.getByTestId('start-game')).toBeEnabled();
+  await host.page.getByTestId('start-game').click();
+
+  // each player gets one private photo; the odd one out is the outsider's
+  const srcs: string[] = [];
+  for (const p of all) {
+    const img = p.page.getByTestId('role-card').locator('img').first();
+    await expect(img).toBeVisible();
+    await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBe(800);
+    srcs.push((await img.getAttribute('src')) ?? '');
+    // nothing on screen credits (and so names) the photos during play
+    await expect(p.page.getByTestId('photo-credit')).toHaveCount(0);
+  }
+  // links are signed per viewer, so compare the photos themselves
+  const digests = await Promise.all(
+    all.map((p, i) =>
+      p.page.evaluate(async (u) => {
+        const buf = await (await fetch(u)).arrayBuffer();
+        return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf))).join(',');
+      }, srcs[i]),
+    ),
+  );
+  expect(new Set(digests).size).toBe(2);
+  const outIdx = digests.findIndex((d) => digests.filter((x) => x === d).length === 1);
+  expect(outIdx).toBeGreaterThanOrEqual(0);
+  const outsider = all[outIdx];
+  const insiders = all.filter((_, i) => i !== outIdx);
+  // a player cannot open someone else's photo link
+  const theirs = await insiders[0].page.evaluate(async (u) => (await fetch(u)).status, srcs[outIdx]);
+  expect(theirs).toBe(403);
+  const mine = await outsider.page.evaluate(async (u) => {
+    const r = await fetch(u);
+    return `${r.status} ${r.headers.get('content-type')}`;
+  }, srcs[outIdx]);
+  expect(mine).toBe('200 image/webp');
+
+  for (const p of all) await p.page.getByTestId('seen-btn').click();
+  for (let i = 0; i < 3; i++) {
+    const btn = await Promise.race(all.map((p) => p.page.getByTestId('turn-done').waitFor({ timeout: 8000 }).then(() => p.page.getByTestId('turn-done'))));
+    await btn.click();
+    await host.page.waitForTimeout(300);
+  }
+  for (const p of all) await p.page.getByTestId('ready-vote').click();
+  for (const p of insiders) await p.page.getByRole('button', { name: new RegExp(names[outIdx]) }).first().click();
+  await outsider.page.locator('[data-testid^="vote-"]:not([disabled])').first().click();
+  await expect(outsider.page.getByTestId('guess-option').first()).toBeVisible({ timeout: 15_000 });
+  await outsider.page.getByTestId('guess-option').first().click();
+
+  // round end: both photos for everyone, each with author, licence and a Commons link
+  for (const p of all) {
+    const credits = p.page.getByTestId('photo-credit');
+    await expect(credits).toHaveCount(2, { timeout: 15_000 });
+    for (const c of await credits.all()) {
+      await expect(c).toContainText(/CC|Public domain/);
+      expect(await c.locator('a').first().getAttribute('href')).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
+    }
+  }
+  await host.page.screenshot({ path: 'test-results/photo-round-end.png', fullPage: true });
+  for (const p of all) expect(p.errors, 'no uncaught page errors').toEqual([]);
+  for (const p of all) await p.ctx.close();
+});

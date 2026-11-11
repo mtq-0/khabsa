@@ -94,7 +94,9 @@ test('GitHub Pages edition: host in the browser, friends join by link, private r
     await expect(img).toBeVisible();
     srcs.push((await img.getAttribute('src')) ?? '');
   }
-  for (const s of srcs) expect(s).toMatch(/^data:image\/svg\+xml;base64,/);
+  // an illustration (inline) or a real photo (static file on the same site)
+  for (const s of srcs) expect(s).toMatch(/^data:image\/svg\+xml;base64,|\/content\/photos\/[a-z0-9-]+\.webp$/);
+  for (const p of all) await expect.poll(() => p.page.getByTestId('role-card').locator('img').first().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true);
   expect(new Set(srcs).size).toBe(2); // majority share one picture, the outsider has another
 
   // a guest closes the page and comes back: same seat, same private card
@@ -111,6 +113,8 @@ test('GitHub Pages edition: host in the browser, friends join by link, private r
   await host.page.reload();
   await gameTab(host.page);
   await expect(host.page.getByTestId('role-card')).toBeVisible({ timeout: 30_000 });
+  // …with its picture (regression: pictures were lost from memory on refresh)
+  await expect(host.page.getByTestId('role-card').locator('img').first()).toHaveAttribute('src', srcs[0], { timeout: 30_000 });
   await expect(host.page.getByTestId('host-badge')).toHaveAttribute('data-state', 'online', { timeout: 90_000 });
   await expect(host.page.getByTestId('host-badge')).toContainText('متصلين: 2', { timeout: 90_000 });
   await gameTab(p3.page);

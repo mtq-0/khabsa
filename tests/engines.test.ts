@@ -207,6 +207,25 @@ describe('مين برا الرسمة؟ (outsider-picture)', () => {
   });
 });
 
+describe('مين برا الرسمة؟ real photo credits', () => {
+  it('sends photo attribution only when the pictures are revealed', () => {
+    const h = new Harness<OutsiderState>('outsider-picture', 3, { mode: 'normal', rounds: 1 });
+    const credit = (n: string) => ({ author: `Author ${n}`, license: 'CC BY-SA 4.0', licenseUrl: 'https://creativecommons.org/licenses/by-sa/4.0', page: `https://commons.wikimedia.org/wiki/File:${n}.jpg` });
+    h.state.secret!.credits = { a: credit('A'), b: credit('B') };
+    const out = h.state.outsiders[0];
+    // during play nobody can learn the other picture from its credit
+    for (const p of h.players) expect(json(h.view(p))).not.toContain('Author');
+    for (const p of h.players) h.act(p, 'seen');
+    for (let i = 0; i < 6; i++) h.expire(); // 3 turns → discuss → vote → verdict → guess
+    expect(json(h.view(out))).not.toContain('Author');
+    h.act(out, 'guess', { choice: h.state.secret!.labelA });
+    expect(h.state.phase).toBe('roundEnd');
+    const v = h.view(h.players.find((p) => p !== out)!);
+    expect(v.reveal.credits.a.author).toBe('Author A');
+    expect(v.reveal.credits.b.page).toContain('commons.wikimedia.org');
+  });
+});
+
 describe('مين الأطرش بالزفة؟ (odd-question)', () => {
   it('gives the outsider a different question without telling them and hides answers until all answered', () => {
     const h = new Harness<OddQuestionState>('odd-question', 4, { rounds: 1 });

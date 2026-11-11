@@ -60,6 +60,34 @@ function svgDataUrl(svg: string): string {
   return `data:image/svg+xml;base64,${btoa(bin)}`;
 }
 
+const PHOTO_PREFIX = 'photo-';
+
+/**
+ * Real photos are static .webp files next to the content (same origin for every player), so the
+ * engine hands each player just the URL of their own photo — nothing to send over the peer link,
+ * and it still works after the host refreshes.
+ */
+export function imageUrl(id: string): string {
+  if (id.startsWith(PHOTO_PREFIX)) {
+    const key = id.slice(PHOTO_PREFIX.length);
+    return /^[a-z0-9-]{1,80}$/.test(key) ? asset(`content/photos/${key}.webp`) : '';
+  }
+  return imageUrls.get(id) ?? '';
+}
+
+/** After the host refreshes, reload the illustrated pictures a restored game still refers to. */
+export async function primeImages(state: string) {
+  const ids = new Set(state.match(/"(?:img-\d+-[ab]|wimg-\d+)"/g)?.map((m) => m.slice(1, -1)) ?? []);
+  const missing = [...ids].filter((id) => !imageUrls.has(id));
+  if (!missing.length) return;
+  const pics = missing.some((id) => id.startsWith('img-')) ? (await loadPictures().catch(() => null))?.images ?? {} : {};
+  const words = missing.some((id) => id.startsWith('wimg-')) ? (await loadWordImages().catch(() => null))?.images ?? {} : {};
+  for (const id of missing) {
+    const svg = pics[id] ?? words[id];
+    if (svg) imageUrls.set(id, svgDataUrl(svg));
+  }
+}
+
 function shuffle<T>(a: T[]): T[] {
   const r = a.slice();
   for (let i = r.length - 1; i > 0; i--) {

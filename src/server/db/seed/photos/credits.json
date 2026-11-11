@@ -1,0 +1,968 @@
+{
+ "red-apple-fruit": {
+  "title": "Red Apple.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Red_Apple.jpg",
+  "author": "Abhijit Tembhekar from Mumbai, India",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "pear-fruit": {
+  "title": "D'anjou pear.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:D%27anjou_pear.jpg",
+  "author": "Rhododendrites",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "watermelon-slice": {
+  "title": "Slice of Watermelon from Wilson Farm, Lexington MA.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Slice_of_Watermelon_from_Wilson_Farm,_Lexington_MA.jpg",
+  "author": "John Phelan",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "cantaloupe-melon-cut": {
+  "title": "Cantaloupe cut and whole.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Cantaloupe_cut_and_whole.jpg",
+  "author": "Atomicbre at English Wikipedia",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "hamburger": {
+  "title": "Big Mac hamburger.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Big_Mac_hamburger.jpg",
+  "author": "Evan-Amos",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "sandwich-bread": {
+  "title": "Sandwich on a cutting board.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Sandwich_on_a_cutting_board.jpg",
+  "author": "Revital Salomon",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "pizza": {
+  "title": "Eq it-na pizza-margherita sep2005 sml.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Eq_it-na_pizza-margherita_sep2005_sml.jpg",
+  "author": "Valerio Capello at English Wikipedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "apple-pie": {
+  "title": "Apple pie 24.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Apple_pie_24.jpg",
+  "author": "Shisma",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "ice-cream-cone": {
+  "title": "Ice cream cone at the beach.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Ice_cream_cone_at_the_beach.jpg",
+  "author": "AlphaLemur",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "chocolate-cake-slice": {
+  "title": "Piece of chocolate cake on a white plate decorated with chocolate sauce.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Piece_of_chocolate_cake_on_a_white_plate_decorated_with_chocolate_sauce.jpg",
+  "author": "Daria YakovlevaMinor edits made by Subsidiary account",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "lemons": {
+  "title": "Lemon.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Lemon.jpg",
+  "author": "André Karwath aka Aka",
+  "license": "CC BY-SA 2.5",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5"
+ },
+ "oranges-fruit": {
+  "title": "Oranges - whole-halved-segment.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Oranges_-_whole-halved-segment.jpg",
+  "author": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "strawberries": {
+  "title": "Garden strawberry (Fragaria × ananassa) single2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Garden_strawberry_(Fragaria_%C3%97_ananassa)_single2.jpg",
+  "author": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "blueberries": {
+  "title": "Dish of blueberries.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Dish_of_blueberries.jpg",
+  "author": "Petar Milošević",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "cup-of-coffee": {
+  "title": "A small cup of coffee.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:A_small_cup_of_coffee.JPG",
+  "author": "Julius Schorzman",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "cup-of-tea": {
+  "title": "Cup of black tea.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:Cup_of_black_tea.JPG",
+  "author": "AntanO",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "doughnuts": {
+  "title": "Doughnut.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Doughnut.jpg",
+  "author": "Angeldm",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "chocolate-chip-cookies": {
+  "title": "Choc-Chip-Cookie.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Choc-Chip-Cookie.jpg",
+  "author": "Evan-Amos",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "carrots-vegetable": {
+  "title": "Vegetable-Carrot-Bundle-wStalks.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Vegetable-Carrot-Bundle-wStalks.jpg",
+  "author": "Evan-Amos",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "corn-on-the-cob": {
+  "title": "Air fried corn-on-the-cob (United States).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Air_fried_corn-on-the-cob_(United_States).jpg",
+  "author": "NeoBatfreak",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "domestic-cat": {
+  "title": "Felis catus-cat on snow.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Felis_catus-cat_on_snow.jpg",
+  "author": "Von.grzanka",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "tiger": {
+  "title": "Sibirischer tiger de edit02.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Sibirischer_tiger_de_edit02.jpg",
+  "author": "S. Taheri, edited by Fir0002",
+  "license": "CC BY-SA 2.5",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5"
+ },
+ "dog-portrait": {
+  "title": "Close-up portrait of dog.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Close-up_portrait_of_dog.jpg",
+  "author": "Pittigrilli",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "gray-wolf": {
+  "title": "Eurasian wolf 2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Eurasian_wolf_2.jpg",
+  "author": "User:Mas3cf",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "lion-male": {
+  "title": "Lion waiting in Namibia.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Lion_waiting_in_Namibia.jpg",
+  "author": "Kevin Pluck",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "cheetah": {
+  "title": "Cheetah (Acinonyx jubatus) female 2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Cheetah_(Acinonyx_jubatus)_female_2.jpg",
+  "author": "Charles J. Sharp",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "dromedary-camel": {
+  "title": "Dromedary in Thar desert.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Dromedary_in_Thar_desert.jpg",
+  "author": "Clément Bardot",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "llama": {
+  "title": "Lama 1 Luc Viatour.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Lama_1_Luc_Viatour.jpg",
+  "author": "Luc Viatour",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "horse": {
+  "title": "Domestic horse at Suryachaur and the mountains in the back1.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Domestic_horse_at_Suryachaur_and_the_mountains_in_the_back1.jpg",
+  "author": "Shadow Ayush",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "zebra": {
+  "title": "Equus zebra hartmannae - Etosha 2015.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Equus_zebra_hartmannae_-_Etosha_2015.jpg",
+  "author": "Yathin S Krishnappa",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "cow": {
+  "title": "Cow (Fleckvieh breed) Oeschinensee Slaunger 2009-07-07.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Cow_(Fleckvieh_breed)_Oeschinensee_Slaunger_2009-07-07.jpg",
+  "author": "Kim Hansen",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "sheep": {
+  "title": "Swaledale Sheep, Lake District, England - June 2009.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Swaledale_Sheep,_Lake_District,_England_-_June_2009.jpg",
+  "author": "User:Diliff",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "rabbit": {
+  "title": "Lapin blanc.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Lapin_blanc.jpg",
+  "author": "Fabien1309",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "house-mouse": {
+  "title": "Домовая мышь (Mus musculus), Москва.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:%D0%94%D0%BE%D0%BC%D0%BE%D0%B2%D0%B0%D1%8F_%D0%BC%D1%8B%D1%88%D1%8C_(Mus_musculus),_%D0%9C%D0%BE%D1%81%D0%BA%D0%B2%D0%B0.jpg",
+  "author": "Dion Art",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "brown-bear": {
+  "title": "Grizzly Bear (Ursus arctos ssp.).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Grizzly_Bear_(Ursus_arctos_ssp.).jpg",
+  "author": "Gregory \"Slobirdr\" Smith",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "giant-panda": {
+  "title": "Panda géant (Ailuropoda melanoleuca) (1).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Panda_g%C3%A9ant_(Ailuropoda_melanoleuca)_(1).jpg",
+  "author": "Gzen92",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "frog": {
+  "title": "Australia green tree frog (Litoria caerulea) crop.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Australia_green_tree_frog_(Litoria_caerulea)_crop.jpg",
+  "author": "LiquidGhoul",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "tortoise": {
+  "title": "Radiated tortoise (Astrochelys radiata) Tsimanampetsotsa.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Radiated_tortoise_(Astrochelys_radiata)_Tsimanampetsotsa.jpg",
+  "author": "Charles J. Sharp",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "dolphin": {
+  "title": "Tursiops truncatus 01.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Tursiops_truncatus_01.jpg",
+  "author": "NASA",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "humpback-whale": {
+  "title": "Humpback whale (Megaptera novaeangliae) calf Moorea 2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Humpback_whale_(Megaptera_novaeangliae)_calf_Moorea_2.jpg",
+  "author": "Charles J. Sharp",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "penguin": {
+  "title": "2019-03-03 Chinstrap penguin on Barrientos Island, Antarctica.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:2019-03-03_Chinstrap_penguin_on_Barrientos_Island,_Antarctica.jpg",
+  "author": "Gordon Leggett",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "owl": {
+  "title": "Eurasian eagle-owl (44088).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Eurasian_eagle-owl_(44088).jpg",
+  "author": "Rhododendrites",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "honey-bee": {
+  "title": "Apis mellifera - Brassica napus - Valingu.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Apis_mellifera_-_Brassica_napus_-_Valingu.jpg",
+  "author": "Ivar Leidus",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "ladybird": {
+  "title": "Siebenpunkt-Marienkäfer (Coccinella septempunctata) auf Blüte im FFH-Gebiet \"Viernheimer Waldheide und angrenzende Flächen\".jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Siebenpunkt-Marienk%C3%A4fer_(Coccinella_septempunctata)_auf_Bl%C3%BCte_im_FFH-Gebiet_%22Viernheimer_Waldheide_und_angrenzende_Fl%C3%A4chen%22.jpg",
+  "author": "Stephan Sprinz",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "butterfly": {
+  "title": "Peacock butterfly (Aglais io) 2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Peacock_butterfly_(Aglais_io)_2.jpg",
+  "author": "Charles J. Sharp",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "dragonfly": {
+  "title": "Sympetrum flaveolum - side (aka).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Sympetrum_flaveolum_-_side_(aka).jpg",
+  "author": "André Karwath aka Aka",
+  "license": "CC BY-SA 2.5",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5"
+ },
+ "rooster": {
+  "title": "Feral rooster on Kauaʻi.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Feral_rooster_on_Kaua%CA%BBi.jpg",
+  "author": "Frank Schulenburg",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "mallard-duck": {
+  "title": "Male mallard duck 2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Male_mallard_duck_2.jpg",
+  "author": "Acarpentier",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "snake": {
+  "title": "Ahaetulla prasina, oriental whipsnake - Kaeng Krachan National Park.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Ahaetulla_prasina,_oriental_whipsnake_-_Kaeng_Krachan_National_Park.jpg",
+  "author": "www.thainationalparks.com/kaeng-krachan-national-park Thai National Parks Rushen",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "crocodile": {
+  "title": "Nile crocodile head.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Nile_crocodile_head.jpg",
+  "author": "Leigh Bedford",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "african-elephant": {
+  "title": "African bush elephants (Loxodonta africana) female with six-week-old baby.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:African_bush_elephants_(Loxodonta_africana)_female_with_six-week-old_baby.jpg",
+  "author": "Charles J. Sharp",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "rhinoceros": {
+  "title": "Rhinoceros in South Africa adjusted.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Rhinoceros_in_South_Africa_adjusted.jpg",
+  "author": "Komencanto, modified by ArtMechanic",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "monkey": {
+  "title": "Green monkey (Chlorocebus sabaeus) juvenile head.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Green_monkey_(Chlorocebus_sabaeus)_juvenile_head.jpg",
+  "author": "Charles J. Sharp",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "gorilla": {
+  "title": "Mountain gorilla (Gorilla beringei beringei) female eating root.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Mountain_gorilla_(Gorilla_beringei_beringei)_female_eating_root.jpg",
+  "author": "Charles J. Sharp",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "football-soccer-ball": {
+  "title": "Giant Soccer Ball.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Giant_Soccer_Ball.jpg",
+  "author": "A. Scott Fulkerson",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "basketball-ball": {
+  "title": "2011-06-07 Basketball in hoop still shot.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:2011-06-07_Basketball_in_hoop_still_shot.jpg",
+  "author": "Ildar Sagdejev (Specious)",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "tennis-ball": {
+  "title": "Tennis ball on tennis court 20170619.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Tennis_ball_on_tennis_court_20170619.jpg",
+  "author": "Santeri Viinamäki",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "baseball-ball": {
+  "title": "Official French FFBS baseball ball on schist (3).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Official_French_FFBS_baseball_ball_on_schist_(3).jpg",
+  "author": "RéMont",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "volleyball-ball": {
+  "title": "Volleyball ball - le ballon de volley-ball - كرة الكرة الطائرة Espérance sportive de Tunis photo2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Volleyball_ball_-_le_ballon_de_volley-ball_-_%D9%83%D8%B1%D8%A9_%D8%A7%D9%84%D9%83%D8%B1%D8%A9_%D8%A7%D9%84%D8%B7%D8%A7%D8%A6%D8%B1%D8%A9_Esp%C3%A9rance_sportive_de_Tunis_photo2.jpg",
+  "author": "Sami Mlouhi",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "rugby-ball": {
+  "title": "Steedenfootball.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Steedenfootball.jpg",
+  "author": "Angry mob mulls options",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "gold-medal": {
+  "title": "1980 Summer Olympics – Dainis Kūla gold medal.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:1980_Summer_Olympics_%E2%80%93_Dainis_K%C5%ABla_gold_medal.jpg",
+  "author": "Edgars Košovojs",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "trophy-cup": {
+  "title": "FA Cup Trophy at Manchester National Football Museum (Ank Kumar) 01.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:FA_Cup_Trophy_at_Manchester_National_Football_Museum_(Ank_Kumar)_01.jpg",
+  "author": "Ank Kumar",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "car-sedan": {
+  "title": "Mitsubishi Attrage (aka Mitsubishi Mirage Sedan (G4)) spotted in Kampong Glam - Singapore.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Mitsubishi_Attrage_(aka_Mitsubishi_Mirage_Sedan_(G4))_spotted_in_Kampong_Glam_-_Singapore.jpg",
+  "author": "Firzafp",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "taxi-cab": {
+  "title": "TAXI.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:TAXI.jpg",
+  "author": "Petar Milošević",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "city-bus": {
+  "title": "Landskrona City bus 1.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Landskrona_City_bus_1.jpg",
+  "author": "Barcaviktor25",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "tram": {
+  "title": "C Class Tram, Melbourne - Jan 2008.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:C_Class_Tram,_Melbourne_-_Jan_2008.jpg",
+  "author": "Diliff",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "ambulance": {
+  "title": "Krankentransportwagen in Passau.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:Krankentransportwagen_in_Passau.JPG",
+  "author": "High Contrast",
+  "license": "CC BY 3.0 de",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0/de/deed.en"
+ },
+ "fire-engine": {
+  "title": "Fire engine ZIL-131 2009 G1.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Fire_engine_ZIL-131_2009_G1.jpg",
+  "author": "George Chernilevsky",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "police-car": {
+  "title": "Grand Ducal Police car (Ford) in Luxembourg City.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Grand_Ducal_Police_car_(Ford)_in_Luxembourg_City.jpg",
+  "author": "Pudelek (Marcin Szala)",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "formula-one-car": {
+  "title": "070616 Ferrari F1 2007 01.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:070616_Ferrari_F1_2007_01.JPG",
+  "author": "Xavigivax",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "motorcycle": {
+  "title": "2018 FIM Ice Speedway Gladiators World Championship - GP 7 Niedermaier-5563.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:2018_FIM_Ice_Speedway_Gladiators_World_Championship_-_GP_7_Niedermaier-5563.jpg",
+  "author": "Isiwal",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "scooter-vespa": {
+  "title": "Vespa a Todi.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:Vespa_a_Todi.JPG",
+  "author": "Livioandronico2013",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "tractor": {
+  "title": "Tractor John Deere 6320 with front and rear mower cutting grass.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Tractor_John_Deere_6320_with_front_and_rear_mower_cutting_grass.jpg",
+  "author": "Petar Milošević",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "truck-lorry": {
+  "title": "ZiL-130 truck 2013 G1.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:ZiL-130_truck_2013_G1.jpg",
+  "author": "George Chernilevsky",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "cruise-ship": {
+  "title": "Birka June 2013.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Birka_June_2013.jpg",
+  "author": "Arild Vågen",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "sailing-boat": {
+  "title": "Royal-clipper.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Royal-clipper.jpg",
+  "author": "Cbuske46",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "train-locomotive": {
+  "title": "Union Pacific 844, Painted Rocks, NV, 2009 (crop).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Union_Pacific_844,_Painted_Rocks,_NV,_2009_(crop).jpg",
+  "author": "04_15_09_162xp_-_Flickr_-_drewj1946.jpg: Drew Jacksich from San Jose, CA, The Republic of California derivative work: Br",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "metro-train-underground": {
+  "title": "U9 im U-Bahnhof Zoologischer Garten.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:U9_im_U-Bahnhof_Zoologischer_Garten.jpg",
+  "author": "JoachimKohler-HB",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "wristwatch": {
+  "title": "Fashion-wristwatch-time-watch (24217032812).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Fashion-wristwatch-time-watch_(24217032812).jpg",
+  "author": "www.Pixel.la Free Stock Photos",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "alarm-clock": {
+  "title": "Classic alarm clock 20180513.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Classic_alarm_clock_20180513.jpg",
+  "author": "Santeri Viinamäki",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "smartphone": {
+  "title": "Smartphone Use.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Smartphone_Use.jpg",
+  "author": "Océanos y dados",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "rotary-telephone": {
+  "title": "Telefon BW 2012-02-18 13-44-32.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:Telefon_BW_2012-02-18_13-44-32.JPG",
+  "author": "Berthold Werner",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "laptop-computer": {
+  "title": "IBM Thinkpad R51.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:IBM_Thinkpad_R51.jpg",
+  "author": "André Karwath aka Aka",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "desktop-computer": {
+  "title": "Classic desktop computer.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Classic_desktop_computer.jpg",
+  "author": "Microrao",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "camera": {
+  "title": "Nikon Z 5 w Nikkor 50mm f1.8S.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Nikon_Z_5_w_Nikkor_50mm_f1.8S.jpg",
+  "author": "Florstein (Telegram:WikiPhoto.Space)",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "camcorder": {
+  "title": "2023 Kamkorder Samsung VP-M50.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:2023_Kamkorder_Samsung_VP-M50.jpg",
+  "author": "Jacek Halicki",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "umbrella": {
+  "title": "Beige and brown oil-paper umbrella on the edge of a wooden house in Luang Prabang Laos.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Beige_and_brown_oil-paper_umbrella_on_the_edge_of_a_wooden_house_in_Luang_Prabang_Laos.jpg",
+  "author": "Basile Morin",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "beach-umbrella": {
+  "title": "Parasols, Evening, Beach, Rincon de la Victoria, Andalusia, Spain.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Parasols,_Evening,_Beach,_Rincon_de_la_Victoria,_Andalusia,_Spain.jpg",
+  "author": "Jebulon",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "key": {
+  "title": "Key,.,.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Key,.,.jpg",
+  "author": "DIVYALAKSHWIN",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "padlock": {
+  "title": "Solex 99 30 padlock with keys (DSCF2659).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Solex_99_30_padlock_with_keys_(DSCF2659).jpg",
+  "author": "Trougnouf",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "candle-flame": {
+  "title": "Candle flame closeup.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Candle_flame_closeup.jpg",
+  "author": "domdomegg",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "light-bulb": {
+  "title": "Łaziska Górne museum 10000 W light bulb.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:%C5%81aziska_G%C3%B3rne_museum_10000_W_light_bulb.jpg",
+  "author": "Adrian Tync",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "book": {
+  "title": "Liji 2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Liji_2.jpg",
+  "author": "user:snowyowls",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "notebook": {
+  "title": "Notebook writing.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Notebook_writing.jpg",
+  "author": "Jairus Monilla",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "pencils": {
+  "title": "Colouring pencils.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Colouring_pencils.jpg",
+  "author": "MichaelMaggs",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "fountain-pen": {
+  "title": "Fountain pen writing (literacy).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Fountain_pen_writing_(literacy).jpg",
+  "author": "Petar Milošević",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "acoustic-guitar": {
+  "title": "Acoustic guitars in store 20180625.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Acoustic_guitars_in_store_20180625.jpg",
+  "author": "Santeri Viinamäki",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "violin": {
+  "title": "Čelo and Violin with bow on the small table (2019-06-30 13.00.34 by Marko Milivojevic @PIXNIO 2590929).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:%C4%8Celo_and_Violin_with_bow_on_the_small_table_(2019-06-30_13.00.34_by_Marko_Milivojevic_@PIXNIO_2590929).jpg",
+  "author": "Marko Milivojevic (milim84)",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "sneakers": {
+  "title": "Reebok Royal Glide Ripple Clip shoe.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Reebok_Royal_Glide_Ripple_Clip_shoe.jpg",
+  "author": "Petar Milošević",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "high-heels-shoes": {
+  "title": "Black stiletto high heel shoes.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Black_stiletto_high_heel_shoes.jpg",
+  "author": "Danÿa",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "top-hat": {
+  "title": "Top hat - Hardy Brothers (1).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Top_hat_-_Hardy_Brothers_(1).jpg",
+  "author": "Toxophilus",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "baseball-cap": {
+  "title": "LibreOffice baseball cap.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:LibreOffice_baseball_cap.jpg",
+  "author": "Jesús Corrius",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "crown-jewels": {
+  "title": "Crown, Sword and Globus Cruciger of Hungary2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Crown,_Sword_and_Globus_Cruciger_of_Hungary2.jpg",
+  "author": "User:CSvBibra",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "ring-jewellery": {
+  "title": "Ring by Fredrik Tiander 1855.jpeg",
+  "page": "https://commons.wikimedia.org/wiki/File:Ring_by_Fredrik_Tiander_1855.jpeg",
+  "author": "Fredrik Tiander",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "sunset": {
+  "title": "Päijänne and päijätsalo.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:P%C3%A4ij%C3%A4nne_and_p%C3%A4ij%C3%A4tsalo.jpg",
+  "author": "Joonas Lyytinen",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "full-moon": {
+  "title": "FullMoon2010.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:FullMoon2010.jpg",
+  "author": "Gregory H. Revera",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "cumulus-cloud": {
+  "title": "Cumulus cloud above Lechtaler Alps at tannheim, Austria.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Cumulus_cloud_above_Lechtaler_Alps_at_tannheim,_Austria.jpg",
+  "author": "Glg",
+  "license": "CC BY-SA 2.0 de",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/de/deed.en"
+ },
+ "rain-drops-window": {
+  "title": "Rain drops on window 03 ies.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Rain_drops_on_window_03_ies.jpg",
+  "author": "Frank Vincentz",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "snow-landscape": {
+  "title": "Snow Scene at Shipka Pass 1.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:Snow_Scene_at_Shipka_Pass_1.JPG",
+  "author": "Psy guy",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "snowman": {
+  "title": "Bonhomme de neige 2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Bonhomme_de_neige_2.jpg",
+  "author": "Sphiiix",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "red-rose": {
+  "title": "Red rose with black background.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Red_rose_with_black_background.jpg",
+  "author": "Laitche",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "sunflower": {
+  "title": "Eberndorf Köcking Sonnenblumenfeld Biohof Tomic 18072014 0792.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Eberndorf_K%C3%B6cking_Sonnenblumenfeld_Biohof_Tomic_18072014_0792.jpg",
+  "author": "Johann Jaritz",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "oak-tree": {
+  "title": "Oak tree Sunol Regional Wilderness California 2023 dllu.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Oak_tree_Sunol_Regional_Wilderness_California_2023_dllu.jpg",
+  "author": "Daniel Lu (User:dllu)",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "date-palm": {
+  "title": "Date palm at night 2019 G2.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Date_palm_at_night_2019_G2.jpg",
+  "author": "George Chernilevsky",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "cactus": {
+  "title": "Pachycereus pringlei forest.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Pachycereus_pringlei_forest.jpg",
+  "author": "Tomascastelazo",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "potted-plant": {
+  "title": "Potted plants in Shilparamam 01.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Potted_plants_in_Shilparamam_01.jpg",
+  "author": "Kritzolina",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "mountain-peak": {
+  "title": "Cholatse Peak, Nepal, Himalayas.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Cholatse_Peak,_Nepal,_Himalayas.jpg",
+  "author": "Vyacheslav Argenberg",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "volcano-eruption": {
+  "title": "Fimmvorduhals 2010 03 27 dawn.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Fimmvorduhals_2010_03_27_dawn.jpg",
+  "author": "Boaworm",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ },
+ "campfire": {
+  "title": "FIRE 01.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:FIRE_01.JPG",
+  "author": "MarcusObal",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/"
+ },
+ "lightning": {
+  "title": "Lightning in Dallas 2015.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Lightning_in_Dallas_2015.jpg",
+  "author": "NOAA Photo Library",
+  "license": "Public domain",
+  "licenseUrl": ""
+ },
+ "eiffel-tower": {
+  "title": "Eiffel Tower and Pont Alexandre III at night.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Eiffel_Tower_and_Pont_Alexandre_III_at_night.jpg",
+  "author": "Getfunky Paris",
+  "license": "CC BY 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/2.0"
+ },
+ "burj-khalifa": {
+  "title": "Burj Khalifa (16260269606).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Burj_Khalifa_(16260269606).jpg",
+  "author": "Laika ac",
+  "license": "CC BY-SA 2.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0"
+ },
+ "statue-of-liberty": {
+  "title": "LibertyStatue.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:LibertyStatue.JPG",
+  "author": "Jyothis at Malayalam Wikipedia",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "great-sphinx-of-giza": {
+  "title": "Great Sphinx of Giza (أبو الهول).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Great_Sphinx_of_Giza_(%D8%A3%D8%A8%D9%88_%D8%A7%D9%84%D9%87%D9%88%D9%84).jpg",
+  "author": "Petar Milošević",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "mosque": {
+  "title": "Exterior of Sultan Ahmed I Mosque in Istanbul, Turkey 002.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Exterior_of_Sultan_Ahmed_I_Mosque_in_Istanbul,_Turkey_002.jpg",
+  "author": "Moonik",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "castle": {
+  "title": "Schloss Neuschwanstein 2013.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Schloss_Neuschwanstein_2013.jpg",
+  "author": "Thomas Wolf, www.foto-tw.de",
+  "license": "CC BY-SA 3.0 de",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en"
+ },
+ "tent-camping": {
+  "title": "Camping tent on tarp.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Camping_tent_on_tarp.jpg",
+  "author": "Eden Aviv",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "wooden-cabin": {
+  "title": "Peter Nelson Log House-back.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Peter_Nelson_Log_House-back.jpg",
+  "author": "Myotus",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "suspension-bridge": {
+  "title": "Bristol MMB «C1 Clifton Suspension Bridge.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Bristol_MMB_%C2%ABC1_Clifton_Suspension_Bridge.jpg",
+  "author": "mattbuck (category)",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "fountain": {
+  "title": "Prinz-Carl-Palais Munich, April 2018 -02.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Prinz-Carl-Palais_Munich,_April_2018_-02.jpg",
+  "author": "Martin Falbisoner",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "petra-treasury-al-khazneh": {
+  "title": "Al-Khazneh 2, Petra, Jordan.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Al-Khazneh_2,_Petra,_Jordan.jpg",
+  "author": "Vyacheslav Argenberg",
+  "license": "CC BY 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0"
+ },
+ "petra-monastery-ad-deir": {
+  "title": "The Monastery, Petra, Jordan8.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:The_Monastery,_Petra,_Jordan8.jpg",
+  "author": "Diego Delso",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "wadi-rum-desert": {
+  "title": "Wadi rum desert.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Wadi_rum_desert.jpg",
+  "author": "Peter Chisholm",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "dead-sea-shore": {
+  "title": "Shore of the Dead Sea (53258647442).jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Shore_of_the_Dead_Sea_(53258647442).jpg",
+  "author": "Mustang Joe",
+  "license": "CC0",
+  "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en"
+ },
+ "roman-theatre-amman": {
+  "title": "Roman theater of Amman 01.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Roman_theater_of_Amman_01.jpg",
+  "author": "Bernard Gagnon",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "jerash-colonnade": {
+  "title": "Jerash - Oval Forum 02.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:Jerash_-_Oval_Forum_02.jpg",
+  "author": "Bernard Gagnon",
+  "license": "CC BY-SA 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0"
+ },
+ "ajloun-castle": {
+  "title": "The ruins of Ajloun Castle 10.jpg",
+  "page": "https://commons.wikimedia.org/wiki/File:The_ruins_of_Ajloun_Castle_10.jpg",
+  "author": "Mohammad hajeer",
+  "license": "CC BY-SA 4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0"
+ },
+ "kerak-castle": {
+  "title": "Kerak BW 1.JPG",
+  "page": "https://commons.wikimedia.org/wiki/File:Kerak_BW_1.JPG",
+  "author": "Berthold Werner",
+  "license": "CC BY 3.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/3.0"
+ }
+}

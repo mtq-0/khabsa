@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb, migrate, type Db } from '../src/server/db/db.ts';
-import { ContentRepo } from '../src/server/content/content.ts';
+import { ContentRepo, validateContent } from '../src/server/content/content.ts';
+import { photoPairs } from '../src/server/db/seed/photoSeed.ts';
 import { StatsService } from '../src/server/stats/stats.ts';
 import { csvToItems, parseCsv } from '../src/server/content/csv.ts';
 import { seed } from '../src/server/db/seed/seed.ts';
@@ -158,6 +159,46 @@ describe('content system', () => {
     const before = (await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n;
     await seed(db, new Storage(db));
     expect((await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n).toBe(before);
+  });
+
+  it('real photo pairs are seeded with credits and replace the matching illustrated pairs', async () => {
+    const photos = await db.query<{ n: number; bad: number }>(
+      `select count(*)::int n,
+              count(*) filter (where ia.mime <> 'image/webp' or ib.mime <> 'image/webp' or fa.key is null or fb.key is null
+                               or c.data->'credits'->'a'->>'author' is null or c.data->'credits'->'b'->>'page' not like 'https://commons.wikimedia.org/%')::int bad
+         from content_items c
+         left join images ia on ia.id = (c.data->>'a')::uuid left join files fa on fa.key = ia.storage_key
+         left join images ib on ib.id = (c.data->>'b')::uuid left join files fb on fb.key = ib.storage_key
+        where c.kind = 'picture-pair' and c.pack_id is null and c.status = 'active' and c.data ? 'credits'`,
+    );
+    expect(photos.rows[0].n).toBe(photoPairs().length);
+    expect(photos.rows[0].n).toBeGreaterThanOrEqual(60);
+    expect(photos.rows[0].bad).toBe(0);
+    // the illustrated cat/tiger pair is replaced by the photo one; illustrated "hard" pairs stay
+    const ill = await db.query<{ status: string; mode: string }>(
+      `select status, data->>'mode' as mode from content_items where kind = 'picture-pair' and not (data ? 'credits') and data->>'labelA' = 'قطة'`,
+    );
+    expect(ill.rows.filter((r) => r.mode === 'normal').every((r) => r.status === 'disabled')).toBe(true);
+    expect(ill.rows.filter((r) => r.mode === 'hard').every((r) => r.status === 'active')).toBe(true);
+    // pairs without photos (e.g. professions) keep their illustrations
+    const prof = await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'picture-pair' and category = 'professions' and status = 'active'`);
+    expect(prof.rows[0].n).toBeGreaterThan(0);
+    // idempotent
+    const before = (await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n;
+    await seed(db, new Storage(db));
+    expect((await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n).toBe(before);
+    // the picker serves them
+    const picked = await new ContentRepo(db).pick({ kind: 'picture-pair', count: 500 });
+    expect(picked.some((i) => 'credits' in i.data)).toBe(true);
+    expect(picked.some((i) => i.data.labelA === 'قطة' && i.data.mode === 'normal' && !('credits' in i.data))).toBe(false);
+  });
+
+  it('rejects photo credits with non-https or foreign links', () => {
+    const base = { a: crypto.randomUUID(), b: crypto.randomUUID(), labelA: 'أ', labelB: 'ب', mode: 'normal' };
+    const credit = { author: 'x', license: 'CC0', page: 'https://commons.wikimedia.org/wiki/File:X.jpg' };
+    expect(() => validateContent('picture-pair', { ...base, credits: { a: credit, b: credit } })).not.toThrow();
+    expect(() => validateContent('picture-pair', { ...base, credits: { a: { ...credit, page: 'javascript:alert(1)' }, b: credit } })).toThrow();
+    expect(() => validateContent('picture-pair', { ...base, credits: { a: { ...credit, page: 'https://evil.example/x' }, b: credit } })).toThrow();
   });
 
   it('seeded content covers every game', async () => {
