@@ -1,6 +1,9 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Copy, LogOut, MessageCircle, Share2, SkipForward, Square, UserPlus, Users, Gamepad2 } from 'lucide-react';
+import { Copy, LogOut, MessageCircle, Share2, SkipForward, Square, UserPlus, Users, Gamepad2, Volume2, VolumeX } from 'lucide-react';
+import { useGameFx } from '../fx/useGameFx.ts';
+import { ShakeArea } from '../fx/visual.tsx';
+import type { SessionUser } from '../../shared/protocol.ts';
 import { GAMES } from '../../shared/games.ts';
 import { normalizeRoomCode, type PublicUser, type RoomView } from '../../shared/protocol.ts';
 import { api, errorText } from '../lib/api.ts';
@@ -37,7 +40,19 @@ export default function RoomPage() {
 
 function RoomInner({ code }: { code: string }) {
   const room = useRoom(code);
+  useGameFx(room);
   const nav = useNavigate();
+  const sessionUser = useSession((s) => s.user);
+  const setSessionUser = useSession((s) => s.set);
+  const soundOn = sessionUser?.settings.sound !== false;
+  const toggleSound = async () => {
+    try {
+      const r = await api<{ user: SessionUser }>('/api/me', { method: 'PATCH', body: { settings: { sound: !soundOn } } });
+      setSessionUser(r.user);
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  };
   const conn = useConnection((s) => s.status);
   const [tab, setTab] = useState<'game' | 'chat' | 'players'>('game');
   const [unread, setUnread] = useState(0);
@@ -140,6 +155,7 @@ function RoomInner({ code }: { code: string }) {
             {view.code} <Copy className="size-4 text-ink-400" />
           </button>
           <div className="ms-auto flex gap-1">
+            <Button size="sm" variant="ghost" icon={soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />} onClick={() => void toggleSound()} aria-label={soundOn ? 'سكّر الصوت' : 'شغّل الصوت'} aria-pressed={!soundOn} data-testid="sound-toggle" />
             <Button size="sm" variant="secondary" icon={<Share2 className="size-4" />} onClick={() => void share()}>
               <span className="hidden sm:inline">شارك</span>
             </Button>
@@ -194,7 +210,7 @@ function RoomInner({ code }: { code: string }) {
             <div className="lg:hidden mb-3">
               <VoicePanel view={view} />
             </div>
-            {stage}
+            <ShakeArea>{stage}</ShakeArea>
             {isHost && view.status === 'playing' && <HostControls />}
           </section>
           <aside className={cx('card min-w-0 p-3 lg:sticky lg:top-20 lg:h-[calc(100dvh-7rem)]', tab === 'chat' ? 'block' : 'hidden lg:block')}>
