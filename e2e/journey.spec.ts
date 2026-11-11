@@ -224,3 +224,49 @@ test('room lobby fits a phone screen when the host is on a phone (regression: zo
   expect(overflow).toBeLessThanOrEqual(1);
   await ctx.close();
 });
+
+test('sound and visual effects: a correct guess plays sounds, shows +points and confetti; mute stops sounds', async ({ browser }) => {
+  const host = await player(browser, null);
+  const g = await player(browser, null);
+  // count synthesised sounds (oscillators started) without needing speakers
+  for (const p of [host, g])
+    await p.page.addInitScript(() => {
+      (window as unknown as { __sounds: number }).__sounds = 0;
+      const orig = AudioContext.prototype.createOscillator;
+      AudioContext.prototype.createOscillator = function (this: AudioContext) {
+        (window as unknown as { __sounds: number }).__sounds++;
+        return orig.call(this);
+      };
+    });
+  const sounds = (p: Page) => p.evaluate(() => (window as unknown as { __sounds: number }).__sounds);
+  await host.page.goto('/create?game=draw-guess');
+  await guest(host.page, 'رسام');
+  await host.page.getByTestId('create-submit').click();
+  await expect(host.page).toHaveURL(/\/r\//);
+  await g.page.goto(host.page.url());
+  await guest(g.page, 'مخمّن');
+  await g.page.getByTestId('ready-btn').click();
+  await host.page.getByTestId('start-game').click();
+  await expect.poll(() => sounds(g.page)).toBeGreaterThan(0); // start jingle
+  const drawer = await Promise.race([host, g].map((p) => p.page.getByTestId('draw-choice').first().waitFor({ timeout: 20_000 }).then(() => p)));
+  const guesser = drawer === host ? g : host;
+  await drawer.page.getByTestId('draw-choice').first().click();
+  const secret = (await drawer.page.locator('h2', { hasText: 'ارسم:' }).innerText()).replace('ارسم:', '').trim();
+  await guesser.page.getByTestId('draw-guess').fill(secret);
+  await guesser.page.getByTestId('draw-guess').press('Enter');
+  await expect(guesser.page.getByTestId('confetti').first()).toBeAttached({ timeout: 5000 });
+  await expect(guesser.page.getByTestId('fx-float').first()).toContainText('+');
+
+  // mute: no new sounds for the guesser
+  await guesser.page.getByTestId('sound-toggle').click();
+  await expect(guesser.page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await guesser.page.waitForTimeout(300);
+  const before = await sounds(guesser.page);
+  await host.page.getByTestId('host-skip').click(); // next phase would normally make a sound
+  await guesser.page.waitForTimeout(1500);
+  expect(await sounds(guesser.page)).toBe(before);
+  await guesser.page.getByTestId('sound-toggle').click();
+  await expect(guesser.page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'false');
+  for (const p of [host, g]) expect(p.errors).toEqual([]);
+  for (const p of [host, g]) await p.ctx.close();
+});

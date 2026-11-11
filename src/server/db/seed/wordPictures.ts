@@ -119,3 +119,46 @@ export function renderWordPicture(word: string): string | null {
   for (const ch of word) h = (h * 31 + ch.codePointAt(0)!) >>> 0;
   return renderScene(art[0], art[1], BACKGROUNDS[h % BACKGROUNDS.length], h % 97);
 }
+
+/**
+ * Better TMDB search terms for some titles (the Arabic name alone often
+ * matches a different work). Admins can still type their own search.
+ */
+export const TMDB_QUERIES: Record<string, string> = {
+  'غرندايزر': 'Grendizer',
+  'بات مان': 'Batman',
+  'الكابتن رابح': 'Ganbare Kickers',
+  'بسيط': '',
+  'تايتانيك': 'Titanic',
+  'سبايدر مان': 'movie:Spider-Man',
+  'أفاتار': 'Avatar',
+  'الرسالة': 'The Message',
+  'إنسبشن': 'Inception',
+  'ماتريكس': 'The Matrix',
+  'جوراسيك بارك': 'Jurassic Park',
+  'الأب الروحي': 'The Godfather',
+  'أفنجرز': 'movie:The Avengers',
+  'فاست آند فيوريس': 'The Fast and the Furious',
+  'بارلبي': 'Barbie',
+  'مدغشقر': 'Madagascar',
+  'نجوم الأردن': '',
+  'ذا فويس': 'The Voice Ahla Sawt',
+  'فريندز': 'Friends',
+  'مستر بين': 'Mr. Bean',
+  'المتحري كونان': 'tv:المحقق كونان',
+  'ميكي ماوس': 'Mickey Mouse',
+  'الدبدوب ويني': 'movie:The Many Adventures of Winnie the Pooh',
+  'سيمبا': 'tv:سيمبا',
+  'هاري بوتر': "Harry Potter and the Philosopher's Stone",
+  'هالك': 'movie:The Incredible Hulk',
+  'جن': 'tv:جن',
+  'كابتن أمريكا': 'Captain America: The First Avenger',
+};
+
+/** Generic words that are not a specific title: no poster search. */
+export const NO_POSTER = new Set(['نشرة الأخبار', 'برنامج طبخ', 'كورة ليلة الجمعة', 'مسلسل تركي', 'كوميدي ستاند أب', 'برامج مسابقات', 'دراما رمضان', 'بسيط', 'نجوم الأردن', 'قصص الأنبياء']);
+
+export function tmdbQueryFor(word: string): string | null {
+  if (NO_POSTER.has(word)) return null;
+  return TMDB_QUERIES[word] || word;
+}

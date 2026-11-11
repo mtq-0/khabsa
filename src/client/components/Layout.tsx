@@ -9,6 +9,8 @@ import { PAGES } from '../lib/mode.ts';
 import { getSocket, reconnectSocket, useConnection } from '../lib/socket.ts';
 import { Avatar, Button, cx, Logo, toast, Toaster } from './ui.tsx';
 import { TmdbNotice } from './TmdbNotice.tsx';
+import { FxLayer, setReducedMotion } from '../fx/visual.tsx';
+import { setSoundEnabled, unlockAudio } from '../fx/sound.ts';
 
 const NAV = PAGES
   ? [
@@ -32,7 +34,20 @@ export function Layout() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('reduce-motion', !!settings?.reducedMotion);
-  }, [settings?.reducedMotion]);
+    setReducedMotion(!!settings?.reducedMotion);
+    setSoundEnabled(settings?.sound !== false);
+  }, [settings?.reducedMotion, settings?.sound]);
+
+  // browsers only allow sound after a user gesture
+  useEffect(() => {
+    const unlock = () => unlockAudio();
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    window.addEventListener('keydown', unlock);
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
 
   // connect realtime once a session exists
   useEffect(() => {
@@ -42,6 +57,7 @@ export function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <Toaster />
+      <FxLayer />
       <InviteListener />
       <header className={cx('sticky top-0 z-40 border-b border-white/5 bg-ink-950/75 backdrop-blur-xl', inRoom && 'hidden md:block')}>
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
