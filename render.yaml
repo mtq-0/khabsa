@@ -29,6 +29,8 @@ services:
         sync: false
       - key: ADMIN_EMAILS
         sync: false
+      - key: TMDB_TOKEN
+        sync: false
       - key: LIVEKIT_URL
         sync: false
       - key: LIVEKIT_API_KEY

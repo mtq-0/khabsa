@@ -27,6 +27,10 @@ import type { BaseState, ContentItem, EngineCtx, GameEngine, ImageAccess, InitIn
 
 export interface WordData {
   word: string;
+  /** optional picture shown with the word (image id; only to players who know the word) */
+  image?: string;
+  /** admin-approved TMDB poster (preferred over `image`) */
+  poster?: { tmdbId: number; type: 'movie' | 'tv'; path: string; title?: string };
 }
 export interface PicturePairData {
   a: string; // image id (majority)
@@ -42,6 +46,7 @@ interface RoundSecret {
   categoryName: string;
   /** word game */
   word?: string;
+  wordImage?: string;
   /** picture game */
   imageA?: string;
   imageB?: string;
@@ -96,9 +101,9 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     const categoryName = (item.data as { categoryName?: string }).categoryName ?? item.category;
     let secret: RoundSecret;
     if (s.variant === 'word') {
-      const word = (item.data as unknown as WordData).word;
+      const { word, image, poster } = item.data as unknown as WordData;
       const decoys = (s.decoyLabels[item.category] ?? []).filter((w) => w !== word);
-      secret = { itemId: item.id, category: item.category, categoryName, word, answer: word, guessOptions: shuffle([word, ...pickN(decoys, 5, ctx.rng)], ctx.rng) };
+      secret = { itemId: item.id, category: item.category, categoryName, word, wordImage: poster?.path ? `tmdb:${poster.path}` : typeof image === 'string' && image ? image : undefined, answer: word, guessOptions: shuffle([word, ...pickN(decoys, 5, ctx.rng)], ctx.rng) };
     } else {
       const d = item.data as unknown as PicturePairData;
       const decoys = Object.values(s.decoyLabels).flat().filter((l) => l !== d.labelA && l !== d.labelB);
@@ -309,7 +314,11 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       if (isPlayer && sec) {
         if (variant === 'word') {
           me.role = isOutsider ? 'outsider' : 'insider';
-          if (!isOutsider) me.word = sec.word;
+          if (!isOutsider) {
+            me.word = sec.word;
+            // the picture would give the word away, so the outsider never gets it
+            if (sec.wordImage && images) me.wordImage = images.sign(sec.wordImage, viewer);
+          }
           me.category = !isOutsider || s.settings.categoryHint ? sec.categoryName : null;
         } else {
           if (s.mode === 'easy') {
@@ -347,6 +356,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
               counts: tally(s.votes, s.players),
               answer: hide ? null : sec.answer,
               word: hide ? null : (sec.word ?? null),
+              wordImage: !hide && variant === 'word' && sec.wordImage && images ? images.sign(sec.wordImage, viewer) : null,
               imageA: !hide && variant === 'picture' ? images!.sign(sec.imageA!, viewer) : null,
               imageB: !hide && variant === 'picture' && s.mode !== 'easy' ? images!.sign(sec.imageB!, viewer) : null,
               labelB: !hide && variant === 'picture' && s.mode !== 'easy' ? sec.labelB : null,

@@ -11,7 +11,12 @@ const t = (max: number) => z.string().transform((s) => cleanText(s, max)).pipe(z
 
 /** Validation schema for each content kind's data payload. */
 export const CONTENT_SCHEMAS: Record<ContentKind, z.ZodType<Record<string, unknown>>> = {
-  word: z.object({ word: t(40), alternatives: z.array(t(40)).max(5).optional() }),
+  word: z.object({
+    word: t(40),
+    alternatives: z.array(t(40)).max(5).optional(),
+    image: z.uuid().optional(),
+    poster: z.object({ tmdbId: z.number().int().positive(), type: z.enum(['movie', 'tv']), path: z.string().regex(/^\/[A-Za-z0-9_-]{5,64}\.(jpg|jpeg|png|webp)$/), title: z.string().max(120).optional() }).optional(),
+  }),
   'draw-word': z.object({ word: t(30), alternatives: z.array(t(30)).max(5).optional() }),
   'question-pair': z.object({ majority: t(160), outsider: t(160) }).refine((d) => d.majority !== d.outsider, 'السؤالين لازم يكونوا مختلفين'),
   'picture-pair': z.object({ a: z.uuid(), b: z.uuid(), labelA: t(60), labelB: t(60), mode: z.enum(['normal', 'hard']) }),

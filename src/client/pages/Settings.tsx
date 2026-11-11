@@ -7,6 +7,7 @@ import { api, errorText } from '../lib/api.ts';
 import { useSession } from '../lib/session.ts';
 import { closeSocket } from '../lib/socket.ts';
 import { PAGES } from '../lib/mode.ts';
+import { TmdbCredit } from '../components/Layout.tsx';
 import { AvatarPicker, RequireSession } from '../components/GuestGate.tsx';
 import { Avatar, Button, PageTitle, Toggle, cx, toast } from '../components/ui.tsx';
 
@@ -201,6 +202,7 @@ function Settings() {
           تسجيل خروج
         </Button>
       </div>
+      <TmdbCredit />
     </div>
   );
 }
