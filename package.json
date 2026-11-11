@@ -32,6 +32,7 @@
     "livekit-client": "^2.23.0",
     "livekit-server-sdk": "^2.19.3",
     "lucide-react": "^1.72.0",
+    "peerjs": "^1.5.5",
     "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

@@ -5,7 +5,7 @@ const PORT = 3333;
 export default defineConfig({
   testDir: 'e2e',
   // voice needs a LiveKit server: see playwright.voice.config.ts
-  testIgnore: /voice\.spec\.ts/,
+  testIgnore: /(voice|pages)\.spec\.ts/,
   timeout: 120_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,

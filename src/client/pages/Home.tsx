@@ -4,6 +4,8 @@ import { DoorOpen, Mic, MessageCircle, Plus, Sparkles, Users, Zap, ShieldCheck, 
 import { GAME_IDS, GAMES, type GameId } from '../../shared/games.ts';
 import { Button, GameArt, LogoMark, cx } from '../components/ui.tsx';
 import { useSession } from '../lib/session.ts';
+import { api } from '../lib/api.ts';
+import { PAGES } from '../lib/mode.ts';
 
 interface PlatformInfo {
   announcement: string;
@@ -17,8 +19,7 @@ export default function HomePage() {
   const [info, setInfo] = useState<PlatformInfo | null>(null);
   const [code, setCode] = useState('');
   useEffect(() => {
-    fetch('/api/platform', { credentials: 'same-origin' })
-      .then((r) => r.json())
+    api<PlatformInfo>('/api/platform')
       .then(setInfo)
       .catch(() => {});
   }, []);
@@ -41,7 +42,7 @@ export default function HomePage() {
           </h1>
           <p className="mt-5 max-w-xl text-lg text-ink-200 sm:text-xl">ألعاب، تحديات، ضحك وخداع... كلهم بمكان واحد. اعمل غرفة، ابعت الرابط للشلة، واحكوا مع بعض بالصوت وانتو بتلعبوا.</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="lg" variant="volt" icon={<Zap className="size-5" />} onClick={() => nav('/play')} data-testid="play-now">
+            <Button size="lg" variant="volt" icon={<Zap className="size-5" />} onClick={() => nav(PAGES ? '/create' : '/play')} data-testid="play-now">
               العب هلأ
             </Button>
             <Button size="lg" icon={<Plus className="size-5" />} onClick={() => nav('/create')} data-testid="create-room">
@@ -60,7 +61,12 @@ export default function HomePage() {
               ادخل
             </Button>
           </form>
-          <div className="mt-8 flex flex-wrap items-center gap-5 text-sm text-ink-300">
+          {PAGES && (
+            <p className="mt-6 max-w-xl rounded-xl bg-white/5 px-4 py-3 text-sm text-ink-300">
+              🔗 نسخة GitHub: اللي بيعمل الغرفة بيصير هو السيرفر. خلّي صفحته مفتوحة طول ما إنتو بتلعبوا، والباقي بيدخلوا بالرابط من أي مكان.
+            </p>
+          )}
+          <div className={cx('mt-8 flex flex-wrap items-center gap-5 text-sm text-ink-300', PAGES && 'hidden')}>
             <span className="flex items-center gap-2">
               <span className="size-2.5 rounded-full bg-lime-400 shadow-[0_0_10px] shadow-lime-400" />
               <b className="text-ink-100">{info?.online.online ?? '—'}</b> لاعب أونلاين
@@ -105,7 +111,9 @@ export default function HomePage() {
           { to: '/join', icon: DoorOpen, title: 'ادخل غرفة', text: 'معك رمز؟ اكتبه وادخل فوراً', color: 'from-volt-500/25' },
           { to: '/play', icon: Zap, title: 'لعب سريع', text: 'انضم لغرفة عامة مع ناس جداد', color: 'from-zing-500/25' },
           { to: '/friends', icon: Users, title: 'الأصحاب والدعوات', text: user ? 'شوف مين أونلاين واعزمهم' : 'سجّل لتضيف أصحابك', color: 'from-sun-400/20' },
-        ].map((a) => (
+        ]
+          .filter((a) => !PAGES || a.to === '/create' || a.to === '/join')
+          .map((a) => (
           <Link key={a.to} to={a.to} className={cx('card group bg-gradient-to-b to-transparent p-5 transition hover:-translate-y-1 hover:shadow-glow', a.color)}>
             <a.icon className="size-8 text-volt-300 transition group-hover:scale-110" />
             <h3 className="mt-4 text-lg font-bold">{a.title}</h3>

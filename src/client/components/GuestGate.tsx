@@ -5,6 +5,7 @@ import { AVATAR_CHARACTERS, AVATAR_PALETTES, randomAvatar } from '../../shared/a
 import { useSession } from '../lib/session.ts';
 import { errorText } from '../lib/api.ts';
 import { reconnectSocket } from '../lib/socket.ts';
+import { PAGES } from '../lib/mode.ts';
 import { Avatar, Button, cx, Spinner } from './ui.tsx';
 
 export function AvatarPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -89,7 +90,7 @@ export function GuestForm({ onDone, cta = 'يلا نلعب!' }: { onDone?: () =>
       <Button type="submit" size="lg" className="w-full" loading={busy}>
         {cta}
       </Button>
-      <p className="text-center text-xs text-ink-400">
+      <p className={cx('text-center text-xs text-ink-400', PAGES && 'hidden')}>
         بتلعب كضيف بدون تسجيل. عندك حساب؟{' '}
         <Link to="/login" className="text-volt-300 underline">
           سجّل دخول

@@ -47,6 +47,8 @@ test('full journey: create, invite link, chat, play مين برا السالفة
     await expect(p.page.getByTestId('ready-btn')).toBeVisible();
   }
   await expect(host.page.getByTestId('players-list').locator('li')).toHaveCount(3);
+  // regression: the room lobby must fit phone screens (no horizontal overflow / zoom-out)
+  for (const p of [p2, p3]) expect(await p.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
 
   // chat
   await host.page.getByTestId('chat-input').fill('أهلاً يا شلة 👋');

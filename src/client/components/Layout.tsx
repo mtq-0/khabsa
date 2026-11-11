@@ -4,15 +4,24 @@ import { Gamepad2, Home, Trophy, Users, Settings, Shield, LogIn, WifiOff, Refres
 import { GAMES } from '../../shared/games.ts';
 import type { InviteView } from '../../shared/protocol.ts';
 import { useSession } from '../lib/session.ts';
+import { api } from '../lib/api.ts';
+import { PAGES } from '../lib/mode.ts';
 import { getSocket, reconnectSocket, useConnection } from '../lib/socket.ts';
 import { Avatar, Button, cx, Logo, toast, Toaster } from './ui.tsx';
 
-const NAV = [
-  { to: '/', label: 'الرئيسية', icon: Home, end: true },
-  { to: '/games', label: 'الألعاب', icon: Gamepad2 },
-  { to: '/friends', label: 'الأصحاب', icon: Users },
-  { to: '/leaderboard', label: 'المتصدرين', icon: Trophy },
-];
+const NAV = PAGES
+  ? [
+      { to: '/', label: 'الرئيسية', icon: Home, end: true },
+      { to: '/games', label: 'الألعاب', icon: Gamepad2 },
+      { to: '/create', label: 'غرفة جديدة', icon: Users },
+      { to: '/join', label: 'ادخل غرفة', icon: Trophy },
+    ]
+  : [
+      { to: '/', label: 'الرئيسية', icon: Home, end: true },
+      { to: '/games', label: 'الألعاب', icon: Gamepad2 },
+      { to: '/friends', label: 'الأصحاب', icon: Users },
+      { to: '/leaderboard', label: 'المتصدرين', icon: Trophy },
+    ];
 
 export function Layout() {
   const user = useSession((s) => s.user);
@@ -44,12 +53,12 @@ export function Layout() {
                 {n.label}
               </NavLink>
             ))}
-            <NavLink to="/achievements" className={({ isActive }) => cx('rounded-xl px-3 py-2 text-sm font-semibold transition', isActive ? 'bg-white/10 text-white' : 'text-ink-300 hover:text-white')}>
+            {!PAGES && <NavLink to="/achievements" className={({ isActive }) => cx('rounded-xl px-3 py-2 text-sm font-semibold transition', isActive ? 'bg-white/10 text-white' : 'text-ink-300 hover:text-white')}>
               الإنجازات
-            </NavLink>
+            </NavLink>}
           </nav>
           <div className="ms-auto flex items-center gap-2">
-            <OnlineBadge />
+            {!PAGES && <OnlineBadge />}
             {user?.role === 'admin' && (
               <Link to="/admin" className="rounded-xl p-2 text-ink-300 hover:bg-white/10" aria-label="لوحة الإدارة">
                 <Shield className="size-5" />
@@ -65,7 +74,7 @@ export function Layout() {
                   <span className="max-w-24 truncate text-sm font-semibold">{user.displayName}</span>
                 </Link>
               </>
-            ) : (
+            ) : PAGES ? null : (
               <Link to="/login">
                 <Button size="sm" variant="secondary" icon={<LogIn className="size-4" />}>
                   دخول
@@ -92,7 +101,7 @@ export function Layout() {
       {!inRoom && (
         <footer className="hidden border-t border-white/5 py-8 text-center text-sm text-ink-400 md:block">
           <p className="font-display text-xl text-ink-200">اللعب بلّش... والخبصة علينا!</p>
-          <p className="mt-1">© {new Date().getFullYear()} خبصة KHABSA</p>
+          <p className="mt-1">© {new Date().getFullYear()} خبصة KHABSA{PAGES && ' · نسخة GitHub (بدون سيرفر)'}</p>
           <p className="mt-1 text-xs text-ink-500" dir="ltr">
             Picture artwork: <a className="underline" href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener noreferrer">Twemoji</a> by Twitter/X and contributors, CC-BY 4.0
           </p>
@@ -107,8 +116,7 @@ function OnlineBadge() {
   useEffect(() => {
     let alive = true;
     const load = () =>
-      fetch('/api/platform', { credentials: 'same-origin' })
-        .then((r) => r.json())
+      api<{ online?: { online: number } }>('/api/platform')
         .then((d) => alive && setN(d.online?.online ?? 0))
         .catch(() => {});
     void load();
@@ -133,6 +141,8 @@ function ConnectionBanner() {
   const user = useSession((s) => s.user);
   const load = useSession((s) => s.load);
   if (!user || status === 'connected' || status === 'idle' || status === 'connecting') return null;
+  // Pages edition: link problems are shown inside the room, there is no global server
+  if (PAGES && status !== 'offline') return null;
   if (status === 'auth-failed')
     return (
       <div className="flex items-center justify-center gap-3 bg-sun-400/15 px-4 py-2 text-sm text-sun-400" role="alert">
@@ -183,7 +193,7 @@ function InviteListener() {
         <Button
           size="sm"
           onClick={async () => {
-            await fetch(`/api/invites/${invite.id}/respond`, { method: 'POST', credentials: 'same-origin', headers: { 'x-khabsa': '1', 'content-type': 'application/json' }, body: JSON.stringify({ accept: true }) }).catch(() => {});
+            await api(`/api/invites/${invite.id}/respond`, { body: { accept: true } }).catch(() => {});
             setInvite(null);
             nav(`/r/${invite.roomCode}`);
           }}

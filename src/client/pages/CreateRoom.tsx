@@ -4,6 +4,7 @@ import { Globe, Lock } from 'lucide-react';
 import { GAME_IDS, GAMES, isGameId, type GameId } from '../../shared/games.ts';
 import { api, errorText, uid } from '../lib/api.ts';
 import { useSession } from '../lib/session.ts';
+import { PAGES } from '../lib/mode.ts';
 import { RequireSession } from '../components/GuestGate.tsx';
 import { Button, GameArt, PageTitle, cx } from '../components/ui.tsx';
 
@@ -75,7 +76,7 @@ function CreateRoomForm() {
             </label>
             <input id="room-name" className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
           </div>
-          <div>
+          <div className={PAGES ? 'hidden' : undefined}>
             <span className="label">مين بيقدر يدخل؟</span>
             <div className="grid grid-cols-2 gap-2">
               {(
@@ -100,6 +101,11 @@ function CreateRoomForm() {
           </div>
         </section>
 
+        {PAGES && (
+          <p className="rounded-xl bg-sun-400/10 px-4 py-3 text-sm text-sun-400">
+            ⚠️ إنت رح تكون السيرفر: خلّي هالصفحة مفتوحة طول اللعب. الأفضل من كمبيوتر، لأنه الموبايل بيوقف الصفحة لما تطلع منها.
+          </p>
+        )}
         {err && <p className="rounded-xl bg-zing-500/15 px-4 py-3 text-sm text-zing-400" role="alert">{err}</p>}
         <Button type="submit" size="lg" className="w-full" loading={busy} data-testid="create-submit">
           اعمل الغرفة 🚀

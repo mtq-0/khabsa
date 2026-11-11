@@ -6,6 +6,7 @@ import type { SessionUser, UserSettings } from '../../shared/protocol.ts';
 import { api, errorText } from '../lib/api.ts';
 import { useSession } from '../lib/session.ts';
 import { closeSocket } from '../lib/socket.ts';
+import { PAGES } from '../lib/mode.ts';
 import { AvatarPicker, RequireSession } from '../components/GuestGate.tsx';
 import { Avatar, Button, PageTitle, Toggle, cx, toast } from '../components/ui.tsx';
 
@@ -42,7 +43,7 @@ function Settings() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <PageTitle title="حسابي" emoji="⚙️" />
-      {u.isGuest && (
+      {u.isGuest && !PAGES && (
         <div className="card border-volt-400/30 p-5">
           <p className="font-bold">إنت بتلعب كضيف 👤</p>
           <p className="mt-1 text-sm text-ink-300">جلستك محفوظة على هالجهاز. سجّل حساب لتحفظ نقاطك، تضيف أصحاب، وتدخل من أي جهاز.</p>
@@ -191,7 +192,7 @@ function Settings() {
           variant="ghost"
           icon={<LogOut className="size-4" />}
           onClick={async () => {
-            if (u.isGuest && !confirm('إذا طلعت كضيف رح تخسر هالجلسة ونقاطها. متأكد؟')) return;
+            if (u.isGuest && !confirm(PAGES ? 'بدك تمسح اسمك وشكلك من هالجهاز؟' : 'إذا طلعت كضيف رح تخسر هالجلسة ونقاطها. متأكد؟')) return;
             closeSocket();
             await logout();
             nav('/');

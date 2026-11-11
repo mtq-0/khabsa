@@ -4,6 +4,7 @@ import { GAMES } from '../../shared/games.ts';
 import type { RoomView } from '../../shared/protocol.ts';
 import { useRoomContext } from '../lib/room.ts';
 import { useSession } from '../lib/session.ts';
+import { PAGES } from '../lib/mode.ts';
 import { Avatar, Button, cx, toast } from '../components/ui.tsx';
 import { useMembers } from './common.tsx';
 
@@ -96,7 +97,7 @@ export function Results({ view }: { view: RoomView }) {
         )}
       </div>
 
-      {view.awards ? (
+      {PAGES ? null : view.awards ? (
         <div className="card flex flex-wrap items-center justify-center gap-3 p-4 text-center">
           <span className="chip text-lime-400">+{view.awards.xp} XP</span>
           <span className="chip">المستوى {view.awards.level}</span>

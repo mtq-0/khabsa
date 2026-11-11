@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { Loader2, X } from 'lucide-react';
 import { parseAvatar } from '../../shared/avatars.ts';
 import { GAMES, type GameId } from '../../shared/games.ts';
+import { asset } from '../lib/mode.ts';
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(' ');
@@ -46,7 +47,7 @@ export function Button({
 
 // ----------------------------------------------------------------------- Logo
 export function LogoMark({ className = 'size-10' }: { className?: string }) {
-  return <img src="/icon.svg" alt="" aria-hidden className={cx(className, 'drop-shadow-[0_6px_20px_rgb(139_77_255/0.55)]')} width={40} height={40} />;
+  return <img src={asset('icon.svg')} alt="" aria-hidden className={cx(className, 'drop-shadow-[0_6px_20px_rgb(139_77_255/0.55)]')} width={40} height={40} />;
 }
 
 export function Logo({ compact }: { compact?: boolean }) {

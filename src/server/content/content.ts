@@ -22,15 +22,7 @@ export const CONTENT_SCHEMAS: Record<ContentKind, z.ZodType<Record<string, unkno
     .refine((d) => new Set(d.options).size === 4, 'الخيارات لازم تكون مختلفة'),
 };
 
-export const KIND_FOR_GAME: Record<string, ContentKind> = {
-  'outsider-word': 'word',
-  'odd-question': 'question-pair',
-  'outsider-picture': 'picture-pair',
-  'most-likely': 'most-likely',
-  taboo: 'taboo-card',
-  'speed-quiz': 'trivia',
-  'draw-guess': 'draw-word',
-};
+export { KIND_FOR_GAME } from '../games/kinds.ts';
 
 export function dedupeKey(kind: ContentKind, data: Record<string, unknown>): string {
   const basis =

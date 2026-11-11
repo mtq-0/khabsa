@@ -1,4 +1,5 @@
 import { ERROR_MESSAGES_AR, type ErrorCode } from '../../shared/errors.ts';
+import { localApi } from './localApi.ts';
 
 /** Error thrown by API calls. `code` distinguishes network/timeout failures from server answers. */
 export class ApiError extends Error {
@@ -13,6 +14,8 @@ export class ApiError extends Error {
 
 export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown; form?: FormData; timeoutMs?: number; signal?: AbortSignal } = {}): Promise<T> {
   const method = opts.method ?? (opts.body !== undefined || opts.form ? 'POST' : 'GET');
+  const local = localApi(path, { method, body: opts.body });
+  if (local) return local as Promise<T>;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort('timeout'), opts.timeoutMs ?? 15_000);
   opts.signal?.addEventListener('abort', () => ctrl.abort('cancelled'), { once: true });
