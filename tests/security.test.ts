@@ -192,7 +192,8 @@ describe('uploads', () => {
 describe('units', () => {
   it('image tokens are viewer-bound, tamper-proof and expire', () => {
     const s = new ImageSigner('k'.repeat(40));
-    const now = Date.now();
+    // fixed time 1 s into a 5-minute window so the stability check below is deterministic
+    const now = 300_000 * 6_000_000 + 1_000;
     const url = s.sign('img-1', 'user-1', now);
     const token = url.split('/').pop()!;
     expect(s.verify(token, now)).toEqual({ imageId: 'img-1', viewerId: 'user-1' });
@@ -200,10 +201,13 @@ describe('units', () => {
     const [payload, mac] = token.split('.');
     const forged = Buffer.from(JSON.stringify({ i: 'img-2', u: 'user-1', e: now + 1e6 })).toString('base64url');
     expect(s.verify(`${forged}.${mac}`, now)).toBeNull();
-    expect(s.verify(`${payload}.x${mac.slice(1)}`, now)).toBeNull();
+    // tamper with the signature (always change the first character)
+    const flipped = (mac[0] === 'A' ? 'B' : 'A') + mac.slice(1);
+    expect(s.verify(`${payload}.${flipped}`, now)).toBeNull();
     expect(new ImageSigner('other'.repeat(10)).verify(token, now)).toBeNull();
     // tokens are stable within the window (keeps browser cache effective)
-    expect(s.sign('img-1', 'user-1', now + 1000)).toBe(url.replace(/^/, '') === url ? s.sign('img-1', 'user-1', now + 1000) : url);
+    expect(s.sign('img-1', 'user-1', now + 60_000)).toBe(url);
+    expect(s.sign('img-1', 'user-2', now)).not.toBe(url);
   });
   it('strips control and bidi-override characters', () => {
     expect(cleanText('a\u202Eb\u0000c   d', 10)).toBe('abc d');
