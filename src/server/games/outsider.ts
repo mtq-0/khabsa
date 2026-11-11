@@ -38,6 +38,14 @@ export interface PicturePairData {
   labelA: string;
   labelB: string;
   mode: 'normal' | 'hard';
+  /** attribution for real photos */
+  credits?: { a: PhotoCredit; b: PhotoCredit };
+}
+export interface PhotoCredit {
+  author: string;
+  license: string;
+  licenseUrl?: string;
+  page: string;
 }
 
 interface RoundSecret {
@@ -52,6 +60,7 @@ interface RoundSecret {
   imageB?: string;
   labelA?: string;
   labelB?: string;
+  credits?: { a: PhotoCredit; b: PhotoCredit };
   guessOptions: string[];
   answer: string;
 }
@@ -108,7 +117,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       const d = item.data as unknown as PicturePairData;
       const decoys = Object.values(s.decoyLabels).flat().filter((l) => l !== d.labelA && l !== d.labelB);
       const opts = [d.labelA, ...(s.mode === 'easy' ? [] : [d.labelB]), ...pickN(Array.from(new Set(decoys)), s.mode === 'easy' ? 5 : 4, ctx.rng)];
-      secret = { itemId: item.id, category: item.category, categoryName, imageA: d.a, imageB: d.b, labelA: d.labelA, labelB: d.labelB, answer: d.labelA, guessOptions: shuffle(opts, ctx.rng) };
+      secret = { itemId: item.id, category: item.category, categoryName, imageA: d.a, imageB: d.b, labelA: d.labelA, labelB: d.labelB, ...(d.credits ? { credits: d.credits } : {}), answer: d.labelA, guessOptions: shuffle(opts, ctx.rng) };
     }
     s.secret = secret;
     const n = variant === 'word' ? outsiderCountFor(s.settings.outsiders, s.players.length) : 1;
@@ -360,6 +369,11 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
               imageA: !hide && variant === 'picture' ? images!.sign(sec.imageA!, viewer) : null,
               imageB: !hide && variant === 'picture' && s.mode !== 'easy' ? images!.sign(sec.imageB!, viewer) : null,
               labelB: !hide && variant === 'picture' && s.mode !== 'easy' ? sec.labelB : null,
+              // photo attribution (only for pictures that are revealed)
+              credits:
+                !hide && variant === 'picture' && sec.credits
+                  ? { a: sec.credits.a, b: s.mode !== 'easy' ? sec.credits.b : null }
+                  : null,
               guesses: hide ? {} : s.guesses,
               roundPoints: s.roundPoints,
             }

@@ -4,6 +4,35 @@ import type { RoomView } from '../../shared/protocol.ts';
 import { Button, Modal, cx } from '../components/ui.tsx';
 import { PhaseHeader, PlayerTag, SecretCard, VoteGrid, useGameAction, useMembers } from '../room/common.tsx';
 
+interface PhotoCredit {
+  author: string;
+  license: string;
+  licenseUrl?: string;
+  page: string;
+}
+
+/** attribution line for a real photo (Wikimedia Commons, free license) */
+function Credit({ c }: { c: PhotoCredit | null | undefined }) {
+  if (!c) return null;
+  return (
+    <p className="mt-1 text-[11px] leading-snug text-ink-400" dir="ltr" data-testid="photo-credit">
+      📷{' '}
+      <a href={c.page} target="_blank" rel="noopener noreferrer" className="underline">
+        {c.author.length > 60 ? `${c.author.slice(0, 57)}…` : c.author}
+      </a>
+      {' · '}
+      {c.licenseUrl ? (
+        <a href={c.licenseUrl} target="_blank" rel="noopener noreferrer license" className="underline">
+          {c.license}
+        </a>
+      ) : (
+        c.license
+      )}
+      {' · Wikimedia Commons'}
+    </p>
+  );
+}
+
 interface OutsiderView {
   phase: string;
   variant: 'word' | 'picture';
@@ -18,7 +47,7 @@ interface OutsiderView {
   outsiderCount: number;
   players: string[];
   me: { isPlayer: boolean; role?: 'insider' | 'outsider' | 'unknown'; word?: string; wordImage?: string; category?: string | null; image?: string | null; guessOptions?: string[]; voted?: string | null; guess?: string | null };
-  reveal: null | { outsiders: string[]; caught: string[]; votes: Record<string, string>; counts: Record<string, number>; answer: string | null; word: string | null; wordImage?: string | null; imageA: string | null; imageB: string | null; labelB: string | null; guesses: Record<string, string>; roundPoints: Record<string, number> };
+  reveal: null | { outsiders: string[]; caught: string[]; votes: Record<string, string>; counts: Record<string, number>; answer: string | null; word: string | null; wordImage?: string | null; imageA: string | null; imageB: string | null; labelB: string | null; credits?: { a: PhotoCredit; b: PhotoCredit | null } | null; guesses: Record<string, string>; roundPoints: Record<string, number> };
 }
 
 function PictureCard({ src, label }: { src: string; label?: string }) {
@@ -238,12 +267,14 @@ export function OutsiderGame({ view }: { view: RoomView }) {
                       <div>
                         <p className="mb-1 text-sm text-ink-300">صورة الأغلبية: {r.answer}</p>
                         <PictureCard src={r.imageA} label={r.answer ?? ''} />
+                        <Credit c={r.credits?.a} />
                       </div>
                     )}
                     {r.imageB && (
                       <div>
                         <p className="mb-1 text-sm text-ink-300">صورة البرّا: {r.labelB}</p>
                         <PictureCard src={r.imageB} label={r.labelB ?? ''} />
+                        <Credit c={r.credits?.b} />
                       </div>
                     )}
                     {!r.imageB && <p className="self-center text-ink-300">البرّا ما كان معه صورة. الصورة: {r.answer}</p>}

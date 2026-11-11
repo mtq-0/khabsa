@@ -275,7 +275,7 @@ describe('مين برا الرسمة image privacy', () => {
     for (const u of urls) expect(u).toMatch(/^\/api\/game-image\//);
     const own = await ps[0].http('GET', urls[0]);
     expect(own.status).toBe(200);
-    expect(String(own.data)).toContain('<svg');
+    expect(String(own.data)).toMatch(/<svg|^RIFF....WEBP/s); // illustration or real photo
     const stolen = await ps[1].http('GET', urls[0]);
     expect(stolen.status).toBe(403);
     const anon = await fetch(srv.url + urls[0]);
