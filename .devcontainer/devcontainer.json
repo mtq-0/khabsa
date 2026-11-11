@@ -1,0 +1,19 @@
+{
+  // Play KHABSA directly on GitHub: Code → Codespaces → Create codespace on main.
+  // The game builds and starts automatically and gets a public link for friends.
+  "name": "KHABSA",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  "hostRequirements": { "cpus": 2 },
+  "postCreateCommand": "npm ci && npm run build",
+  "postStartCommand": "bash scripts/codespace-start.sh",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "KHABSA 🎮", "onAutoForward": "notify" }
+  },
+  "customizations": {
+    "codespaces": { "openFiles": ["docs/PLAY_ON_GITHUB.md"] }
+  }
+}
