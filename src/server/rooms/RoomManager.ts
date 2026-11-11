@@ -733,11 +733,12 @@ export class RoomManager {
       status: room.status,
       members,
       you: viewerId,
-      game: g ? ({ ...this.deps.engines[g.gameId].view(g.state, viewerId, now), packId: room.packByGame[g.gameId] ?? null } as unknown as RoomView['game']) : null,
+      game: g ? (this.deps.engines[g.gameId].view(g.state, viewerId, now) as unknown as RoomView['game']) : null,
       matchNumber: room.matchNumber,
       createdAt: room.createdAt,
       awards: room.awards[viewerId] ?? null,
       voiceAvailable: this.deps.voiceAvailable,
+      packId: room.packByGame[room.selectedGame] ?? null,
     };
   }
 

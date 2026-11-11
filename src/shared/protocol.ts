@@ -17,6 +17,7 @@ export interface SessionUser extends PublicUser {
   email: string | null;
   role: 'user' | 'admin';
   settings: UserSettings;
+  favoriteGames: string[];
 }
 
 export interface UserSettings {
@@ -77,6 +78,8 @@ export interface RoomView {
   /** personal XP/achievement result of the last finished match */
   awards: { xp: number; level: number; unlocked: string[] } | null;
   voiceAvailable: boolean;
+  /** custom content pack chosen for the selected game (null = official) */
+  packId: string | null;
 }
 
 export interface FinalRanking {

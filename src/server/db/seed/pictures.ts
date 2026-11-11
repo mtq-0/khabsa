@@ -6,7 +6,11 @@
  * Images are rendered to SVG and written to PRIVATE storage; browsers only
  * receive short-lived signed URLs for their own assigned picture.
  * Admins can add real photo pairs through the dashboard.
+ * Emoji artwork: Twemoji by Twitter/X and contributors, CC-BY 4.0.
  */
+import { createRequire } from 'node:module';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 export const PICTURE_RELATIONS: [string, string, string, string, string][] = [
   ['food', 'تفاحة', '🍎', 'إجاصة', '🍐'],
   ['food', 'بطيخة', '🍉', 'شمامة', '🍈'],
@@ -122,8 +126,28 @@ const BACKGROUNDS: [string, string][] = [
   ['#1e3a8a', '#60a5fa'],
 ];
 
-function esc(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const require = createRequire(import.meta.url);
+let twemojiDir: string | null = null;
+function twemojiPath(): string {
+  twemojiDir ??= dirname(require.resolve('@twemoji/svg/package.json'));
+  return twemojiDir;
+}
+
+/**
+ * Inline vector artwork for an emoji (Twemoji, CC-BY 4.0) so the picture
+ * renders identically on every device instead of depending on system fonts.
+ */
+export function emojiSvg(emoji: string, x: number, y: number, size: number): string {
+  const cps = [...emoji].map((c) => c.codePointAt(0)!.toString(16));
+  const candidates = [cps.join('-'), cps.filter((c) => c !== 'fe0f').join('-')];
+  for (const name of candidates) {
+    const file = join(twemojiPath(), `${name}.svg`);
+    if (!existsSync(file)) continue;
+    const raw = readFileSync(file, 'utf8');
+    const inner = raw.slice(raw.indexOf('>') + 1, raw.lastIndexOf('</svg>'));
+    return `<svg x="${x}" y="${y}" width="${size}" height="${size}" viewBox="0 0 36 36">${inner}</svg>`;
+  }
+  throw new Error(`missing artwork for ${emoji} (${cps.join('-')})`);
 }
 
 export function renderScene(main: string, decor: string, bg: [string, string], seed: number): string {
@@ -141,8 +165,8 @@ export function renderScene(main: string, decor: string, bg: [string, string], s
 ${sparkles.join('')}
 <ellipse cx="200" cy="255" rx="150" ry="22" fill="#000" opacity="0.18"/>
 <circle cx="200" cy="160" r="120" fill="url(#l)"/>
-<text x="200" y="215" font-size="150" text-anchor="middle" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">${esc(main)}</text>
-<text x="335" y="80" font-size="52" text-anchor="middle" font-family="Apple Color Emoji,Segoe UI Emoji,Noto Color Emoji,sans-serif">${esc(decor)}</text>
+${emojiSvg(main, 125, 70, 150)}
+${emojiSvg(decor, 305, 40, 56)}
 </svg>`;
 }
 

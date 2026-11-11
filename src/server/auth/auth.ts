@@ -58,7 +58,7 @@ export function toPublicUser(u: UserRow): PublicUser {
 }
 
 export function toSessionUser(u: UserRow): SessionUser {
-  return { ...toPublicUser(u), email: u.email, role: u.role, settings: { ...DEFAULT_USER_SETTINGS, ...(u.settings ?? {}) } };
+  return { ...toPublicUser(u), email: u.email, role: u.role, settings: { ...DEFAULT_USER_SETTINGS, ...(u.settings ?? {}) }, favoriteGames: u.favorite_games ?? [] };
 }
 
 export class SessionStore {

@@ -282,9 +282,6 @@ describe('مين برا الرسمة image privacy', () => {
     expect(anon.status).toBe(401);
     const forged = await ps[0].http('GET', urls[0].slice(0, -3) + 'abc');
     expect(forged.status).toBe(403);
-    // nobody receives image ids for pictures that are not theirs
-    const outsider = ps.find((p, i) => urls.filter((u) => u.split('.')[0] !== urls[i].split('.')[0]).length === 2) ?? null;
-    void outsider;
     for (const p of ps) p.disconnect();
   });
 });
