@@ -6,7 +6,7 @@ import { csvToItems, parseCsv } from '../src/server/content/csv.ts';
 import { seed } from '../src/server/db/seed/seed.ts';
 import { Storage } from '../src/server/storage/storage.ts';
 import { join } from 'node:path';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 
 let db: Db;
 const user = async (name: string, guest = false) =>
@@ -24,6 +24,7 @@ beforeAll(async () => {
   await db.query(`create role authenticated nologin`);
   await db.query(`grant usage on schema public to anon, authenticated`);
   await migrate(db);
+  mkdirSync(join(process.cwd(), '.tools'), { recursive: true });
   await seed(db, new Storage(join(mkdtempSync(join(process.cwd(), '.tools', 'db-')), 'storage')));
 });
 afterAll(async () => db?.close());

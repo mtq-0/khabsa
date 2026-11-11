@@ -14,6 +14,12 @@ KHABSA is an Arabic-first (RTL, Jordanian dialect) online multiplayer party-game
 | Speed quiz | تحدي السرعة ⚡ | 1–12 |
 | Draw & guess | ارسم وخمّن ✏️ | 2–12 |
 
+## Put it online (one click)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mtq-0/khabsa)
+
+Sign in to Render with GitHub, enter your email in `ADMIN_EMAILS` (leave the LiveKit fields empty to start without voice) and click **Apply**. Render builds the game, creates the database and gives you a public HTTPS address like `https://khabsa.onrender.com`. Cost: about $7/month for the web service plus about $6/month for the database (Render pricing at time of writing). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for other hosts and for enabling voice.
+
 ## Quick start (local, zero external services)
 
 Requires Node.js ≥ 22.18 (runs TypeScript directly via Node's type stripping).

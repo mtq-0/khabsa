@@ -30,7 +30,8 @@ function list(v: string | undefined): string[] {
 export function loadConfig(overrides: Partial<Config> = {}): Config {
   const env = (process.env.NODE_ENV as Config['env']) ?? 'development';
   const port = Number(process.env.PORT ?? 3000);
-  const publicUrl = (process.env.PUBLIC_URL ?? `http://localhost:${port}`).replace(/\/$/, '');
+  // Render sets RENDER_EXTERNAL_URL automatically, so PUBLIC_URL is optional there
+  const publicUrl = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`).replace(/\/$/, '');
   let sessionSecret = process.env.SESSION_SECRET ?? '';
   if (!sessionSecret) {
     if (env === 'production') throw new Error('SESSION_SECRET is required in production (32+ random bytes).');

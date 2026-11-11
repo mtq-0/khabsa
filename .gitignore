@@ -1,7 +1,8 @@
 node_modules/
-dist/
-data/
-storage/
+/dist/
+# runtime data at the repo root only (not src/server/storage/)
+/data/
+/storage/
 .env
 *.log
 test-results/

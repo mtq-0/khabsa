@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit, integration, database and security tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+      - name: Install Chromium
+        # GitHub's ubuntu runners already ship Chromium's system libraries; skipping
+        # apt (--with-deps) avoids failures when Ubuntu package mirrors are unreachable.
+        run: npx playwright install --only-shell chromium
+      - name: Browser end-to-end tests
+        run: npm run test:e2e
+      - name: Voice end-to-end test (local LiveKit SFU)
+        run: |
+          mkdir -p .tools
+          curl -sSL -o .tools/lk.tgz https://github.com/livekit/livekit/releases/download/v1.13.11/livekit_1.13.11_linux_amd64.tar.gz
+          tar -xzf .tools/lk.tgz -C .tools livekit-server
+          npm run test:voice
+      - name: Dependency audit
+        run: npm audit --omit=dev
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

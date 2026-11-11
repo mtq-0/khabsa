@@ -1,17 +1,20 @@
-# Render.com blueprint (https://render.com/docs/blueprint-spec).
-# One web service (single instance: rooms live in process memory) with a
-# persistent disk for uploads. Use Supabase/Neon/Render Postgres for DATABASE_URL.
+# Render.com blueprint: "Deploy to Render" creates everything below from this repo.
+# - one web service (single instance: rooms live in process memory)
+# - a persistent disk for uploads and private game images
+# - a managed PostgreSQL database, wired in automatically
+# Voice is optional: add LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET later.
 services:
   - type: web
     name: khabsa
     runtime: docker
+    region: frankfurt   # closest Render region to Jordan / the Levant
     plan: starter
     numInstances: 1
     healthCheckPath: /api/health
     disk:
       name: khabsa-data
       mountPath: /data
-      sizeGB: 2
+      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
@@ -19,12 +22,12 @@ services:
         value: "true"
       - key: STORAGE_DIR
         value: /data/storage
-      - key: PUBLIC_URL
-        sync: false
       - key: SESSION_SECRET
         generateValue: true
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: khabsa-db
+          property: connectionString
       - key: ADMIN_EMAILS
         sync: false
       - key: LIVEKIT_URL
@@ -33,3 +36,12 @@ services:
         sync: false
       - key: LIVEKIT_API_SECRET
         sync: false
+
+databases:
+  - name: khabsa-db
+    plan: basic-256mb
+    region: frankfurt   # cannot be changed after creation
+    postgresMajorVersion: "16"
+    diskSizeGB: 1
+    databaseName: khabsa
+    user: khabsa

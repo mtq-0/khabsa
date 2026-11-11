@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdtempSync } from 'node:fs';
+import { mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { io as ioc, type Socket } from 'socket.io-client';
 import { buildApp, type BuiltApp } from '../../src/server/app.ts';
@@ -14,6 +14,7 @@ export interface TestServer {
 }
 
 export async function startServer(overrides: Record<string, unknown> = {}, db?: Db): Promise<TestServer> {
+  mkdirSync(join(process.cwd(), '.tools'), { recursive: true });
   const dir = mkdtempSync(join(process.cwd(), '.tools', 'it-'));
   const config = loadConfig({
     env: 'test',
