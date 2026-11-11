@@ -1,0 +1,35 @@
+# Render.com blueprint (https://render.com/docs/blueprint-spec).
+# One web service (single instance: rooms live in process memory) with a
+# persistent disk for uploads. Use Supabase/Neon/Render Postgres for DATABASE_URL.
+services:
+  - type: web
+    name: khabsa
+    runtime: docker
+    plan: starter
+    numInstances: 1
+    healthCheckPath: /api/health
+    disk:
+      name: khabsa-data
+      mountPath: /data
+      sizeGB: 2
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "true"
+      - key: STORAGE_DIR
+        value: /data/storage
+      - key: PUBLIC_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false

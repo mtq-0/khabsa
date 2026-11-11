@@ -42,12 +42,12 @@ export async function buildApp(config: Config, opts: { db?: Db; log?: boolean } 
   if (config.seedOnBoot) await seed(db, storage, (m) => console.log('[seed]', m));
 
   const app = Fastify({
-    logger: opts.log ? { level: 'info' } : false,
+    // request-level logs are off; errors are logged by the error handler
+    logger: opts.log ? { level: 'warn' } : false,
     trustProxy: config.trustProxy,
     bodyLimit: 1024 * 1024,
     // signed image tokens are passed as a path parameter
     routerOptions: { maxParamLength: 400 },
-    disableRequestLogging: true,
   });
   await app.register(cookie);
   await app.register(multipart, { limits: { fileSize: 6 * 1024 * 1024, files: 1, fields: 5 } });

@@ -93,6 +93,9 @@ export function Layout() {
         <footer className="hidden border-t border-white/5 py-8 text-center text-sm text-ink-400 md:block">
           <p className="font-display text-xl text-ink-200">اللعب بلّش... والخبصة علينا!</p>
           <p className="mt-1">© {new Date().getFullYear()} خبصة KHABSA</p>
+          <p className="mt-1 text-xs text-ink-500" dir="ltr">
+            Picture artwork: <a className="underline" href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener noreferrer">Twemoji</a> by Twitter/X and contributors, CC-BY 4.0
+          </p>
         </footer>
       )}
     </div>
