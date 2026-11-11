@@ -24,7 +24,7 @@ Uploaded avatars (public) and game images (private) live under `STORAGE_DIR`. Mo
 ### Render (one click)
 Use the **Deploy to Render** button in the README. The blueprint creates the web service, a 1 GB disk and a managed Postgres database (`DATABASE_URL` is wired automatically; `PUBLIC_URL` falls back to Render's `RENDER_EXTERNAL_URL`).
 
-`render.yaml` is a blueprint: one Docker web service, one instance, a 2 GB disk at `/data`. Set `PUBLIC_URL`, `DATABASE_URL`, `ADMIN_EMAILS`, LiveKit vars; `SESSION_SECRET` is generated. Render terminates TLS; add your custom domain in the dashboard.
+Everything is in Frankfurt (closest Render region to Jordan). You only fill `ADMIN_EMAILS` and, optionally, the LiveKit variables; `SESSION_SECRET` is generated. Render terminates TLS; add a custom domain later in the service's **Settings → Custom Domains**.
 
 ### Fly.io
 See comments in `fly.toml` (create a volume, set secrets, `fly deploy`). Keep exactly one machine (`min_machines_running = 1`, no autostop).

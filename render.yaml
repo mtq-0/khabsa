@@ -7,6 +7,7 @@ services:
   - type: web
     name: khabsa
     runtime: docker
+    region: frankfurt   # closest Render region to Jordan / the Levant
     plan: starter
     numInstances: 1
     healthCheckPath: /api/health
@@ -39,5 +40,8 @@ services:
 databases:
   - name: khabsa-db
     plan: basic-256mb
+    region: frankfurt   # cannot be changed after creation
+    postgresMajorVersion: "16"
+    diskSizeGB: 1
     databaseName: khabsa
     user: khabsa
