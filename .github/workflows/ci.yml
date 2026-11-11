@@ -30,13 +30,9 @@ jobs:
       - name: Production build
         run: npm run build
       - name: Install Chromium
-        # retry: Ubuntu package mirrors occasionally fail to resolve on hosted runners
-        run: |
-          for attempt in 1 2 3; do
-            sudo apt-get update -q && npx playwright install --with-deps --only-shell chromium && exit 0
-            echo "install attempt $attempt failed, retrying in 20s"; sleep 20
-          done
-          exit 1
+        # GitHub's ubuntu runners already ship Chromium's system libraries; skipping
+        # apt (--with-deps) avoids failures when Ubuntu package mirrors are unreachable.
+        run: npx playwright install --only-shell chromium
       - name: Browser end-to-end tests
         run: npm run test:e2e
       - name: Voice end-to-end test (local LiveKit SFU)
