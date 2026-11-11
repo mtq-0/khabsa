@@ -17,14 +17,12 @@ Backups: enable your provider's daily backups / PITR. Before upgrading, take a b
 
 ## 2. Storage
 
-Uploaded avatars (public) and game images (private) live under `STORAGE_DIR`. Mount a **persistent volume** there (`/data/storage` in the Docker image). Seeded picture pairs are regenerated only when the database has none, so keep the volume and database together.
+Uploaded avatars and private game images are stored **in PostgreSQL** (table `files`), so no persistent disk is required. `STORAGE_DIR` is only read as a fallback for files written by older versions.
 
 ## 3. Host + HTTPS
 
-### Render (one click)
-Use the **Deploy to Render** button in the README. The blueprint creates the web service, a 1 GB disk and a managed Postgres database (`DATABASE_URL` is wired automatically; `PUBLIC_URL` falls back to Render's `RENDER_EXTERNAL_URL`).
-
-Everything is in Frankfurt (closest Render region to Jordan). You only fill `ADMIN_EMAILS` and, optionally, the LiveKit variables; `SESSION_SECRET` is generated. Render terminates TLS; add a custom domain later in the service's **Settings → Custom Domains**.
+### Render (one click, free)
+Use the **Deploy to Render** button in the README; see [FREE_HOSTING.md](FREE_HOSTING.md). The blueprint creates a free web service in Frankfurt. You paste a Neon (or Supabase) `DATABASE_URL`, your `ADMIN_EMAILS` and optionally the LiveKit variables; `SESSION_SECRET` is generated and `PUBLIC_URL` falls back to Render's `RENDER_EXTERNAL_URL`. For no sleeping, change `plan: free` to `plan: starter`. Render terminates TLS; add a custom domain later in the service's **Settings → Custom Domains**.
 
 ### Fly.io
 See comments in `fly.toml` (create a volume, set secrets, `fly deploy`). Keep exactly one machine (`min_machines_running = 1`, no autostop).
@@ -42,7 +40,7 @@ khabsa.example.com {
 ```
 WebSockets pass through Caddy/Nginx automatically (for Nginx set `proxy_http_version 1.1`, `Upgrade`/`Connection` headers and `proxy_read_timeout 120s`).
 
-Required production variables (see `.env.example`): `NODE_ENV=production`, `PUBLIC_URL=https://…`, `SESSION_SECRET` (≥ 32 chars), `DATABASE_URL`, `STORAGE_DIR`, `TRUST_PROXY=true` behind a proxy. When `PUBLIC_URL` is https the server sets `Secure` cookies and HSTS; Socket.IO and mutating REST requests only accept `PUBLIC_URL`/`ALLOWED_ORIGINS` origins.
+Required production variables (see `.env.example`): `NODE_ENV=production`, `PUBLIC_URL=https://…`, `SESSION_SECRET` (≥ 32 chars), `DATABASE_URL`, `TRUST_PROXY=true` behind a proxy. When `PUBLIC_URL` is https the server sets `Secure` cookies and HSTS; Socket.IO and mutating REST requests only accept `PUBLIC_URL`/`ALLOWED_ORIGINS` origins.
 
 **Run one instance only.** Rooms are in process memory (snapshotted to Postgres). Rolling deploys briefly disconnect players; clients reconnect automatically and the room/game is restored.
 
@@ -94,5 +92,5 @@ Set `ADMIN_EMAILS=you@example.com`, then register with that email (or `npm run m
 | Voice panel says voice is disabled | LiveKit variables missing. |
 | Voice connects on Wi-Fi but not on mobile data | TURN unreachable: use LiveKit Cloud or open TURN/TLS 5349 on self-hosted. |
 | "اكبس لتسمع الباقي" button appears | Browser autoplay policy; tapping it calls `room.startAudio()`. |
-| Pictures missing after redeploy | Storage volume not persistent; keep `/data` mounted. |
+| Pictures missing after redeploy | Files live in the database since v1.1; make sure `DATABASE_URL` points to the same database. |
 | `too many connections` from Postgres | Lower `DATABASE_POOL_MAX` or use the session pooler. |

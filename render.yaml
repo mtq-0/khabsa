@@ -1,33 +1,32 @@
-# Render.com blueprint: "Deploy to Render" creates everything below from this repo.
-# - one web service (single instance: rooms live in process memory)
-# - a persistent disk for uploads and private game images
-# - a managed PostgreSQL database, wired in automatically
+# Render.com blueprint ("Deploy to Render" button) — FREE setup.
+# - one free web service (sleeps after 15 min with no visitors; wakes in ~1 min)
+# - database: paste a free Neon Postgres connection string into DATABASE_URL
+#   (Render's own free Postgres expires after 30 days, Neon's free plan does not)
+# - files (avatars, game pictures) are stored in Postgres, so no disk is needed
 # Voice is optional: add LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET later.
+# To upgrade later: change plan to "starter" (no sleeping).
 services:
   - type: web
     name: khabsa
     runtime: docker
     region: frankfurt   # closest Render region to Jordan / the Levant
-    plan: starter
+    plan: free
     numInstances: 1
     healthCheckPath: /api/health
-    disk:
-      name: khabsa-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: TRUST_PROXY
         value: "true"
-      - key: STORAGE_DIR
-        value: /data/storage
+      # free instances have 512 MB RAM: cap the JS heap and keep few DB connections
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=320
+      - key: DATABASE_POOL_MAX
+        value: "5"
       - key: SESSION_SECRET
         generateValue: true
       - key: DATABASE_URL
-        fromDatabase:
-          name: khabsa-db
-          property: connectionString
+        sync: false
       - key: ADMIN_EMAILS
         sync: false
       - key: LIVEKIT_URL
@@ -36,12 +35,3 @@ services:
         sync: false
       - key: LIVEKIT_API_SECRET
         sync: false
-
-databases:
-  - name: khabsa-db
-    plan: basic-256mb
-    region: frankfurt   # cannot be changed after creation
-    postgresMajorVersion: "16"
-    diskSizeGB: 1
-    databaseName: khabsa
-    user: khabsa

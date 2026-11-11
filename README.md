@@ -14,11 +14,11 @@ KHABSA is an Arabic-first (RTL, Jordanian dialect) online multiplayer party-game
 | Speed quiz | تحدي السرعة ⚡ | 1–12 |
 | Draw & guess | ارسم وخمّن ✏️ | 2–12 |
 
-## Put it online (one click)
+## Put it online for free
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mtq-0/khabsa)
 
-Sign in to Render with GitHub, enter your email in `ADMIN_EMAILS` (leave the LiveKit fields empty to start without voice) and click **Apply**. Render builds the game, creates the database and gives you a public HTTPS address like `https://khabsa.onrender.com`. Cost: about $7/month for the web service plus about $6/month for the database (Render pricing at time of writing). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for other hosts and for enabling voice.
+Free setup: Render free web service + Neon free Postgres (+ optional LiveKit Cloud free plan for voice). Step-by-step guide in Arabic: **[docs/FREE_HOSTING.md](docs/FREE_HOSTING.md)**. Other hosts and paid options: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Quick start (local, zero external services)
 
@@ -27,7 +27,7 @@ Requires Node.js ≥ 22.18 (runs TypeScript directly via Node's type stripping).
 ```bash
 npm install
 npm run build          # build the web client
-npm start              # http://localhost:3000  (embedded Postgres in ./data, uploads in ./storage)
+npm start              # http://localhost:3000  (embedded Postgres in ./data; uploads are stored in the database)
 ```
 
 For development with hot reload: `npm run dev` (Vite on :5173 proxying the API/realtime server on :3000).

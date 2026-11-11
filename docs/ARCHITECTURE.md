@@ -13,7 +13,7 @@
  └──────────┬───────────────────┘               │ Game engines (7, pure reducers)     │
             │ WebRTC (audio only)               └───────┬─────────────────────┬───────┘
             ▼                                           │ SQL (pg / PGlite)    │ private files
-     LiveKit SFU (+TURN)                         PostgreSQL               storage dir (disk)
+     LiveKit SFU (+TURN)                         PostgreSQL (data + files)
 ```
 
 ### Why a stateful Node game server instead of Supabase Realtime + Edge Functions
@@ -41,7 +41,7 @@ src/server/
   content/       content validation (zod), random selection, bulk import, CSV
   stats/         XP ledger, achievements, leaderboards (idempotent awards)
   routes/        auth, social, rooms/voice/images/packs, admin
-  storage/       private/public file storage, signed viewer-bound image tokens
+  storage/       file storage in Postgres (with LRU cache), signed viewer-bound image tokens
   voice/         LiveKit token minting and participant removal
   security/      rate limiters, text sanitation
 src/client/
