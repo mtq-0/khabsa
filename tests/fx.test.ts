@@ -86,6 +86,13 @@ describe('effects decisions', () => {
     const d1 = view({ game: { gameId: 'draw-guess', phase: 'draw', phaseKey: 'd', scores: { me: 0 }, guessed: [] } });
     const d2 = view({ game: { gameId: 'draw-guess', phase: 'draw', phaseKey: 'd', scores: { me: 120 }, guessed: ['me'] } });
     expect(types(deriveFx(d1, d2, 0, 0, false))).toEqual(['points', 'correct']);
+    // regression: the last guesser's correct guess also ends the turn (phase changes) and must still celebrate
+    const d3 = view({ game: { gameId: 'draw-guess', phase: 'draw', phaseKey: 'd', turnNumber: 1, scores: { me: 0 }, guessed: [] } });
+    const d4 = view({ game: { gameId: 'draw-guess', phase: 'turnEnd', phaseKey: 'e', turnNumber: 1, scores: { me: 150 }, guessed: ['me'] } });
+    expect(types(deriveFx(d3, d4, 0, 0, false))).toContain('correct');
+    // but a new turn starting is not a "correct guess"
+    const d5 = view({ game: { gameId: 'draw-guess', phase: 'choose', phaseKey: 'f', turnNumber: 2, scores: { me: 150 }, guessed: [] } });
+    expect(types(deriveFx(d4, d5, 0, 0, false))).not.toContain('correct');
     const t1 = view({ game: { gameId: 'taboo', phase: 'turn', phaseKey: 't', scores: {}, turnTeam: 0, teamScores: [2, 0] } });
     const up = view({ game: { gameId: 'taboo', phase: 'turn', phaseKey: 't', scores: {}, turnTeam: 0, teamScores: [3, 0] } });
     const down = view({ game: { gameId: 'taboo', phase: 'turn', phaseKey: 't', scores: {}, turnTeam: 0, teamScores: [1, 0] } });

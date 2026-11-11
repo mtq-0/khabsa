@@ -101,11 +101,13 @@ export function deriveFx(prev: RoomView | null, next: RoomView, chatCountPrev: n
     }
   }
 
-  // continuous games: correct guesses during the same phase
+  // draw & guess: a correct guess (the last guesser's correct guess also ends the turn,
+  // so this must not depend on the phase staying the same)
+  if (a && b.gameId === 'draw-guess' && a.gameId === 'draw-guess' && a.turnNumber === b.turnNumber && (b.guessed?.length ?? 0) > (a.guessed?.length ?? 0)) {
+    out.push((b.guessed as string[]).includes(me) && !(a.guessed as string[]).includes(me) ? { type: 'correct' } : { type: 'join' });
+  }
+  // taboo: points during the same turn
   if (a && !phaseChanged) {
-    if (b.gameId === 'draw-guess' && (b.guessed?.length ?? 0) > (a.guessed?.length ?? 0)) {
-      out.push((b.guessed as string[]).includes(me) && !(a.guessed as string[]).includes(me) ? { type: 'correct' } : { type: 'join' });
-    }
     if (b.gameId === 'taboo' && Array.isArray(b.teamScores) && Array.isArray(a.teamScores)) {
       const team = b.turnTeam as number;
       if (b.teamScores[team] > a.teamScores[team]) out.push({ type: 'correct' });
