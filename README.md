@@ -14,6 +14,12 @@ KHABSA is an Arabic-first (RTL, Jordanian dialect) online multiplayer party-game
 | Speed quiz | تحدي السرعة ⚡ | 1–12 |
 | Draw & guess | ارسم وخمّن ✏️ | 2–12 |
 
+## العب مع أصحابك على GitHub (ببلاش)
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/mtq-0/khabsa?quickstart=1)
+
+اكبس الزر، استنى 5 دقايق، وابعت الرابط اللي بيطلع لأصحابك. الشرح الكامل: **[docs/PLAY_ON_GITHUB.md](docs/PLAY_ON_GITHUB.md)**
+
 ## Put it online for free
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mtq-0/khabsa)
