@@ -23,6 +23,7 @@ export function roomRoutes(app: FastifyInstance, ctx: AppContext) {
       guestAccess: s.guestAccess,
       allowPublicRooms: s.allowPublicRooms,
       voice: ctx.voice.available,
+      tmdb: ctx.tmdb.configured,
       games: GAME_IDS.map((id) => ({ id, enabled: games[id]?.enabled ?? true, featured: games[id]?.featured ?? false, sort: games[id]?.sort ?? 0 })),
       online: ctx.rooms.stats(),
     };
@@ -101,6 +102,15 @@ export function roomRoutes(app: FastifyInstance, ctx: AppContext) {
     const v = ctx.signer.verify(String((req.params as { token: string }).token));
     // the token is bound to one viewer: another player's session cannot use it
     if (!v || v.viewerId !== u.id) throw new AppError('FORBIDDEN', 'رابط الصورة منتهي أو مش إلك.');
+    if (v.imageId.startsWith('tmdb:')) {
+      const poster = await ctx.tmdb.poster(v.imageId.slice(5));
+      reply
+        .header('Content-Type', poster.mime)
+        .header('Cache-Control', 'private, max-age=300')
+        .header('X-Content-Type-Options', 'nosniff')
+        .header('Cross-Origin-Resource-Policy', 'same-origin');
+      return reply.send(poster.data);
+    }
     const img = (await ctx.db.query<{ storage_key: string; mime: string }>('select storage_key, mime from images where id = $1', [v.imageId])).rows[0];
     if (!img) throw new AppError('NOT_FOUND');
     const data = await ctx.storage.get(img.storage_key);

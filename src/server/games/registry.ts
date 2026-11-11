@@ -11,7 +11,7 @@ export type EngineRegistry = Record<GameId, GameEngine<any>>;
 
 export function createEngines(images: ImageAccess): EngineRegistry {
   return {
-    'outsider-word': createOutsiderEngine('word'),
+    'outsider-word': createOutsiderEngine('word', images),
     'odd-question': createOddQuestionEngine(),
     'outsider-picture': createOutsiderEngine('picture', images),
     'most-likely': createMostLikelyEngine(),

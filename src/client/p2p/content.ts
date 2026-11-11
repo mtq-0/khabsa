@@ -19,6 +19,7 @@ interface PictureContent {
 
 let basePromise: Promise<BaseContent> | null = null;
 let picturePromise: Promise<PictureContent> | null = null;
+let wordImagePromise: Promise<{ images: Record<string, string> }> | null = null;
 
 async function getJson<T>(file: string): Promise<T> {
   const res = await fetch(asset(`content/${file}`), { cache: 'force-cache' });
@@ -39,6 +40,14 @@ function loadPictures(): Promise<PictureContent> {
     throw e;
   });
   return picturePromise;
+}
+
+function loadWordImages() {
+  wordImagePromise ??= getJson<{ images: Record<string, string> }>('word-images.json').catch((e) => {
+    wordImagePromise = null;
+    throw e;
+  });
+  return wordImagePromise;
 }
 
 /** image id → data: URL, filled when picture pairs are picked */
@@ -84,6 +93,12 @@ export class BrowserContent {
         const d = p.data as { a: string; b: string };
         for (const id of [d.a, d.b]) if (!imageUrls.has(id) && images[id]) imageUrls.set(id, svgDataUrl(images[id]));
       }
+    }
+    const wordImageIds = picked.map((i) => (i.data as { image?: string }).image).filter((x): x is string => !!x && !imageUrls.has(x));
+    if (wordImageIds.length) {
+      // pictures are optional: the game still works if this file can't load
+      const { images } = await loadWordImages().catch(() => ({ images: {} as Record<string, string> }));
+      for (const id of wordImageIds) if (images[id]) imageUrls.set(id, svgDataUrl(images[id]));
     }
     return picked.map((i) => ({ ...i, data: { ...i.data } }));
   }

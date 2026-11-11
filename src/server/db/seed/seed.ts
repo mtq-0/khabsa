@@ -11,6 +11,7 @@ import { QUESTION_PAIRS } from './questionPairs.ts';
 import { MOST_LIKELY, TABOO_CARDS } from './party.ts';
 import { TRIVIA } from './trivia.ts';
 import { generatePicturePairs } from './pictures.ts';
+import { WORD_PICTURES, renderWordPicture } from './wordPictures.ts';
 
 const DIFF = { e: 'easy', m: 'medium', h: 'hard' } as const;
 
@@ -62,6 +63,22 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
   const res = await repo.bulkInsert(items, null);
   if (res.inserted) log(`seeded ${res.inserted} content items`);
   if (res.errors.length) log(`seed validation errors: ${JSON.stringify(res.errors.slice(0, 5))}`);
+
+  // illustrated cards for cartoon / movie / TV words (also added to databases seeded before this existed)
+  const missingWordPictures = await db.query<{ id: string; word: string; data: Record<string, unknown> }>(
+    `select id, data->>'word' as word, data from content_items where kind = 'word' and pack_id is null and data->>'image' is null and data->>'word' = any($1::text[])`,
+    [Object.keys(WORD_PICTURES)],
+  );
+  for (const row of missingWordPictures.rows) {
+    const svg = renderWordPicture(row.word);
+    if (!svg) continue;
+    const imageId = randomUUID();
+    const key = `private/images/${imageId}.svg`;
+    await storage.put(key, svg);
+    await db.query('insert into images (id, storage_key, mime, bytes, width, height) values ($1, $2, $3, $4, 800, 600)', [imageId, key, 'image/svg+xml', Buffer.byteLength(svg)]);
+    await db.query(`update content_items set data = $2::jsonb, updated_at = now() where id = $1`, [row.id, JSON.stringify({ ...row.data, image: imageId })]);
+  }
+  if (missingWordPictures.rows.length) log(`added pictures to ${missingWordPictures.rows.length} words`);
 
   const havePictures = (await db.query<{ n: number }>(`select count(*)::int as n from content_items where kind = 'picture-pair' and pack_id is null`, [])).rows[0].n;
   if (!havePictures) {

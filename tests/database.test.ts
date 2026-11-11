@@ -146,6 +146,20 @@ describe('content system', () => {
     const items = csvToItems('taboo-card', 'category,difficulty,word,forbidden\nfood,easy,منسف,جميد|رز|لحمة');
     expect(items[0].data).toEqual({ word: 'منسف', forbidden: ['جميد', 'رز', 'لحمة'] });
   });
+  it('cartoon, movie and TV words have private pictures', async () => {
+    const r = await db.query<{ n: number; with_img: number }>(
+      `select count(*)::int n, count(*) filter (where i.id is not null)::int with_img
+       from content_items c left join images i on i.id = (c.data->>'image')::uuid
+       where c.kind = 'word' and c.category in ('cartoons','movies','tv')`,
+    );
+    expect(r.rows[0].n).toBeGreaterThan(80);
+    expect(r.rows[0].with_img).toBe(r.rows[0].n);
+    // seeding again does not duplicate pictures
+    const before = (await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n;
+    await seed(db, new Storage(db));
+    expect((await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n).toBe(before);
+  });
+
   it('seeded content covers every game', async () => {
     const r = await db.query<{ kind: string; n: number }>(`select kind, count(*)::int as n from content_items where pack_id is null group by kind`);
     const by = Object.fromEntries(r.rows.map((x) => [x.kind, x.n]));

@@ -8,6 +8,7 @@ import { api } from '../lib/api.ts';
 import { PAGES } from '../lib/mode.ts';
 import { getSocket, reconnectSocket, useConnection } from '../lib/socket.ts';
 import { Avatar, Button, cx, Logo, toast, Toaster } from './ui.tsx';
+import { TmdbNotice } from './TmdbNotice.tsx';
 
 const NAV = PAGES
   ? [
@@ -102,6 +103,7 @@ export function Layout() {
         <footer className="hidden border-t border-white/5 py-8 text-center text-sm text-ink-400 md:block">
           <p className="font-display text-xl text-ink-200">اللعب بلّش... والخبصة علينا!</p>
           <p className="mt-1">© {new Date().getFullYear()} خبصة KHABSA{PAGES && ' · نسخة GitHub (بدون سيرفر)'}</p>
+          <TmdbCredit />
           <p className="mt-1 text-xs text-ink-500" dir="ltr">
             Picture artwork: <a className="underline" href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener noreferrer">Twemoji</a> by Twitter/X and contributors, CC-BY 4.0
           </p>
@@ -206,4 +208,19 @@ function InviteListener() {
       </div>
     </div>
   );
+}
+
+/** Shown when the server has TMDB posters enabled (attribution required by TMDB). */
+export function TmdbCredit() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    api<{ tmdb?: boolean }>('/api/platform')
+      .then((d) => setOn(!!d.tmdb))
+      .catch(() => {});
+  }, []);
+  return on ? (
+    <div className="mt-2">
+      <TmdbNotice />
+    </div>
+  ) : null;
 }

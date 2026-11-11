@@ -1,6 +1,7 @@
 # Third-party notices
 
 - **Twemoji** graphics (used to render seeded picture-pair scenes) — Copyright Twitter, Inc. and other contributors. Graphics licensed under **CC-BY 4.0** (https://creativecommons.org/licenses/by/4.0/). Package `@twemoji/svg` (code MIT).
+- **TMDB** (optional): movie/TV posters via the TMDB API. "This product uses the TMDB API but is not endorsed or certified by TMDB." The TMDB logo (`public/tmdb-logo.svg`, unmodified approved logo from themoviedb.org/about/logos-attribution) is shown with this notice in the footer and settings page whenever TMDB is enabled. Posters are not stored; they are fetched on demand with a small in-memory cache. Free for non-commercial use only.
 - **Readex Pro** and **Lalezar** fonts via Fontsource — SIL Open Font License 1.1.
 - **Lucide** icons — ISC License.
 - **LiveKit** client and server SDKs — Apache License 2.0.

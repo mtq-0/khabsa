@@ -275,6 +275,69 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext) {
     return res;
   });
 
+  // ------------------------------------------------------------------ TMDB
+  const POSTER_CATEGORIES = ['cartoons', 'movies', 'tv'];
+  app.get('/api/admin/tmdb/words', async () => {
+    const r = await ctx.db.query<{ id: string; category: string; data: { word: string; poster?: unknown; image?: string } }>(
+      `select id, category, data from content_items where kind = 'word' and pack_id is null and category = any($1::text[]) order by category, data->>'word'`,
+      [POSTER_CATEGORIES],
+    );
+    return { configured: ctx.tmdb.configured, words: r.rows.map((w) => ({ id: w.id, category: w.category, word: w.data.word, poster: w.data.poster ?? null, hasPicture: !!w.data.image })) };
+  });
+
+  app.post('/api/admin/tmdb/search', async (req) => {
+    const admin = requireAdmin(req);
+    rateLimit(ctx, 'upload', `tmdb:${admin.id}`);
+    const body = parse(z.object({ items: z.array(z.object({ id: z.uuid(), query: z.string().min(1).max(80).optional() })).min(1).max(30) }), req.body);
+    const rows = (await ctx.db.query<{ id: string; data: { word: string } }>(`select id, data from content_items where id = any($1::uuid[]) and kind = 'word'`, [body.items.map((i) => i.id)])).rows;
+    const byId = new Map(rows.map((r) => [r.id, r]));
+    const out: { id: string; query: string; match: unknown; error?: string }[] = [];
+    // small concurrency to stay well within TMDB rate limits
+    const queue = [...body.items];
+    await Promise.all(
+      Array.from({ length: 4 }, async () => {
+        for (let it = queue.shift(); it; it = queue.shift()) {
+          const row = byId.get(it.id);
+          if (!row) continue;
+          const query = it.query ?? row.data.word;
+          try {
+            out.push({ id: it.id, query, match: await ctx.tmdb.search(query) });
+          } catch (e) {
+            if (e instanceof AppError && (e.code === 'FORBIDDEN' || e.code === 'VALIDATION')) throw e;
+            out.push({ id: it.id, query, match: null, error: (e as Error).message });
+          }
+        }
+      }),
+    );
+    return { results: out };
+  });
+
+  app.post('/api/admin/tmdb/apply', async (req) => {
+    const admin = requireAdmin(req);
+    const body = parse(
+      z.object({
+        id: z.uuid(),
+        poster: z.object({ tmdbId: z.number().int().positive(), type: z.enum(['movie', 'tv']), path: z.string(), title: z.string().max(120).optional() }).nullable(),
+      }),
+      req.body,
+    );
+    const cur = (await ctx.db.query<{ data: Record<string, unknown> }>(`select data from content_items where id = $1 and kind = 'word'`, [body.id])).rows[0];
+    if (!cur) throw new AppError('NOT_FOUND');
+    const next = { ...cur.data };
+    if (body.poster) next.poster = body.poster;
+    else delete next.poster;
+    const data = validateContent('word', next);
+    await ctx.db.query('update content_items set data = $2::jsonb, updated_at = now() where id = $1', [body.id, JSON.stringify(data)]);
+    await audit(ctx, admin.id, body.poster ? 'tmdb.apply' : 'tmdb.remove', body.id, body.poster ?? {});
+    return { ok: true };
+  });
+
+  app.get('/api/admin/tmdb/poster', async (req, reply) => {
+    const q = parse(z.object({ path: z.string().max(80), size: z.enum(['w185', 'w342', 'w500']).default('w185') }), req.query);
+    const p = await ctx.tmdb.poster(q.path, q.size);
+    return reply.header('Content-Type', p.mime).header('Cache-Control', 'private, max-age=3600').send(p.data);
+  });
+
   // ---------------------------------------------------------------- reports
   app.get('/api/admin/reports', async (req) => {
     const q = parse(z.object({ status: z.enum(['open', 'resolved', 'dismissed']).default('open') }), req.query);

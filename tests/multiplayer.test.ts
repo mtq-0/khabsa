@@ -286,6 +286,27 @@ describe('مين برا الرسمة image privacy', () => {
   });
 });
 
+describe('مين برا السالفة word pictures over the network', () => {
+  it('insiders get a viewer-bound picture link; the outsider gets nothing', async () => {
+    const { ps, code, host } = await roomWith(4, 'outsider-word');
+    await host.act(code, 'settings', { settings: { rounds: 1, category: 'cartoons' } });
+    await readyAll(ps, code);
+    await host.act(code, 'start');
+    await waitFor(() => ps.every((p) => p.last.game?.phase === 'reveal'), 3000);
+    const outsider = ps.find((p) => (p.last.game!.me as any).role === 'outsider')!;
+    const insiders = ps.filter((p) => p !== outsider);
+    const urls = insiders.map((p) => (p.last.game!.me as any).wordImage as string);
+    for (const u of urls) expect(u).toMatch(/^\/api\/game-image\//);
+    expect((outsider.last.game!.me as any).wordImage).toBeUndefined();
+    expect(outsider.raw.join('')).not.toContain('/api/game-image/');
+    const img = await insiders[0].http('GET', urls[0]);
+    expect(img.status).toBe(200);
+    expect(String(img.data)).toContain('<svg');
+    expect((await outsider.http('GET', urls[0])).status).toBe(403);
+    for (const p of ps) p.disconnect();
+  });
+});
+
 describe('ارسم وخمّن canvas', () => {
   it('only the drawer can draw; segments relay and resync; chat cannot leak the word', async () => {
     const { ps, code, host } = await roomWith(3, 'draw-guess');

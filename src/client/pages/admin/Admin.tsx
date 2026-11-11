@@ -6,6 +6,7 @@ import { api, errorText } from '../../lib/api.ts';
 import { useSession } from '../../lib/session.ts';
 import { Button, EmptyState, Modal, PageTitle, Skeleton, Toggle, cx, toast } from '../../components/ui.tsx';
 import { linesToItems } from '../Packs.tsx';
+import { TmdbNotice } from '../../components/TmdbNotice.tsx';
 
 const KINDS = [
   ['word', 'كلمات برا السالفة'],
@@ -25,6 +26,7 @@ export default function AdminPage() {
     ['games', 'الألعاب'],
     ['content', 'المحتوى'],
     ['images', 'الصور'],
+    ['tmdb', 'صور TMDB'],
     ['categories', 'التصنيفات'],
     ['reports', 'البلاغات'],
     ['users', 'المستخدمين'],
@@ -46,6 +48,7 @@ export default function AdminPage() {
         <Route path="games" element={<Games />} />
         <Route path="content" element={<Content />} />
         <Route path="images" element={<Images />} />
+        <Route path="tmdb" element={<TmdbPosters />} />
         <Route path="categories" element={<Categories />} />
         <Route path="reports" element={<Reports />} />
         <Route path="users" element={<Users />} />
@@ -412,6 +415,125 @@ function Images() {
       <Button disabled={!a || !b || !form.labelA || !form.labelB} onClick={() => run(() => api('/api/admin/picture-pairs', { body: { imageA: a, imageB: b, ...form } }), () => { setA(null); setB(null); setForm({ ...form, labelA: '', labelB: '' }); })}>
         أضف الزوج
       </Button>
+    </div>
+  );
+}
+
+interface Poster {
+  tmdbId: number;
+  type: 'movie' | 'tv';
+  path: string;
+  title?: string;
+}
+interface Match {
+  tmdbId: number;
+  type: 'movie' | 'tv';
+  title: string;
+  originalTitle: string;
+  year: string | null;
+  posterPath: string;
+}
+const CAT_NAMES: Record<string, string> = { cartoons: 'كرتون', movies: 'أفلام', tv: 'مسلسلات وبرامج' };
+
+function TmdbPosters() {
+  const [d, load] = useLoad<{ configured: boolean; words: { id: string; category: string; word: string; poster: Poster | null; hasPicture: boolean }[] }>('/api/admin/tmdb/words');
+  const [matches, setMatches] = useState<Record<string, { match: Match | null; error?: string; query: string }>>({});
+  const [queries, setQueries] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  if (!d) return <Skeleton className="h-64" />;
+  if (!d.configured)
+    return (
+      <div className="card max-w-2xl space-y-2 p-5 text-sm">
+        <p className="font-bold">TMDB مش مفعّل لسا</p>
+        <p className="text-ink-300">١. اعمل حساب ببلاش على themoviedb.org ← Settings ← API ← اطلب مفتاح (Developer).</p>
+        <p className="text-ink-300">٢. انسخ <b>API Read Access Token</b> (الطويل اللي بيبلّش بـ eyJ).</p>
+        <p className="text-ink-300">٣. بـ Render: khabsa ← Environment ← ضيف <code dir="ltr">TMDB_TOKEN</code> والصق المفتاح ← Save. لا تبعته لحدا.</p>
+      </div>
+    );
+  const search = async (ids: string[]) => {
+    setBusy(true);
+    try {
+      for (let i = 0; i < ids.length; i += 30) {
+        const items = ids.slice(i, i + 30).map((id) => ({ id, ...(queries[id] ? { query: queries[id] } : {}) }));
+        const r = await api<{ results: { id: string; match: Match | null; error?: string; query: string }[] }>('/api/admin/tmdb/search', { body: { items }, timeoutMs: 120_000 });
+        setMatches((m) => ({ ...m, ...Object.fromEntries(r.results.map((x) => [x.id, x])) }));
+      }
+    } catch (e) {
+      toast.error(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const apply = (id: string, poster: Poster | null) => run(() => api('/api/admin/tmdb/apply', { body: { id, poster } }), load, poster ? 'انحفظت الصورة' : 'رجعت الرسمة');
+  const missing = d.words.filter((w) => !w.poster).map((w) => w.id);
+  return (
+    <div className="space-y-4">
+      <div className="card flex flex-wrap items-center gap-3 p-4 text-sm">
+        <span className="text-ink-300">
+          {d.words.filter((w) => w.poster).length} من {d.words.length} كلمة إلها صورة TMDB. راجع كل نتيجة قبل ما توافق، البحث أحياناً بيجيب عمل ثاني.
+        </span>
+        <Button size="sm" className="ms-auto" loading={busy} disabled={!missing.length} onClick={() => void search(missing)}>
+          دوّر على الكل ({missing.length})
+        </Button>
+      </div>
+      <ul className="grid gap-3 md:grid-cols-2">
+        {d.words.map((w) => {
+          const m = matches[w.id];
+          return (
+            <li key={w.id} className="card flex gap-3 p-3 text-sm">
+              <div className="w-20 shrink-0">
+                {w.poster ? (
+                  <img src={`/api/admin/tmdb/poster?path=${encodeURIComponent(w.poster.path)}`} alt="" className="aspect-[2/3] w-full rounded-lg object-cover" loading="lazy" />
+                ) : m?.match ? (
+                  <img src={`/api/admin/tmdb/poster?path=${encodeURIComponent(m.match.posterPath)}`} alt="" className="aspect-[2/3] w-full rounded-lg object-cover opacity-80 ring-2 ring-sun-400" loading="lazy" />
+                ) : (
+                  <div className="grid aspect-[2/3] place-items-center rounded-lg bg-white/5 text-xs text-ink-500">{w.hasPicture ? 'رسمة' : '—'}</div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <p className="font-bold">
+                  {w.word} <span className="chip">{CAT_NAMES[w.category] ?? w.category}</span>
+                </p>
+                {w.poster ? (
+                  <>
+                    <p className="text-xs text-lime-400">✓ صورة TMDB: {w.poster.title}</p>
+                    <Button size="sm" variant="ghost" onClick={() => apply(w.id, null)}>
+                      شيلها (ارجع للرسمة)
+                    </Button>
+                  </>
+                ) : m ? (
+                  m.match ? (
+                    <>
+                      <p className="text-xs text-sun-400">
+                        لقينا: {m.match.title} {m.match.originalTitle && m.match.originalTitle !== m.match.title ? `(${m.match.originalTitle})` : ''} {m.match.year ? `· ${m.match.year}` : ''} · {m.match.type === 'tv' ? 'مسلسل' : 'فيلم'}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => apply(w.id, { tmdbId: m.match!.tmdbId, type: m.match!.type, path: m.match!.posterPath, title: m.match!.title })}>
+                          صح، اعتمدها
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setMatches((x) => ({ ...x, [w.id]: { ...x[w.id], match: null, error: 'رفضتها. جرّب اسم ثاني.' } }))}>
+                          غلط
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-xs text-ink-400">{m.error ?? 'ما لقينا صورة. جرّب اسم ثاني (مثلاً بالإنجليزي).'}</p>
+                  )
+                ) : null}
+                {!w.poster && (
+                  <div className="flex gap-2">
+                    <input className="field py-1.5 text-xs" placeholder="اسم بديل للبحث (اختياري)" value={queries[w.id] ?? ''} onChange={(e) => setQueries((q) => ({ ...q, [w.id]: e.target.value }))} />
+                    <Button size="sm" variant="secondary" disabled={busy} onClick={() => void search([w.id])}>
+                      دوّر
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <TmdbNotice />
     </div>
   );
 }

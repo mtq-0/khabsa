@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Harness } from './helpers/engine.ts';
+import { Harness, item } from './helpers/engine.ts';
 import { accused, tally } from '../src/server/games/common.ts';
 import { outsiderCountFor, type OutsiderState } from '../src/server/games/outsider.ts';
 import type { OddQuestionState } from '../src/server/games/oddQuestion.ts';
@@ -129,6 +129,30 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
     h.state = draft;
     expect(h.state.round).toBe(2);
     expect(h.state.players).not.toContain(out);
+  });
+
+  it('word pictures go only to players who know the word, and to everyone at round end', () => {
+    const content = Array.from({ length: 5 }, (_, i) => item('word', i, { word: `توم${i}`, image: `pic-${i}` }, 'cartoons'));
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 }, content);
+    const out = h.state.outsiders[0];
+    const img = h.state.secret!.wordImage!;
+    expect(img).toMatch(/^pic-/);
+    for (const p of h.players) {
+      const v = h.view(p);
+      if (p === out) {
+        expect(v.me.wordImage).toBeUndefined();
+        expect(json(v)).not.toContain(img);
+      } else expect(v.me.wordImage).toBe(`/img/${img}?for=${p}`);
+    }
+    for (const p of h.players) h.act(p, 'seen');
+    for (let i = 0; i < 4; i++) h.expire();
+    h.expire(); // discuss → vote
+    h.expire(); // close vote
+    expect(json(h.view(out))).not.toContain(img); // still hidden during verdict
+    h.expire(); // verdict → guess
+    expect(json(h.view(out))).not.toContain(img); // and while the outsider guesses
+    h.act(out, 'guess', { choice: h.state.secret!.word });
+    expect(h.view(out).reveal.wordImage).toBe(`/img/${img}?for=${out}`);
   });
 
   it('masks the secret word in chat while hidden', () => {

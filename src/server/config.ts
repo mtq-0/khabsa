@@ -18,6 +18,7 @@ export interface Config {
   seedOnBoot: boolean;
   roomIdleMinutes: number;
   ipRateLimitScale: number;
+  tmdb: { token: string | null; apiBase: string; imageBase: string };
 }
 
 function list(v: string | undefined): string[] {
@@ -59,6 +60,11 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     seedOnBoot: process.env.SEED_ON_BOOT !== 'false',
     roomIdleMinutes: Number(process.env.ROOM_IDLE_MINUTES ?? 30),
     ipRateLimitScale: Math.max(1, Number(process.env.IP_RATE_LIMIT_SCALE ?? 1)),
+    tmdb: {
+      token: process.env.TMDB_TOKEN || process.env.TMDB_API_KEY || null,
+      apiBase: process.env.TMDB_API_BASE ?? 'https://api.themoviedb.org/3',
+      imageBase: process.env.TMDB_IMAGE_BASE ?? 'https://image.tmdb.org/t/p',
+    },
     ...overrides,
   };
   return cfg;

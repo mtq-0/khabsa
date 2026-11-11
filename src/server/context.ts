@@ -10,6 +10,7 @@ import type { Platform } from './platform.ts';
 import type { RoomManager } from './rooms/RoomManager.ts';
 import type { Storage, ImageSigner } from './storage/storage.ts';
 import type { VoiceService } from './voice/voice.ts';
+import type { TmdbService } from './content/tmdb.ts';
 import type { Limits } from './security/rateLimit.ts';
 import { AppError } from '../shared/errors.ts';
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/protocol.ts';
@@ -27,6 +28,7 @@ export interface AppContext {
   storage: Storage;
   signer: ImageSigner;
   voice: VoiceService;
+  tmdb: TmdbService;
   limits: Limits;
   io: Server<ClientToServerEvents, ServerToClientEvents>;
 }

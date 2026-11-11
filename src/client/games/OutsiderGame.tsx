@@ -17,8 +17,8 @@ interface OutsiderView {
   votedCount: number;
   outsiderCount: number;
   players: string[];
-  me: { isPlayer: boolean; role?: 'insider' | 'outsider' | 'unknown'; word?: string; category?: string | null; image?: string | null; guessOptions?: string[]; voted?: string | null; guess?: string | null };
-  reveal: null | { outsiders: string[]; caught: string[]; votes: Record<string, string>; counts: Record<string, number>; answer: string | null; word: string | null; imageA: string | null; imageB: string | null; labelB: string | null; guesses: Record<string, string>; roundPoints: Record<string, number> };
+  me: { isPlayer: boolean; role?: 'insider' | 'outsider' | 'unknown'; word?: string; wordImage?: string; category?: string | null; image?: string | null; guessOptions?: string[]; voted?: string | null; guess?: string | null };
+  reveal: null | { outsiders: string[]; caught: string[]; votes: Record<string, string>; counts: Record<string, number>; answer: string | null; word: string | null; wordImage?: string | null; imageA: string | null; imageB: string | null; labelB: string | null; guesses: Record<string, string>; roundPoints: Record<string, number> };
 }
 
 function PictureCard({ src, label }: { src: string; label?: string }) {
@@ -62,6 +62,11 @@ function RoleCard({ g }: { g: OutsiderView }) {
           </SecretCard>
         ) : (
           <SecretCard testId="role-card">
+            {me.wordImage && (
+              <div className="mx-auto mb-3 max-w-52" data-testid="word-image">
+                <PictureCard src={me.wordImage} label={me.word} />
+              </div>
+            )}
             <p className="text-sm text-white/80">الكلمة السرية</p>
             <p className="mt-1 font-display text-5xl" data-testid="secret-word">
               {me.word}
@@ -217,9 +222,16 @@ export function OutsiderGame({ view }: { view: RoomView }) {
             <div className="space-y-4">
               <div className="card p-5 text-center">
                 {isWord ? (
-                  <p>
-                    الكلمة كانت: <b className="font-display text-3xl text-volt-300">{r.word}</b>
-                  </p>
+                  <div>
+                    <p>
+                      الكلمة كانت: <b className="font-display text-3xl text-volt-300">{r.word}</b>
+                    </p>
+                    {r.wordImage && (
+                      <div className="mx-auto mt-3 max-w-xs">
+                        <PictureCard src={r.wordImage} label={r.word ?? ''} />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2">
                     {r.imageA && (
