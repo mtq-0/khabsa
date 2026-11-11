@@ -56,7 +56,7 @@ test('GitHub Pages edition: host in the browser, friends join by link, private r
   await expect(host.page.getByTestId('players-list').locator('li')).toHaveCount(3);
   await expect(host.page.getByTestId('host-badge')).toContainText('متصلين: 2');
   // regression: the room lobby must fit phone screens (no horizontal overflow / zoom-out)
-  for (const p of [p2, p3]) expect(await p.page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+  for (const p of [p2, p3]) expect(await p.page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.documentElement.clientWidth) - screen.width)).toBeLessThanOrEqual(1);
 
   // chat across peers
   await p2.page.getByRole('tab', { name: /الشات/ }).click();

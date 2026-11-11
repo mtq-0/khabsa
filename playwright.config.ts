@@ -1,6 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
 const PORT = 3333;
+/** Set LIVE_URL to run the journeys against a deployed server instead of a local one. */
+const LIVE = process.env.LIVE_URL;
 
 export default defineConfig({
   testDir: 'e2e',
@@ -12,12 +14,12 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: LIVE ?? `http://localhost:${PORT}`,
     locale: 'ar',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
-  webServer: {
+  webServer: LIVE ? undefined : {
     command: 'node src/server/index.ts',
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,
