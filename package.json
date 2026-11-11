@@ -1,0 +1,60 @@
+{
+  "name": "khabsa",
+  "version": "1.0.0",
+  "description": "KHABSA (خبصة) — Arabic-first online multiplayer party games platform",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "node --watch src/server/index.ts",
+    "dev:client": "vite",
+    "build": "vite build",
+    "start": "NODE_ENV=production node src/server/index.ts",
+    "migrate": "node src/server/db/cli.ts migrate",
+    "seed": "node src/server/db/cli.ts seed",
+    "make-admin": "node src/server/db/cli.ts make-admin",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm test && npm run build && npm run test:e2e"
+  },
+  "license": "UNLICENSED",
+  "type": "module",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/multipart": "^10.1.8",
+    "@fastify/static": "^10.1.10",
+    "@fontsource-variable/readex-pro": "^5.3.0",
+    "@fontsource/lalezar": "^5.3.0",
+    "fastify": "^5.12.8",
+    "livekit-client": "^2.23.0",
+    "livekit-server-sdk": "^2.19.3",
+    "lucide-react": "^1.72.0",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router": "^7.18.5",
+    "sharp": "^0.35.5",
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4",
+    "zod": "^4.6.7",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  }
+}
