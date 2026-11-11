@@ -436,7 +436,7 @@ interface Match {
 const CAT_NAMES: Record<string, string> = { cartoons: 'كرتون', movies: 'أفلام', tv: 'مسلسلات وبرامج' };
 
 function TmdbPosters() {
-  const [d, load] = useLoad<{ configured: boolean; words: { id: string; category: string; word: string; poster: Poster | null; hasPicture: boolean }[] }>('/api/admin/tmdb/words');
+  const [d, load] = useLoad<{ configured: boolean; words: { id: string; category: string; word: string; poster: Poster | null; hasPicture: boolean; suggestedQuery: string | null }[] }>('/api/admin/tmdb/words');
   const [matches, setMatches] = useState<Record<string, { match: Match | null; error?: string; query: string }>>({});
   const [queries, setQueries] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
@@ -465,11 +465,12 @@ function TmdbPosters() {
     }
   };
   const apply = (id: string, poster: Poster | null) => run(() => api('/api/admin/tmdb/apply', { body: { id, poster } }), load, poster ? 'انحفظت الصورة' : 'رجعت الرسمة');
-  const missing = d.words.filter((w) => !w.poster).map((w) => w.id);
+  const missing = d.words.filter((w) => !w.poster && w.suggestedQuery).map((w) => w.id);
   return (
     <div className="space-y-4">
       <div className="card flex flex-wrap items-center gap-3 p-4 text-sm">
         <span className="text-ink-300">
+          اكتب <code dir="ltr">tv:</code> أو <code dir="ltr">movie:</code> قبل الاسم لتدوّر على مسلسلات أو أفلام بس (مثلاً <code dir="ltr">tv:Jinn</code>). 
           {d.words.filter((w) => w.poster).length} من {d.words.length} كلمة إلها صورة TMDB. راجع كل نتيجة قبل ما توافق، البحث أحياناً بيجيب عمل ثاني.
         </span>
         <Button size="sm" className="ms-auto" loading={busy} disabled={!missing.length} onClick={() => void search(missing)}>
@@ -522,7 +523,7 @@ function TmdbPosters() {
                 ) : null}
                 {!w.poster && (
                   <div className="flex gap-2">
-                    <input className="field py-1.5 text-xs" placeholder="اسم بديل للبحث (اختياري)" value={queries[w.id] ?? ''} onChange={(e) => setQueries((q) => ({ ...q, [w.id]: e.target.value }))} />
+                    <input className="field py-1.5 text-xs" placeholder={w.suggestedQuery && w.suggestedQuery !== w.word ? `بحث: ${w.suggestedQuery}` : 'اسم بديل للبحث (اختياري)'} value={queries[w.id] ?? ''} onChange={(e) => setQueries((q) => ({ ...q, [w.id]: e.target.value }))} />
                     <Button size="sm" variant="secondary" disabled={busy} onClick={() => void search([w.id])}>
                       دوّر
                     </Button>

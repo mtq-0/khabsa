@@ -6,6 +6,7 @@ import { AppError } from '../../shared/errors.ts';
 import { GAME_IDS } from '../../shared/games.ts';
 import { toSessionUser, USER_COLUMNS, type UserRow } from '../auth/auth.ts';
 import { CONTENT_KINDS, dedupeKey, validateContent } from '../content/content.ts';
+import { tmdbQueryFor } from '../db/seed/wordPictures.ts';
 import { csvToItems, toCsv } from '../content/csv.ts';
 import type { ContentKind } from '../games/types.ts';
 import { audit, parse, rateLimit, requireAdmin, type AppContext } from '../context.ts';
@@ -282,7 +283,10 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext) {
       `select id, category, data from content_items where kind = 'word' and pack_id is null and category = any($1::text[]) order by category, data->>'word'`,
       [POSTER_CATEGORIES],
     );
-    return { configured: ctx.tmdb.configured, words: r.rows.map((w) => ({ id: w.id, category: w.category, word: w.data.word, poster: w.data.poster ?? null, hasPicture: !!w.data.image })) };
+    return {
+      configured: ctx.tmdb.configured,
+      words: r.rows.map((w) => ({ id: w.id, category: w.category, word: w.data.word, poster: w.data.poster ?? null, hasPicture: !!w.data.image, suggestedQuery: tmdbQueryFor(w.data.word) })),
+    };
   });
 
   app.post('/api/admin/tmdb/search', async (req) => {
@@ -299,7 +303,11 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext) {
         for (let it = queue.shift(); it; it = queue.shift()) {
           const row = byId.get(it.id);
           if (!row) continue;
-          const query = it.query ?? row.data.word;
+          const query = it.query ?? tmdbQueryFor(row.data.word);
+          if (!query) {
+            out.push({ id: it.id, query: '', match: null, error: 'كلمة عامة مش اسم عمل، خليناها على الرسمة. اكتب اسم للبحث إذا بدك.' });
+            continue;
+          }
           try {
             out.push({ id: it.id, query, match: await ctx.tmdb.search(query) });
           } catch (e) {

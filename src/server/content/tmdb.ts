@@ -8,6 +8,7 @@
  * Configure with TMDB_TOKEN (v4 "API Read Access Token") or a v3 API key.
  */
 import { AppError } from '../../shared/errors.ts';
+import { normalizeArabic } from '../../shared/arabic.ts';
 
 export interface TmdbMatch {
   tmdbId: number;
@@ -54,11 +55,29 @@ export class TmdbService {
     return (await res.json()) as T;
   }
 
-  /** Best movie/TV match with a poster for a (usually Arabic) title. */
-  async search(query: string): Promise<TmdbMatch | null> {
-    type R = { media_type?: string; id: number; title?: string; name?: string; original_title?: string; original_name?: string; release_date?: string; first_air_date?: string; poster_path?: string | null; popularity?: number };
-    const res = await this.get<{ results: R[] }>('/search/multi', { query, language: 'ar', include_adult: 'false', page: '1' });
-    const hit = (res.results ?? []).find((r) => (r.media_type === 'movie' || r.media_type === 'tv') && r.poster_path && POSTER_PATH_RE.test(r.poster_path));
+  /**
+   * Best movie/TV match with a poster for a (usually Arabic) title.
+   * Prefix with "tv:" or "movie:" to search only series or only films.
+   */
+  async search(rawQuery: string): Promise<TmdbMatch | null> {
+    const pref = /^(tv|movie):\s*/i.exec(rawQuery);
+    const only = pref ? (pref[1].toLowerCase() as 'tv' | 'movie') : null;
+    const query = pref ? rawQuery.slice(pref[0].length) : rawQuery;
+    type R = { media_type?: string; id: number; title?: string; name?: string; original_title?: string; original_name?: string; release_date?: string; first_air_date?: string; poster_path?: string | null; popularity?: number; vote_count?: number };
+    const res = await this.get<{ results: R[] }>(only ? `/search/${only}` : '/search/multi', { query, language: 'ar', include_adult: 'false', page: '1' });
+    if (only) for (const r of res.results ?? []) r.media_type = only;
+    const q = normalizeArabic(query);
+    const candidates = (res.results ?? []).filter((r) => (r.media_type === 'movie' || r.media_type === 'tv') && r.poster_path && POSTER_PATH_RE.test(r.poster_path));
+    // exact title first, then a title containing the query, then TMDB's own relevance order;
+    // popularity only breaks ties inside the same rank
+    const all = res.results ?? [];
+    const score = (r: R) => {
+      const titles = [r.title, r.name, r.original_title, r.original_name].filter(Boolean).map((t) => normalizeArabic(t!));
+      const exact = titles.includes(q);
+      const contains = !exact && titles.some((t) => t.includes(q));
+      return (exact ? 1e9 : 0) + (contains ? 1e7 : 0) + (40 - all.indexOf(r)) * 1e4 + Math.min(r.vote_count ?? 0, 9999);
+    };
+    const hit = candidates.sort((a, b) => score(b) - score(a))[0];
     if (!hit) return null;
     const date = hit.release_date || hit.first_air_date || '';
     return {

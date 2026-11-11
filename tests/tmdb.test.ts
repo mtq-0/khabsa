@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { Player, startServer, waitFor, type TestServer } from './helpers/server.ts';
+import { TmdbService } from '../src/server/content/tmdb.ts';
+import { tmdbQueryFor } from '../src/server/db/seed/wordPictures.ts';
 
 // tiny 1x1 PNG
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
@@ -11,12 +13,21 @@ const seen: { auth?: string; query?: string | null }[] = [];
 beforeAll(async () => {
   fake = createServer((req, res) => {
     const u = new URL(req.url!, 'http://x');
-    if (u.pathname === '/3/search/multi') {
+    if (u.pathname === '/3/search/multi' && u.searchParams.get('query') !== 'جن') {
       seen.push({ auth: req.headers.authorization, query: u.searchParams.get('query') });
       if (req.headers.authorization !== 'Bearer eyJfake-token') return res.writeHead(401).end('{}');
       const results = u.searchParams.get('query') === 'لا شي' ? [] : [
         { media_type: 'person', id: 1, name: 'x', poster_path: null },
         { media_type: 'tv', id: 1234, name: 'توم وجيري', original_name: 'Tom and Jerry', first_air_date: '1965-09-25', poster_path: '/tomjerryposter.jpg' },
+      ];
+      return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ results }));
+    }
+    if (u.pathname === '/3/search/tv' || (u.pathname === '/3/search/multi' && u.searchParams.get('query') === 'جن')) {
+      // a very popular but unrelated result first, the exact title further down
+      const tv = u.pathname === '/3/search/tv';
+      const results = [
+        { ...(tv ? {} : { media_type: 'movie' }), id: 9, title: 'Djinn', name: 'Djinn', poster_path: '/popularwrong.jpg', vote_count: 50000 },
+        { ...(tv ? {} : { media_type: 'tv' }), id: 10, name: 'جن', original_name: 'جن', first_air_date: '2019-06-13', poster_path: '/jinnseries.jpg', vote_count: 40 },
       ];
       return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ results }));
     }
@@ -39,6 +50,20 @@ async function admin() {
   if (r.status !== 200) await p.http('POST', '/api/auth/login', { email: 'admin@khabsa.test', password: 'secret-pass-1' });
   return p;
 }
+
+describe('TMDB matching', () => {
+  it('prefers an exact title over a more popular unrelated result, and supports tv:/movie: prefixes', async () => {
+    const t = new TmdbService({ token: 'eyJfake-token', apiBase: `${fakeUrl}/3`, imageBase: `${fakeUrl}/t/p` });
+    expect((await t.search('جن'))!.posterPath).toBe('/jinnseries.jpg');
+    const tv = await t.search('tv:جن');
+    expect(tv).toMatchObject({ type: 'tv', tmdbId: 10, year: '2019' });
+  });
+  it('skips generic words and uses better search terms for known titles', () => {
+    expect(tmdbQueryFor('نشرة الأخبار')).toBeNull();
+    expect(tmdbQueryFor('أفاتار')).toBe('Avatar');
+    expect(tmdbQueryFor('باب الحارة')).toBe('باب الحارة');
+  });
+});
 
 describe('TMDB posters', () => {
   it('admin searches, approves a poster, and only insiders receive it during the game', async () => {
