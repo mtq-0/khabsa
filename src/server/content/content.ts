@@ -36,6 +36,8 @@ export const CONTENT_SCHEMAS: Record<ContentKind, z.ZodType<Record<string, unkno
     mode: z.enum(['normal', 'hard']),
     /** attribution for real photos (free licenses), shown when the round is revealed */
     credits: z.object({ a: PHOTO_CREDIT, b: PHOTO_CREDIT }).optional(),
+    /** which photo pair this is ("keyA|keyB"), so seeding can add new pairs later without duplicating */
+    pairId: z.string().regex(/^[a-z0-9-]{1,80}\|[a-z0-9-]{1,80}$/).optional(),
   }),
   'most-likely': z.object({ text: t(160) }),
   'taboo-card': z.object({ word: t(40), forbidden: z.array(t(30)).min(3).max(6), alternatives: z.array(t(40)).max(5).optional() }),

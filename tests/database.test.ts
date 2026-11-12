@@ -6,6 +6,7 @@ import { StatsService } from '../src/server/stats/stats.ts';
 import { csvToItems, parseCsv } from '../src/server/content/csv.ts';
 import { seed, seedPosters } from '../src/server/db/seed/seed.ts';
 import { loadPosters } from '../src/server/db/seed/posters.ts';
+import { randomUUID } from 'node:crypto';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -172,36 +173,74 @@ describe('content system', () => {
     expect((await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n).toBe(before);
   });
 
-  it('real photo pairs are seeded with credits and replace the matching illustrated pairs', async () => {
-    const photos = await db.query<{ n: number; bad: number }>(
-      `select count(*)::int n,
+  it('مين برا الصورة؟ is real photos only: every pair has WebP photos stored in the database and their credits', async () => {
+    const photos = await db.query<{ n: number; hard: number; bad: number }>(
+      `select count(*)::int n, count(*) filter (where c.data->>'mode' = 'hard')::int hard,
               count(*) filter (where ia.mime <> 'image/webp' or ib.mime <> 'image/webp' or fa.key is null or fb.key is null
-                               or c.data->'credits'->'a'->>'author' is null or c.data->'credits'->'b'->>'page' not like 'https://commons.wikimedia.org/%')::int bad
+                               or c.data->'credits'->'a'->>'author' is null or c.data->'credits'->'b'->>'page' not like 'https://commons.wikimedia.org/%'
+                               or c.data->>'pairId' is null)::int bad
          from content_items c
          left join images ia on ia.id = (c.data->>'a')::uuid left join files fa on fa.key = ia.storage_key
          left join images ib on ib.id = (c.data->>'b')::uuid left join files fb on fb.key = ib.storage_key
-        where c.kind = 'picture-pair' and c.pack_id is null and c.status = 'active' and c.data ? 'credits'`,
+        where c.kind = 'picture-pair' and c.pack_id is null and c.status = 'active'`,
     );
     expect(photos.rows[0].n).toBe(photoPairs().length);
-    expect(photos.rows[0].n).toBeGreaterThanOrEqual(60);
+    expect(photos.rows[0].n).toBeGreaterThanOrEqual(120);
+    expect(photos.rows[0].hard).toBeGreaterThanOrEqual(10); // look-alike pairs for the hard mode
     expect(photos.rows[0].bad).toBe(0);
-    // the illustrated cat/tiger pair is replaced by the photo one; illustrated "hard" pairs stay
-    const ill = await db.query<{ status: string; mode: string }>(
-      `select status, data->>'mode' as mode from content_items where kind = 'picture-pair' and not (data ? 'credits') and data->>'labelA' = 'قطة'`,
-    );
-    expect(ill.rows.filter((r) => r.mode === 'normal').every((r) => r.status === 'disabled')).toBe(true);
-    expect(ill.rows.filter((r) => r.mode === 'hard').every((r) => r.status === 'active')).toBe(true);
-    // pairs without photos (e.g. professions) keep their illustrations
-    const prof = await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'picture-pair' and category = 'professions' and status = 'active'`);
-    expect(prof.rows[0].n).toBeGreaterThan(0);
-    // idempotent
+    // no drawn (SVG) pair is active
+    const drawn = await db.query<{ n: number }>(`select count(*)::int n from content_items c join images i on i.id = (c.data->>'a')::uuid where c.kind = 'picture-pair' and c.status = 'active' and i.mime = 'image/svg+xml'`);
+    expect(drawn.rows[0].n).toBe(0);
+    // idempotent: seeding again adds nothing
     const before = (await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n;
+    const pairsBefore = (await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'picture-pair'`)).rows[0].n;
     await seed(db, new Storage(db));
     expect((await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n).toBe(before);
-    // the picker serves them
-    const picked = await new ContentRepo(db).pick({ kind: 'picture-pair', count: 500 });
-    expect(picked.some((i) => 'credits' in i.data)).toBe(true);
-    expect(picked.some((i) => i.data.labelA === 'قطة' && i.data.mode === 'normal' && !('credits' in i.data))).toBe(false);
+    expect((await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'picture-pair'`)).rows[0].n).toBe(pairsBefore);
+    // the picker serves normal pairs for normal mode and look-alikes for hard mode
+    const repo = new ContentRepo(db);
+    const normal = await repo.pick({ kind: 'picture-pair', count: 300, difficulty: 'medium' });
+    const hard = await repo.pick({ kind: 'picture-pair', count: 300, difficulty: 'hard' });
+    expect(normal.every((i) => i.data.mode === 'normal' && 'credits' in i.data)).toBe(true);
+    expect(hard.every((i) => i.data.mode === 'hard' && i.data.labelA !== i.data.labelB)).toBe(true);
+  });
+
+  it('upgrading an old database: drawn pairs are switched off, old photo pairs are recognised (not duplicated), new ones are added', async () => {
+    const old = await createDb('pglite:memory');
+    await migrate(old); // (fresh DB: migration 003 runs on an empty table)
+    const storage = new Storage(old);
+    await old.query(`insert into categories (slug, name, emoji, sort) values ('food', 'أكل', '🍔', 0), ('animals', 'حيوانات', '🐶', 1) on conflict do nothing`);
+    // what version 1.x seeded: a drawn pair, and one real-photo pair without pairId and with random image ids
+    const svgA = randomUUID(), svgB = randomUUID(), pa = randomUUID(), pb = randomUUID();
+    for (const [id, mime] of [[svgA, 'image/svg+xml'], [svgB, 'image/svg+xml'], [pa, 'image/webp'], [pb, 'image/webp']] as const)
+      await old.query(`insert into images (id, storage_key, mime, bytes, width, height) values ($1, $2, $3, 10, 800, 600)`, [id, `private/images/${id}.${mime === 'image/webp' ? 'webp' : 'svg'}`, mime]);
+    const first = photoPairs().find((p) => p.mode === 'normal')!;
+    const credit = { author: 'x', license: 'CC0', page: 'https://commons.wikimedia.org/wiki/File:X.jpg' };
+    await old.query(`insert into content_items (kind, category, difficulty, data, dedupe_key) values ('picture-pair', 'food', 'medium', $1::jsonb, 'k1'), ('picture-pair', $2, 'medium', $3::jsonb, 'k2')`, [
+      JSON.stringify({ a: svgA, b: svgB, labelA: 'قديم', labelB: 'قديم٢', mode: 'normal' }),
+      first.category,
+      JSON.stringify({ a: pa, b: pb, labelA: first.labelA, labelB: first.labelB, mode: 'normal', credits: { a: credit, b: credit } }),
+    ]);
+    // run migration 003's statement as the real migrator would on an old database
+    const { readFileSync } = await import('node:fs');
+    await old.query(readFileSync(new URL('../src/server/db/migrations/003_photos_only.sql', import.meta.url), 'utf8'), []);
+    await seed(old, storage);
+    const rows = await old.query<{ status: string; label: string; pair: string | null }>(`select status, data->>'labelA' label, data->>'pairId' pair from content_items where kind = 'picture-pair'`);
+    expect(rows.rows.find((r) => r.label === 'قديم')!.status).toBe('disabled');
+    expect(rows.rows.filter((r) => r.label === first.labelA)).toHaveLength(1); // not duplicated
+    expect(rows.rows.find((r) => r.label === first.labelA)!.pair).toBe(`${first.keyA}|${first.keyB}`); // now recognised
+    expect(rows.rows.filter((r) => r.status === 'active').length).toBe(photoPairs().length);
+    await old.close();
+  });
+
+  it('photos stay varied: no Commons file is used twice and no two photos are near-duplicates', async () => {
+    const { analyse } = await import('../scripts/check-photos.ts');
+    const r = await analyse();
+    expect(r.samePage, 'the same Commons file is used for two subjects').toEqual([]);
+    expect(r.near.map((n) => `${n.a} ~ ${n.b}`), 'near-duplicate photos').toEqual([]);
+    expect(r.orphans, 'photo files no pair uses (run: node scripts/check-photos.ts --prune)').toEqual([]);
+    // all pairs have clearly different subjects (a pair of look-alikes is still two different photos)
+    for (const p of r.pairs) expect(p.keyA).not.toBe(p.keyB);
   });
 
   it('rejects photo credits with non-https or foreign links', () => {
@@ -249,7 +288,7 @@ describe('content system', () => {
     const r = await db.query<{ kind: string; n: number }>(`select kind, count(*)::int as n from content_items where pack_id is null group by kind`);
     const by = Object.fromEntries(r.rows.map((x) => [x.kind, x.n]));
     for (const k of ['word', 'question-pair', 'picture-pair', 'most-likely', 'taboo-card', 'trivia', 'draw-word']) expect(by[k], k).toBeGreaterThan(50);
-    expect(by['picture-pair']).toBeGreaterThanOrEqual(200);
+    expect(by['picture-pair']).toBeGreaterThanOrEqual(120);
   });
 });
 
@@ -279,7 +318,7 @@ describe('file storage in Postgres (no disk needed)', () => {
   });
   it('seeded picture images are stored in the database', async () => {
     const r = await db.query<{ n: number }>(`select count(*)::int as n from files f join images i on i.storage_key = f.key`);
-    expect(r.rows[0].n).toBeGreaterThanOrEqual(552);
+    expect(r.rows[0].n).toBeGreaterThanOrEqual(350); // 290 photos + the drawn word cards
   });
 });
 
