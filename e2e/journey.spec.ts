@@ -441,3 +441,44 @@ test('مين برا الرسمة: one shared canvas, one line each in a random o
   for (const p of all) expect(p.errors, 'no uncaught page errors').toEqual([]);
   for (const p of all) await p.ctx.close();
 });
+
+test('مين برا السالفة: movie words show their TMDB poster to the players who know the word, never to the outsider', async ({ browser }) => {
+  const names = ['أبو سند', 'سلمى', 'زيد'];
+  const all = await Promise.all(names.map(() => player(browser, null)));
+  await all[0].page.goto('/create?game=outsider-word');
+  await guest(all[0].page, names[0]);
+  await all[0].page.getByTestId('create-submit').click();
+  await expect(all[0].page).toHaveURL(/\/r\/[A-Z2-9]{6}$/);
+  const code = all[0].page.url().split('/').pop()!;
+  for (const [i, p] of all.entries()) {
+    if (!i) continue;
+    await p.page.goto(`/r/${code}`);
+    await guest(p.page, names[i]);
+    await p.page.getByTestId('ready-btn').click();
+  }
+  await all[0].page.locator('select:has(option[value="movies"])').selectOption('movies');
+  await all[0].page.locator('input[type=range]').first().fill('1');
+  await all[0].page.getByTestId('start-game').click();
+  for (const p of all) await expect(p.page.getByTestId('role-card')).toBeVisible();
+  const roles = await Promise.all(all.map(async (p) => ((await p.page.getByTestId('role-card').innerText()).includes('إنت برا السالفة!') ? 'out' : 'in')));
+  const outsider = all[roles.indexOf('out')];
+  for (const [i, p] of all.entries()) {
+    const img = p.page.getByTestId('role-card').locator('img');
+    if (roles[i] === 'out') {
+      await expect(img).toHaveCount(0);
+      continue;
+    }
+    await expect(img.first()).toBeVisible();
+    await expect.poll(() => img.first().evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth), { timeout: 20_000 }).toBeGreaterThan(100);
+    const src = (await img.first().getAttribute('src'))!;
+    expect(src).toMatch(/^\/api\/game-image\//);
+    // the signed link only works for its owner, and serves the TMDB poster (a JPEG)
+    expect(await p.page.evaluate(async (u) => { const r = await fetch(u); return `${r.status} ${r.headers.get('content-type')}`; }, src)).toBe('200 image/jpeg');
+    expect(await outsider.page.evaluate(async (u) => (await fetch(u)).status, src)).toBe(403);
+  }
+  for (const p of all) expect(p.errors).toEqual([]);
+  // TMDB's required attribution is on the site (footer) as soon as posters are in use
+  await all[0].page.goto('/');
+  await expect(all[0].page.getByText('This product uses the TMDB API').first()).toBeVisible();
+  for (const p of all) await p.ctx.close();
+});

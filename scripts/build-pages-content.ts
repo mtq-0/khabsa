@@ -14,6 +14,7 @@ import { TRIVIA } from '../src/server/db/seed/trivia.ts';
 import { generatePicturePairs } from '../src/server/db/seed/pictures.ts';
 import { renderWordPicture } from '../src/server/db/seed/wordPictures.ts';
 import { PHOTOS_DIR, itemCredit, photoPairs } from '../src/server/db/seed/photoSeed.ts';
+import { POSTER_CATEGORIES, loadPosters } from '../src/server/db/seed/posters.ts';
 import type { ContentItem } from '../src/server/games/types.ts';
 
 const outDir = process.argv[2] ?? 'dist-pages';
@@ -24,13 +25,18 @@ const add = (kind: ContentItem['kind'], category: string, difficulty: ContentIte
   items.push({ id: `${kind}-${++n}`, kind, category, difficulty, data });
 
 const wordImages: Record<string, string> = {};
+const posters = loadPosters();
+let withPoster = 0;
 for (const [cat, words] of Object.entries(OUTSIDER_WORDS))
   for (const w of words) {
     const p = parseWord(w);
     const svg = renderWordPicture(p.word);
     const image = svg ? `wimg-${n + 1}` : undefined;
     if (svg && image) wordImages[image] = svg;
-    add('word', cat, p.difficulty, { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}), ...(image ? { image } : {}) });
+    // TMDB poster (loaded straight from TMDB's CDN by the players who know the word)
+    const poster = POSTER_CATEGORIES.includes(cat) ? posters.get(p.word) : undefined;
+    if (poster) withPoster++;
+    add('word', cat, p.difficulty, { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}), ...(image ? { image } : {}), ...(poster ? { poster } : {}) });
   }
 for (const [cat, words] of Object.entries(DRAW_WORDS))
   for (const w of words) {
@@ -75,4 +81,4 @@ writeFileSync(join(dir, 'pictures.json'), JSON.stringify({ items: pictures, imag
 writeFileSync(join(dir, 'word-images.json'), JSON.stringify({ images: wordImages }));
 mkdirSync(join(dir, 'photos'), { recursive: true });
 for (const k of photoKeys) copyFileSync(join(PHOTOS_DIR, `${k}.webp`), join(dir, 'photos', `${k}.webp`));
-console.log(`pages content: ${items.length} items, ${pictures.length} picture pairs (${photos.length} real photos), ${Object.keys(wordImages).length} word pictures -> ${dir}`);
+console.log(`pages content: ${items.length} items, ${pictures.length} picture pairs (${photos.length} real photos), ${Object.keys(wordImages).length} word pictures, ${withPoster} TMDB posters -> ${dir}`);

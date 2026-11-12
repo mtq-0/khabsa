@@ -14,6 +14,18 @@ export function roomRoutes(app: FastifyInstance, ctx: AppContext) {
     return { ok: true, time: new Date().toISOString(), voice: ctx.voice.available };
   });
 
+  // TMDB attribution must show whenever TMDB posters are in use (with or without a TMDB key)
+  let postersChecked = 0;
+  let postersInUse = false;
+  const usesTmdb = async () => {
+    if (ctx.tmdb.configured) return true;
+    if (Date.now() - postersChecked > 5 * 60_000) {
+      postersChecked = Date.now();
+      postersInUse = (await ctx.db.query<{ e: boolean }>(`select exists(select 1 from content_items where kind = 'word' and status = 'active' and data ? 'poster') as e`)).rows[0].e;
+    }
+    return postersInUse;
+  };
+
   app.get('/api/platform', async () => {
     const s = await ctx.platform.settings();
     const games = await ctx.platform.games();
@@ -23,7 +35,7 @@ export function roomRoutes(app: FastifyInstance, ctx: AppContext) {
       guestAccess: s.guestAccess,
       allowPublicRooms: s.allowPublicRooms,
       voice: ctx.voice.available,
-      tmdb: ctx.tmdb.configured,
+      tmdb: await usesTmdb(),
       games: GAME_IDS.map((id) => ({ id, enabled: games[id]?.enabled ?? true, featured: games[id]?.featured ?? false, sort: games[id]?.sort ?? 0 })),
       online: ctx.rooms.stats(),
     };

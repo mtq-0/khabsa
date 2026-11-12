@@ -332,8 +332,13 @@ export function adminRoutes(app: FastifyInstance, ctx: AppContext) {
     const cur = (await ctx.db.query<{ data: Record<string, unknown> }>(`select data from content_items where id = $1 and kind = 'word'`, [body.id])).rows[0];
     if (!cur) throw new AppError('NOT_FOUND');
     const next = { ...cur.data };
-    if (body.poster) next.poster = body.poster;
-    else delete next.poster;
+    if (body.poster) {
+      next.poster = body.poster;
+      delete next.posterOff;
+    } else {
+      delete next.poster;
+      next.posterOff = true; // keep it off (the seed would add the default poster again)
+    }
     const data = validateContent('word', next);
     await ctx.db.query('update content_items set data = $2::jsonb, updated_at = now() where id = $1', [body.id, JSON.stringify(data)]);
     await audit(ctx, admin.id, body.poster ? 'tmdb.apply' : 'tmdb.remove', body.id, body.poster ?? {});

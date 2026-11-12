@@ -33,6 +33,8 @@ export default defineConfig({
       STORAGE_DIR: '.tools/e2e-storage',
       IP_RATE_LIMIT_SCALE: '100',
       ADMIN_EMAILS: 'admin@khabsa.test',
+      // every movie word gets the (real) Titanic poster, so a movie round always shows one
+      KHABSA_POSTERS_FILE: 'e2e/fixtures/posters.json',
     },
   },
 });

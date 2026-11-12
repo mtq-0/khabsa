@@ -4,7 +4,11 @@ import { ContentRepo, validateContent } from '../src/server/content/content.ts';
 import { photoPairs } from '../src/server/db/seed/photoSeed.ts';
 import { StatsService } from '../src/server/stats/stats.ts';
 import { csvToItems, parseCsv } from '../src/server/content/csv.ts';
-import { seed } from '../src/server/db/seed/seed.ts';
+import { seed, seedPosters } from '../src/server/db/seed/seed.ts';
+import { loadPosters } from '../src/server/db/seed/posters.ts';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Storage } from '../src/server/storage/storage.ts';
 
 let db: Db;
@@ -199,6 +203,39 @@ describe('content system', () => {
     expect(() => validateContent('picture-pair', { ...base, credits: { a: credit, b: credit } })).not.toThrow();
     expect(() => validateContent('picture-pair', { ...base, credits: { a: { ...credit, page: 'javascript:alert(1)' }, b: credit } })).toThrow();
     expect(() => validateContent('picture-pair', { ...base, credits: { a: { ...credit, page: 'https://evil.example/x' }, b: credit } })).toThrow();
+  });
+
+  it('TMDB posters from posters.json go to cartoon/movie/TV words, once, and respect an admin removal', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'posters-'));
+    const file = join(dir, 'posters.json');
+    writeFileSync(
+      file,
+      JSON.stringify({
+        'تايتانيك': { tmdbId: 597, type: 'movie', path: '/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg', title: 'Titanic' },
+        'سبونج بوب': { tmdbId: 387, type: 'tv', path: '/maFEWU41jdUOzDfRVkojq7fluIm.jpg', title: 'SpongeBob' },
+        'باب الحارة': { tmdbId: 61224, type: 'tv', path: '/bab1234567.jpg' },
+        'الهيبة': { tmdbId: 1, type: 'tv', path: 'javascript:alert(1)' }, // invalid: ignored
+        'منسف': { tmdbId: 2, type: 'movie', path: '/aaaaaaaaaa.jpg' }, // not a poster category
+        'هاري بوتر': null,
+      }),
+    );
+    const posters = loadPosters(file);
+    expect([...posters.keys()].sort()).toEqual(['باب الحارة', 'تايتانيك', 'سبونج بوب', 'منسف'].sort());
+    const q = (w: string) => db.query<{ category: string; poster: any; off: any }>(`select category, data->'poster' as poster, data->'posterOff' as off from content_items where kind = 'word' and data->>'word' = $1`, [w]);
+    // an admin had removed the SpongeBob poster
+    await db.query(`update content_items set data = data || '{"posterOff": true}'::jsonb where kind = 'word' and data->>'word' = 'سبونج بوب'`);
+    await seedPosters(db, posters);
+    expect((await q('تايتانيك')).rows[0].poster).toMatchObject({ tmdbId: 597, type: 'movie' });
+    expect((await q('باب الحارة')).rows[0].poster).toMatchObject({ tmdbId: 61224, type: 'tv' });
+    expect((await q('سبونج بوب')).rows[0].poster).toBeNull();
+    expect((await q('الهيبة')).rows[0].poster).toBeNull();
+    expect((await q('منسف')).rows.every((r) => r.poster === null)).toBe(true);
+    // idempotent, and the stored data still validates
+    const before = (await db.query<{ n: number }>(`select count(*)::int n from content_items where data ? 'poster'`)).rows[0].n;
+    await seedPosters(db, posters);
+    expect((await db.query<{ n: number }>(`select count(*)::int n from content_items where data ? 'poster'`)).rows[0].n).toBe(before);
+    const row = (await db.query<{ data: Record<string, unknown> }>(`select data from content_items where kind = 'word' and data->>'word' = 'تايتانيك'`)).rows[0];
+    expect(() => validateContent('word', row.data)).not.toThrow();
   });
 
   it('seeded content covers every game', async () => {
