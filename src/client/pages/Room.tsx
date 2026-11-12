@@ -28,6 +28,7 @@ import { MostLikelyGame } from '../games/MostLikelyGame.tsx';
 import { TabooGame } from '../games/TabooGame.tsx';
 import { SpeedQuizGame } from '../games/SpeedQuizGame.tsx';
 import { DrawGuessGame } from '../games/DrawGuessGame.tsx';
+import { OutsiderDrawGame } from '../games/OutsiderDrawGame.tsx';
 
 export default function RoomPage() {
   const { code: raw = '' } = useParams();
@@ -228,6 +229,8 @@ function GameStage({ view }: { view: RoomView }) {
       return <SpeedQuizGame view={view} />;
     case 'draw-guess':
       return <DrawGuessGame view={view} />;
+    case 'outsider-draw':
+      return <OutsiderDrawGame view={view} />;
   }
 }
 

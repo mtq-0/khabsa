@@ -1,5 +1,5 @@
 /**
- * Real photo pairs for مين برا الرسمة؟ — [category, labelA, searchA, labelB, searchB].
+ * Real photo pairs for مين برا الصورة؟ — [category, labelA, searchA, labelB, searchB].
  * Photos come from Wikimedia Commons under free licenses (CC0 / public domain /
  * CC BY / CC BY-SA). scripts/fetch-photos.ts finds candidates; the chosen
  * files, resized to 800x600 WebP, live in ./photos with their credits.

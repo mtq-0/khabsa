@@ -6,11 +6,11 @@ All content lives in `content_items` (`kind`, `category`, `difficulty` easy|medi
 |---|---|---|
 | `word` | مين برا السالفة | `{"word":"منسف","alternatives":["المنسف"]}` |
 | `question-pair` | الأطرش بالزفة | `{"majority":"شو أكثر فاكهة بتحبها؟","outsider":"شو أكثر فاكهة بتكرهها؟"}` |
-| `picture-pair` | مين برا الرسمة | `{"a":"<image uuid>","b":"<image uuid>","labelA":"تفاحة","labelB":"إجاصة","mode":"normal"}` (difficulty `hard` = subtle difference) |
+| `picture-pair` | مين برا الصورة | `{"a":"<image uuid>","b":"<image uuid>","labelA":"تفاحة","labelB":"إجاصة","mode":"normal"}` (difficulty `hard` = subtle difference) |
 | `most-likely` | مين غالباً | `{"text":"مين غالباً ينام بنص الطلعة؟"}` |
 | `taboo-card` | ممنوع تحكي | `{"word":"منسف","forbidden":["جميد","رز","لحمة"]}` (3–6 forbidden) |
 | `trivia` | تحدي السرعة | `{"question":"…","options":["أ","ب","ج","د"],"answer":0}` (4 distinct options) |
-| `draw-word` | ارسم وخمّن | `{"word":"موبايل","alternatives":["تلفون"]}` |
+| `draw-word` | ارسم وخمّن، مين برا الرسمة | `{"word":"موبايل","alternatives":["تلفون"]}` |
 
 ## Bulk import (admin → المحتوى → استيراد)
 

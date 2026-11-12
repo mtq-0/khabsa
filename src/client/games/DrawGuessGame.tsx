@@ -29,7 +29,7 @@ export const PALETTE = ['#111827', '#ffffff', '#ef4444', '#f97316', '#facc15', '
 export const SIZES = [3, 6, 11, 18, 30];
 
 /** Draws one segment; coordinates are quantized to 0..1000 on both axes. */
-function paint(ctx: CanvasRenderingContext2D, seg: DrawSegment, w: number, h: number) {
+export function paint(ctx: CanvasRenderingContext2D, seg: DrawSegment, w: number, h: number) {
   const p = seg.p;
   ctx.save();
   ctx.globalCompositeOperation = seg.e ? 'destination-out' : 'source-over';

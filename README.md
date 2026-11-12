@@ -8,7 +8,8 @@ KHABSA is an Arabic-first (RTL, Jordanian dialect) online multiplayer party-game
 |---|---|---|
 | Who is outside the topic? | مين برا السالفة؟ 🕵️ | 3–12 |
 | The impostor question | مين الأطرش بالزفة؟ 🎭 | 3–12 |
-| Who is outside the picture? | مين برا الرسمة؟ 🎨 | 3–12 |
+| Who is outside the photo? | مين برا الصورة؟ 🖼 | 3–12 |
+| Who is outside the drawing? | مين برا الرسمة؟ 🎨 | 3–12 |
 | Most likely to | مين غالباً؟ 😂 | 3–12 |
 | Taboo (teams) | ممنوع تحكي! 🚫 | 4–12 |
 | Speed quiz | تحدي السرعة ⚡ | 1–12 |

@@ -1,4 +1,4 @@
-# Photo credits — مين برا الرسمة؟
+# Photo credits — مين برا الصورة؟
 
 Real photos from [Wikimedia Commons](https://commons.wikimedia.org/), used under the free licence shown for each file
 (CC0, public domain, CC BY or CC BY-SA). **Changes:** every photo was resized and cropped to 800×600 and converted to WebP;

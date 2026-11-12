@@ -11,6 +11,7 @@ export const GAME_IDS = [
   'taboo',
   'speed-quiz',
   'draw-guess',
+  'outsider-draw',
 ] as const;
 export type GameId = (typeof GAME_IDS)[number];
 
@@ -111,9 +112,9 @@ export const GAMES: Record<GameId, GameMeta> = {
   },
   'outsider-picture': {
     id: 'outsider-picture',
-    emoji: '🎨',
-    name: 'مين برا الرسمة؟',
-    nameEn: 'Who is outside the picture?',
+    emoji: '🖼',
+    name: 'مين برا الصورة؟',
+    nameEn: 'Who is outside the photo?',
     tagline: 'كلكم شايفين نفس الصورة... متأكدين؟',
     description: 'الأغلبية بتشوف نفس الصورة السرية، وواحد بيشوف صورة شبهها بس مختلفة وما حدا بيقلّه. اوصفوا، شكّوا، وصوّتوا.',
     rules: [
@@ -259,6 +260,36 @@ export const GAMES: Record<GameId, GameMeta> = {
         ],
         default: 'individual',
       },
+    ],
+  },
+  'outsider-draw': {
+    id: 'outsider-draw',
+    emoji: '🎨',
+    name: 'مين برا الرسمة؟',
+    nameEn: 'Who is outside the drawing?',
+    tagline: 'كلكم بترسموا نفس الكلمة... إلا واحد بيرسم عالبركة!',
+    description: 'الكل بياخد نفس الكلمة إلا واحد. كل واحد بيرسمها لحاله، وبعدين بتنكشف كل الرسومات مع بعض. مين رسمته غريبة؟ صوّتوا، واللي برا بيحاول يخمّن شو كانت الكلمة من رسوماتكم.',
+    rules: [
+      'كل لاعب بيشوف بطاقته لحاله: الكلمة السرية، أو إنه برا الرسمة (مع التصنيف كتلميح إذا مفعّل).',
+      'الكل بيرسم بنفس الوقت، وما حدا بيشوف رسمة غيره لحد ما يخلص الوقت.',
+      'بتنكشف كل الرسومات مع بعض: ناقشوا مين رسمته مش راكبة.',
+      'صوّتوا سراً على اللي برا، وبعدها البرّا بيخمّن الكلمة من بين خيارات.',
+      'ارسم الكلمة واضحة بس مش كثير، عشان البرّا ما يعرفها من رسمتك!',
+      'التصويت الصح +1، البرّا اللي ما انكشف +2، وتخمين الكلمة صح +2 بونص.',
+    ],
+    minPlayers: 3,
+    maxPlayers: 12,
+    durationMin: 10,
+    tags: ['رسم', 'خداع', 'ضحك'],
+    gradient: ['#ea580c', '#facc15'],
+    settings: [
+      roundsField(3, 8),
+      { key: 'category', label: 'التصنيف', type: 'category', default: 'any' },
+      { key: 'difficulty', label: 'الصعوبة', type: 'select', options: DIFFICULTY_OPTIONS, default: 'mixed' },
+      { key: 'categoryHint', label: 'اعرض التصنيف للبرّا', type: 'boolean', default: true },
+      { key: 'drawSeconds', label: 'وقت الرسم', type: 'number', min: 20, max: 120, step: 5, default: 50, unit: 'ثانية' },
+      { key: 'discussSeconds', label: 'وقت النقاش', type: 'number', min: 15, max: 300, step: 15, default: 60, unit: 'ثانية' },
+      { key: 'voteSeconds', label: 'وقت التصويت', type: 'number', min: 10, max: 120, step: 5, default: 30, unit: 'ثانية' },
     ],
   },
 };

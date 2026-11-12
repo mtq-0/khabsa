@@ -3,6 +3,7 @@ import { createDrawGuessEngine } from './drawGuess.ts';
 import { createMostLikelyEngine } from './mostLikely.ts';
 import { createOddQuestionEngine } from './oddQuestion.ts';
 import { createOutsiderEngine } from './outsider.ts';
+import { createOutsiderDrawEngine } from './outsiderDraw.ts';
 import { createSpeedQuizEngine } from './speedQuiz.ts';
 import { createTabooEngine } from './taboo.ts';
 import type { GameEngine, ImageAccess } from './types.ts';
@@ -18,5 +19,6 @@ export function createEngines(images: ImageAccess): EngineRegistry {
     taboo: createTabooEngine(),
     'speed-quiz': createSpeedQuizEngine(),
     'draw-guess': createDrawGuessEngine(),
+    'outsider-draw': createOutsiderDrawEngine(),
   };
 }

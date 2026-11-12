@@ -1,4 +1,5 @@
 import { expect, test, devices, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { playDrawRound } from './drawRound.ts';
 
 /** Each player is an isolated browser context (own cookies/storage) on a different device profile. */
 async function player(browser: Browser, device: keyof typeof devices | null): Promise<{ ctx: BrowserContext; page: Page; errors: string[] }> {
@@ -412,4 +413,31 @@ test('background music plays and can be switched off; every press makes a sound 
   await expect(p.page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'true');
   expect(p.errors).toEqual([]);
   await p.ctx.close();
+});
+
+test('مين برا الرسمة: everyone draws privately, the gallery reveals all drawings, vote and guess', async ({ browser }) => {
+  const names = ['أبو سند', 'سلمى', 'زيد'];
+  const all = await Promise.all([player(browser, null), player(browser, 'Pixel 7'), player(browser, null)]);
+  await all[0].page.goto('/create?game=outsider-draw');
+  await guest(all[0].page, names[0]);
+  await all[0].page.getByTestId('create-submit').click();
+  await expect(all[0].page).toHaveURL(/\/r\/[A-Z2-9]{6}$/);
+  const code = all[0].page.url().split('/').pop()!;
+  for (const [i, p] of all.entries()) {
+    if (!i) continue;
+    await p.page.goto(`/r/${code}`);
+    await guest(p.page, names[i]);
+    await gameTab(p.page);
+    await p.page.getByTestId('ready-btn').click();
+  }
+  await expect(all[0].page.getByText('مين برا الرسمة؟').first()).toBeVisible();
+  await all[0].page.locator('input[type=range]').first().fill('1');
+  await all[0].page.getByTestId('start-game').click();
+  for (const p of all) await gameTab(p.page);
+  await playDrawRound(all.map((p, i) => ({ page: p.page, name: names[i] })));
+  await all[0].page.screenshot({ path: 'test-results/outsider-draw-round-end.png', fullPage: true });
+  await all[0].page.getByRole('button', { name: 'شوف النتيجة النهائية' }).click();
+  for (const p of all) await expect(p.page.getByTestId('results')).toBeVisible();
+  for (const p of all) expect(p.errors, 'no uncaught page errors').toEqual([]);
+  for (const p of all) await p.ctx.close();
 });

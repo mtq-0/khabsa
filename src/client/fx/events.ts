@@ -37,6 +37,9 @@ function isMyTurn(g: G | null, me: string): boolean {
       return g.phase === 'ready' && g.explainer === me;
     case 'draw-guess':
       return g.phase === 'choose' && g.drawer === me;
+    case 'outsider-draw':
+      // everyone draws at the same time
+      return g.phase === 'draw' && !!g.me?.isPlayer;
     default:
       return false;
   }
@@ -83,6 +86,7 @@ export function deriveFx(prev: RoomView | null, next: RoomView, chatCountPrev: n
         break;
       case 'outsider-word':
       case 'outsider-picture':
+      case 'outsider-draw':
         if (b.phase === 'verdict' && b.reveal) {
           const outsiders = b.reveal.outsiders as string[];
           const caught = b.reveal.caught as string[];

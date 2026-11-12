@@ -1,7 +1,7 @@
 /**
  * Shared engine for the two "outsider" social deduction games:
  *  - مين برا السالفة؟ (secret word)
- *  - مين برا الرسمة؟ (secret picture)
+ *  - مين برا الصورة؟ (secret picture)
  *
  * Flow per round:
  *   reveal → turns → discuss → vote → verdict → guess → roundEnd

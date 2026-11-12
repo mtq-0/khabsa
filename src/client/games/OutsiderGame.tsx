@@ -114,7 +114,7 @@ function RoleCard({ g }: { g: OutsiderView }) {
           ) : (
             <>
               <p className="text-5xl">🙈</p>
-              <p className="mt-2 font-display text-4xl">إنت برا الرسمة!</p>
+              <p className="mt-2 font-display text-4xl">إنت برا الصورة!</p>
               <p className="mt-2 text-sm text-white/80">ما إلك صورة. اسمع الأوصاف وخبّص بذكاء.</p>
             </>
           )}
@@ -203,7 +203,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
     case 'vote':
       return (
         <div>
-          <PhaseHeader game={g!} title="صوّت سراً 🗳️" subtitle={`مين ${isWord ? 'برا السالفة' : 'برا الرسمة'}؟ ${g.votedCount}/${g.players.length} صوّتوا`} total={30} />
+          <PhaseHeader game={g!} title="صوّت سراً 🗳️" subtitle={`مين ${isWord ? 'برا السالفة' : 'برا الصورة'}؟ ${g.votedCount}/${g.players.length} صوّتوا`} total={30} />
           {me.isPlayer ? (
             <VoteGrid candidates={g.players} view={view} voted={me.voted ?? null} disabledIds={[view.you]} onVote={(id) => void act('vote', { target: id })} />
           ) : (
