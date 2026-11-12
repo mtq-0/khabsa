@@ -292,3 +292,12 @@ describe('real poster list', () => {
     for (const [word, p] of real) expect(() => validateContent('word', { word, poster: p }), word).not.toThrow();
   });
 });
+
+describe('e2e poster fixture', () => {
+  it('covers every movie word, so the browser test always gets a poster (regenerate it when movie words are added)', async () => {
+    const { OUTSIDER_WORDS, parseWord } = await import('../src/server/db/seed/words.ts');
+    const fx = loadPosters(new URL('../e2e/fixtures/posters.json', import.meta.url).pathname);
+    const missing = OUTSIDER_WORDS.movies.map((w) => parseWord(w).word).filter((w) => !fx.has(w));
+    expect(missing, 'run: node scripts/make-poster-fixture.ts').toEqual([]);
+  });
+});
