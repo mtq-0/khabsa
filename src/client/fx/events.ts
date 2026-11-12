@@ -38,8 +38,7 @@ function isMyTurn(g: G | null, me: string): boolean {
     case 'draw-guess':
       return g.phase === 'choose' && g.drawer === me;
     case 'outsider-draw':
-      // everyone draws at the same time
-      return g.phase === 'draw' && !!g.me?.isPlayer;
+      return g.phase === 'turn' && g.drawer === me;
     default:
       return false;
   }

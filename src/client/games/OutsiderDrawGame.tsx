@@ -1,138 +1,85 @@
-import { useEffect, useRef, useState } from 'react';
 import type { DrawSegment, RoomView } from '../../shared/protocol.ts';
 import { Button, cx } from '../components/ui.tsx';
-import { useRoomContext } from '../lib/room.ts';
 import { PhaseHeader, PlayerTag, SecretCard, VoteGrid, useGameAction, useMembers } from '../room/common.tsx';
-import { SketchView, Sketchpad } from './Sketch.tsx';
+import { SharedCanvas, colorOf, type StrokeView } from './Sketch.tsx';
 
 interface DrawOutsiderView {
   phase: string;
   players: string[];
   seenCount: number;
-  done: string[];
+  order: string[];
+  colors: Record<string, number>;
+  drawer: string | null;
+  turnNumber: number;
+  totalTurns: number;
+  lap: number;
+  laps: number;
+  turnSeconds: number;
+  maxStrokePoints: number;
+  strokes: StrokeView[];
   readyToVote: string[];
   votedCount: number;
-  maxPoints: number;
-  me: { isPlayer: boolean; role?: 'insider' | 'outsider'; word?: string; category?: string | null; drawing?: DrawSegment[]; done?: boolean; guessOptions?: string[]; voted?: string | null; guess?: string | null };
-  gallery: { pid: string; segments: DrawSegment[] }[] | null;
+  me: { isPlayer: boolean; color: number | null; role?: 'insider' | 'outsider'; word?: string; category?: string | null; guessOptions?: string[]; voted?: string | null; guess?: string | null };
   reveal: null | { outsiders: string[]; caught: string[]; votes: Record<string, string>; counts: Record<string, number>; answer: string | null; guesses: Record<string, string>; roundPoints: Record<string, number> };
 }
+type G = DrawOutsiderView & NonNullable<RoomView['game']>;
 
-function RoleCard({ g }: { g: DrawOutsiderView }) {
+function RoleCard({ g, compact }: { g: G; compact?: boolean }) {
   const me = g.me;
-  if (!me.isPlayer) return <div className="card p-6 text-center text-ink-300">إنت متفرّج 👀 استنى الجولة الجاية.</div>;
+  if (!me.isPlayer) return <div className="card p-4 text-center text-ink-300">إنت متفرّج 👀 استنى الجولة الجاية.</div>;
+  if (compact)
+    return (
+      <p className="mb-3 text-center text-sm" data-testid="role-reminder">
+        {me.role === 'outsider' ? (
+          <span className="chip text-zing-400">🙈 إنت برا الرسمة{me.category ? ` · ${me.category}` : ''}</span>
+        ) : (
+          <span className="chip text-volt-300">
+            الكلمة: <b className="ms-1">{me.word}</b>
+          </span>
+        )}
+      </p>
+    );
   return me.role === 'outsider' ? (
     <SecretCard tone="zing" testId="role-card">
       <p className="text-5xl">🙈</p>
       <p className="mt-2 font-display text-4xl">إنت برا الرسمة!</p>
-      <p className="mt-2 text-sm text-white/85">ما بتعرف الكلمة. ارسم إشي بيمشي مع الجو وخبّص بذكاء، وبعدين حاول تعرف الكلمة من رسوماتهم.</p>
+      <p className="mt-2 text-sm text-white/85">ما بتعرف الكلمة. لما ييجي دورك ارسم خط بيمشي مع رسمتهم وخبّص بذكاء... وحاول تعرف شو عم يرسموا.</p>
       {me.category && <p className="mt-3 inline-block rounded-full bg-black/25 px-3 py-1 text-sm">التصنيف: {me.category}</p>}
     </SecretCard>
   ) : (
     <SecretCard tone="brand" testId="role-card">
-      <p className="text-sm text-white/80">ارسم هالكلمة</p>
+      <p className="text-sm text-white/80">كلكم بترسموا هالكلمة، كل واحد خط</p>
       <p className="mt-1 font-display text-5xl" data-testid="secret-word">
         {me.word}
       </p>
       {me.category && <p className="mt-3 inline-block rounded-full bg-black/25 px-3 py-1 text-sm">{me.category}</p>}
-      <p className="mt-3 text-xs text-white/75">في لاعب واحد برا الرسمة. ارسمها واضحة بس مش كثير، عشان ما يعرفها منك!</p>
+      <p className="mt-3 text-xs text-white/75">في لاعب واحد برا الرسمة. خطّك لازم يبيّن إنك بتعرفها، بس مش واضح كثير!</p>
     </SecretCard>
   );
 }
 
-/** The private drawing step: autosaves while you draw and hands in the drawing when you're done. */
-function DrawStep({ g, total }: { g: DrawOutsiderView & NonNullable<RoomView['game']>; total: number }) {
-  const act = useGameAction();
-  const { clockOffset } = useRoomContext();
-  const me = g.me;
-  const latest = useRef<DrawSegment[]>(me.drawing ?? []);
-  const dirty = useRef(false);
-  const saving = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [done, setDone] = useState(!!me.done);
-  const [sending, setSending] = useState(false);
-
-  const save = async () => {
-    if (saving.current || !dirty.current || done) return;
-    saving.current = true;
-    dirty.current = false;
-    await act('drawing', { segments: latest.current });
-    saving.current = false;
-    if (dirty.current) void save();
-  };
-  const onChange = (segs: DrawSegment[]) => {
-    latest.current = segs;
-    dirty.current = true;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(), 700);
-  };
-  // last chance to save just before time runs out
-  useEffect(() => {
-    if (g.deadline == null) return;
-    const ms = g.deadline - (Date.now() + clockOffset) - 1500;
-    const t = setTimeout(() => void save(), Math.max(0, ms));
-    return () => clearTimeout(t);
-  });
-  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
-
-  const handIn = async () => {
-    if (timer.current) clearTimeout(timer.current);
-    setSending(true);
-    const r = await act('drawing', { segments: latest.current, done: true });
-    setSending(false);
-    if (r.ok) setDone(true);
-  };
-
-  return (
-    <div>
-      <PhaseHeader game={g} title={me.role === 'outsider' ? 'ارسم... وخبّص 🙈' : `ارسم: ${me.word}`} subtitle={me.role === 'outsider' ? (me.category ? `إنت برا الرسمة. التصنيف: ${me.category}` : 'إنت برا الرسمة. ارسم إشي يقنعهم!') : 'محدا شايف رسمتك لحد ما يخلص الوقت'} total={total} />
-      {me.isPlayer ? (
-        <div className="mx-auto max-w-2xl">
-          <Sketchpad initial={me.drawing ?? []} disabled={done} maxInk={g.maxPoints - 20} onChange={onChange} />
-          <div className="mt-4 text-center">
-            {done ? (
-              <p className="font-bold text-volt-300" data-testid="draw-handed-in">
-                سلّمت رسمتك ✔ بانتظار الباقي...
-              </p>
-            ) : (
-              <Button size="lg" onClick={() => void handIn()} loading={sending} data-testid="draw-done">
-                خلصت رسمتي ✔
-              </Button>
-            )}
-            <p className="mt-2 text-sm text-ink-400">
-              {g.done.length}/{g.players.length} خلصوا
-            </p>
-          </div>
-        </div>
-      ) : (
-        <p className="text-center text-ink-300">اللاعبين عم يرسموا... 🎨</p>
-      )}
-    </div>
-  );
-}
-
-function Gallery({ g, view, highlight }: { g: DrawOutsiderView; view: RoomView; highlight?: string[] }) {
+/** Drawing order with each player's colour; the current drawer is highlighted. */
+function Order({ g, view, mark }: { g: G; view: RoomView; mark?: string[] }) {
   const { byId } = useMembers(view);
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3" data-testid="gallery">
-      {(g.gallery ?? []).map(({ pid, segments }) => (
-        <figure key={pid} className={cx('card overflow-hidden p-2 transition', highlight?.includes(pid) && 'ring-2 ring-zing-400')} data-testid={`drawing-${pid}`}>
-          <SketchView segments={segments} label={`رسمة ${byId.get(pid)?.name ?? ''}`} />
-          <figcaption className="mt-2 flex items-center justify-between gap-2 px-1">
-            <PlayerTag m={byId.get(pid)} size={24} />
-            {highlight?.includes(pid) && <span className="chip text-zing-400">برا 🙈</span>}
-          </figcaption>
-        </figure>
+    <ol className="mb-4 flex flex-wrap justify-center gap-2" data-testid="draw-order">
+      {g.order.map((id) => (
+        <li key={id} className={cx('chip gap-2', g.drawer === id && 'border-volt-400 bg-volt-400/15 text-white', mark?.includes(id) && 'border-zing-400 bg-zing-500/15')}>
+          <span className="size-3 rounded-full ring-1 ring-white/40" style={{ background: colorOf(g.colors[id]) }} aria-hidden />
+          {byId.get(id)?.name ?? 'لاعب'}
+          {mark?.includes(id) && ' 🙈'}
+        </li>
       ))}
-    </div>
+    </ol>
   );
 }
 
 export function OutsiderDrawGame({ view }: { view: RoomView }) {
-  const g = view.game as unknown as DrawOutsiderView & NonNullable<RoomView['game']>;
+  const g = view.game as unknown as G;
   const act = useGameAction();
   const { byId, name } = useMembers(view);
   const me = g.me;
+  const sendStroke = async (segs: DrawSegment[]) => (await act('stroke', { segments: segs })).ok;
 
   switch (g.phase) {
     case 'reveal':
@@ -152,14 +99,40 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
           </div>
         </div>
       );
-    case 'draw':
-      // keyed by round so a new round starts with an empty pad
-      return <DrawStep key={g.phaseKey} g={g} total={Number(view.settings.drawSeconds) || 50} />;
-    case 'gallery':
+    case 'turn': {
+      const mine = g.drawer === view.you;
       return (
         <div>
-          <PhaseHeader game={g} title="معرض الرسومات 🖼" subtitle="مين رسمته مش راكبة؟ احكوا بالصوت أو بالشات" total={60} />
-          <Gallery g={g} view={view} />
+          <PhaseHeader
+            game={g}
+            title={mine ? 'دورك! ارسم خط واحد ✍' : <>دور {name(g.drawer)} 🖍</>}
+            subtitle={`خط ${g.turnNumber} من ${g.totalTurns} · اللفة ${g.lap} من ${g.laps}${mine ? ' · حط إصبعك وارسم بدون ما تشيله' : ''}`}
+            total={g.turnSeconds}
+          />
+          <RoleCard g={g} compact />
+          <Order g={g} view={view} />
+          <div className="mx-auto max-w-2xl">
+            <SharedCanvas key={`${g.turnNumber}`} strokes={g.strokes} canDraw={mine} color={me.color ?? 0} maxPoints={g.maxStrokePoints} onStroke={sendStroke} />
+            {mine ? (
+              <p className="mt-2 flex items-center justify-center gap-2 text-sm text-volt-300" data-testid="your-turn">
+                لونك <span className="size-4 rounded-full ring-1 ring-white/50" style={{ background: colorOf(me.color) }} /> · خط واحد بس، فكّر قبل!
+              </p>
+            ) : (
+              <p className="mt-2 text-center text-sm text-ink-400">استنى دورك... وراقب مين خطّه غريب 👀</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+    case 'discuss':
+      return (
+        <div>
+          <PhaseHeader game={g} title="نقاش 🔥" subtitle="مين خطّه مش راكب؟ احكوا بالصوت أو بالشات" total={60} />
+          <RoleCard g={g} compact />
+          <Order g={g} view={view} />
+          <div className="mx-auto max-w-2xl">
+            <SharedCanvas strokes={g.strokes} canDraw={false} color={0} maxPoints={0} />
+          </div>
           <div className="mt-5 text-center">
             {me.isPlayer && (
               <Button onClick={() => void act('ready-vote')} disabled={g.readyToVote.includes(view.you)} data-testid="ready-vote">
@@ -181,8 +154,9 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
           ) : (
             <p className="text-center text-ink-300">اللاعبين عم يصوّتوا...</p>
           )}
-          <div className="mt-5">
-            <Gallery g={g} view={view} />
+          <div className="mx-auto mt-5 max-w-2xl">
+            <Order g={g} view={view} />
+            <SharedCanvas strokes={g.strokes} canDraw={false} color={0} maxPoints={0} />
           </div>
         </div>
       );
@@ -193,6 +167,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
       const r = g.reveal!;
       const outsiders = r.outsiders;
       const iAmOutsider = outsiders.includes(view.you);
+      const done = g.phase === 'roundEnd' || g.phase === 'finished';
       return (
         <div>
           <PhaseHeader game={g} title={g.phase === 'guess' ? 'فرصة أخيرة 🎯' : r.caught.length ? 'انكشف! 😱' : 'هرب! 😎'} total={g.phase === 'guess' ? 25 : 10} />
@@ -220,45 +195,50 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
                 </div>
               </div>
             ) : (
-              <p className="mb-5 text-center text-ink-300">{outsiders.map(name).join(' و ')} عم يخمّن الكلمة من رسوماتكم...</p>
+              <p className="mb-5 text-center text-ink-300">{outsiders.map(name).join(' و ')} عم يخمّن الكلمة من الرسمة...</p>
             ))}
-          {(g.phase === 'roundEnd' || g.phase === 'finished') && (
-            <div className="mb-5 space-y-4">
-              <div className="card p-5 text-center">
-                <p>
-                  الكلمة كانت: <b className="font-display text-3xl text-volt-300" data-testid="answer-word">{r.answer}</b>
+          {done && (
+            <div className="card mb-5 p-5 text-center">
+              <p>
+                الكلمة كانت: <b className="font-display text-3xl text-volt-300" data-testid="answer-word">{r.answer}</b>
+              </p>
+              {outsiders.map((o) => (
+                <p key={o} className="mt-2 text-sm">
+                  {name(o)} خمّن: <b>{r.guesses[o] ?? '—'}</b> {r.guesses[o] === r.answer ? '✅ +2' : r.guesses[o] ? '❌' : ''}
                 </p>
-                {outsiders.map((o) => (
-                  <p key={o} className="mt-2 text-sm">
-                    {name(o)} خمّن: <b>{r.guesses[o] ?? '—'}</b> {r.guesses[o] === r.answer ? '✅ +2' : r.guesses[o] ? '❌' : ''}
-                  </p>
+              ))}
+            </div>
+          )}
+          <div className="mx-auto mb-5 max-w-2xl">
+            <Order g={g} view={view} mark={outsiders} />
+            {/* at the end, the outsider's lines stand out */}
+            <SharedCanvas strokes={g.strokes} canDraw={false} color={0} maxPoints={0} dimExcept={done ? outsiders : undefined} />
+            {done && <p className="mt-2 text-center text-xs text-ink-400">الخطوط الواضحة هي خطوط اللي كان برا 🙈</p>}
+          </div>
+          {done && (
+            <div className="card mb-5 p-5">
+              <p className="mb-3 font-bold">مين صوّت لمين</p>
+              <ul className="space-y-1 text-sm">
+                {Object.entries(r.votes).map(([v, t]) => (
+                  <li key={v}>
+                    {name(v)} ← {name(t)} {outsiders.includes(t) && !outsiders.includes(v) ? '✅' : ''}
+                  </li>
                 ))}
-              </div>
-              <div className="card p-5">
-                <p className="mb-3 font-bold">مين صوّت لمين</p>
-                <ul className="space-y-1 text-sm">
-                  {Object.entries(r.votes).map(([v, t]) => (
-                    <li key={v}>
-                      {name(v)} ← {name(t)} {outsiders.includes(t) && !outsiders.includes(v) ? '✅' : ''}
-                    </li>
-                  ))}
-                  {!Object.keys(r.votes).length && <li className="text-ink-400">محدا صوّت 🤷</li>}
-                </ul>
-                <p className="mt-4 mb-2 font-bold">نقاط الجولة</p>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(r.roundPoints).map(([p, pts]) => (
-                    <span key={p} className="chip text-lime-400">
-                      {name(p)} +{pts}
-                    </span>
-                  ))}
-                  {!Object.keys(r.roundPoints).length && <span className="text-sm text-ink-400">ما حدا أخذ نقاط</span>}
-                </div>
+                {!Object.keys(r.votes).length && <li className="text-ink-400">محدا صوّت 🤷</li>}
+              </ul>
+              <p className="mt-4 mb-2 font-bold">نقاط الجولة</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(r.roundPoints).map(([p, pts]) => (
+                  <span key={p} className="chip text-lime-400">
+                    {name(p)} +{pts}
+                  </span>
+                ))}
+                {!Object.keys(r.roundPoints).length && <span className="text-sm text-ink-400">ما حدا أخذ نقاط</span>}
               </div>
             </div>
           )}
-          <Gallery g={g} view={view} highlight={outsiders} />
           {g.phase === 'roundEnd' && view.hostId === view.you && (
-            <div className="mt-5 text-center">
+            <div className="text-center">
               <Button onClick={() => void act('host:next')}>{g.round >= g.totalRounds ? 'شوف النتيجة النهائية' : 'الجولة الجاية ←'}</Button>
             </div>
           )}

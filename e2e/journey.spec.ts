@@ -415,7 +415,7 @@ test('background music plays and can be switched off; every press makes a sound 
   await p.ctx.close();
 });
 
-test('مين برا الرسمة: everyone draws privately, the gallery reveals all drawings, vote and guess', async ({ browser }) => {
+test('مين برا الرسمة: one shared canvas, one line each in a random order, vote and guess', async ({ browser }) => {
   const names = ['أبو سند', 'سلمى', 'زيد'];
   const all = await Promise.all([player(browser, null), player(browser, 'Pixel 7'), player(browser, null)]);
   await all[0].page.goto('/create?game=outsider-draw');
