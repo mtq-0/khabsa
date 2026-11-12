@@ -8,7 +8,7 @@ import { defineConfig } from '@playwright/test';
 const PORT = 3334;
 export default defineConfig({
   testDir: 'e2e',
-  testMatch: /voice\.spec\.ts/,
+  testMatch: /(^|\/)voice\.spec\.ts$/,
   timeout: 120_000,
   workers: 1,
   reporter: [['list']],

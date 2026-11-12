@@ -147,7 +147,7 @@ export class Hub {
         invalidate() {},
       } as unknown as RoomDeps['platform'],
       engines: createEngines({ sign: (id) => imageUrl(id) }),
-      voiceAvailable: false,
+      voiceAvailable: true,
       idleMinutes: 60,
     };
     this.rooms = new RoomManager(deps);

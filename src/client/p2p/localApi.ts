@@ -65,7 +65,7 @@ async function handle(path: string, method: string, body: Record<string, unknown
       maintenance: false,
       guestAccess: true,
       allowPublicRooms: false,
-      voice: false,
+      voice: true,
       games: GAME_IDS.map((id, i) => ({ id, enabled: true, featured: i < 3, sort: i })),
       online: { online: 0, rooms: 0, playing: 0, players: 0 },
       // TMDB attribution is shown whenever posters are in use
