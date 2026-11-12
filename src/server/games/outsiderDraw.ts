@@ -1,13 +1,12 @@
 /**
- * مين برا الرسمة؟ — everyone except one outsider gets the same secret word; each player
- * draws it on their own private canvas, then all the drawings are revealed together.
- * Find the outsider by their drawing; the outsider then tries to guess the word.
+ * مين برا الرسمة؟ — everyone except one outsider gets the same secret word. All players
+ * share ONE canvas: in a random order, each player adds a single line (one stroke, in
+ * their own colour) per turn, for a few laps. The outsider has to add lines without
+ * knowing the word. Then vote for the outsider; the outsider gets a last chance to
+ * guess the word from the drawing.
  *
  * Flow per round:
- *   reveal → draw → gallery (discussion) → vote → verdict → guess → roundEnd
- *
- * Privacy: during "draw" a player only ever receives their own drawing; nobody sees
- * anyone else's until the gallery. The outsider never receives the word.
+ *   reveal → turn × (players × laps) → discuss → vote → verdict → guess → roundEnd
  */
 import { AppError } from '../../shared/errors.ts';
 import type { DrawSegment } from '../../shared/protocol.ts';
@@ -28,17 +27,25 @@ interface Secret {
   guessOptions: string[];
 }
 
+export interface Stroke {
+  pid: string;
+  segs: DrawSegment[];
+}
+
 export interface OutsiderDrawState extends BaseState {
-  settings: { categoryHint: boolean; drawSeconds: number; discussSeconds: number; voteSeconds: number };
+  settings: { categoryHint: boolean; laps: number; turnSeconds: number; discussSeconds: number; voteSeconds: number };
   pool: ContentItem[];
   decoyLabels: Record<string, string[]>;
   secret: Secret | null;
   outsiders: string[];
   seen: string[];
-  drawings: Record<string, DrawSegment[]>;
-  done: string[];
-  /** gallery order (shuffled so position gives nothing away) */
+  /** random drawing order for this round */
   order: string[];
+  /** index into the whole sequence of turns (order repeated `laps` times) */
+  turnIndex: number;
+  /** palette index per player, so everybody can tell whose line is whose */
+  colors: Record<string, number>;
+  strokes: Stroke[];
   readyToVote: string[];
   votes: Record<string, string>;
   caught: string[];
@@ -52,48 +59,54 @@ const VERDICT_SECONDS = 7;
 const GUESS_SECONDS = 25;
 const ROUND_END_SECONDS = 15;
 
-/** "ink": total points per drawing; keeps every message small (well under the 64 KB socket limit) */
-export const MAX_DRAW_POINTS = 1500;
-export const MAX_DRAW_SEGMENTS = 300;
-const PALETTE_SIZE = 12;
+/** one line = one stroke of at most this many points (keeps the shared drawing small) */
+export const MAX_STROKE_POINTS = 250;
+/** player colours: distinct palette entries, white excluded */
+export const PLAYER_COLORS = [2, 7, 5, 9, 3, 8, 6, 0, 4, 10, 11];
 const SIZE_COUNT = 5;
 
 const isInt = (v: unknown, min: number, max: number): v is number => Number.isInteger(v) && (v as number) >= min && (v as number) <= max;
 
-/** Validates and copies a drawing (only known fields survive). */
-export function parseDrawing(raw: unknown): DrawSegment[] {
-  if (!Array.isArray(raw) || raw.length > MAX_DRAW_SEGMENTS) throw new AppError('VALIDATION', 'الرسمة كبرت كثير!');
+/** Validates one line: segments of a single stroke, in the player's colour, within the ink limit. */
+export function parseStroke(raw: unknown, color: number): DrawSegment[] {
+  if (!Array.isArray(raw) || raw.length < 1 || raw.length > 4) throw new AppError('VALIDATION', 'خط واحد بس!');
   let points = 0;
   const out: DrawSegment[] = [];
   for (const r of raw) {
     const s = r as Partial<DrawSegment>;
-    if (!s || typeof s !== 'object' || !isInt(s.s, 0, 1e6) || !isInt(s.c, 0, PALETTE_SIZE - 1) || !isInt(s.w, 0, SIZE_COUNT - 1)) throw new AppError('VALIDATION', 'رسمة غير صالحة');
-    if (s.e !== undefined && s.e !== 1) throw new AppError('VALIDATION', 'رسمة غير صالحة');
+    if (!s || typeof s !== 'object' || !isInt(s.w, 0, SIZE_COUNT - 1) || s.e !== undefined) throw new AppError('VALIDATION', 'خط غير صالح');
     const p = s.p;
-    if (!Array.isArray(p) || p.length < 2 || p.length > 400 || p.length % 2 || !p.every((v) => isInt(v, 0, 1000))) throw new AppError('VALIDATION', 'رسمة غير صالحة');
+    if (!Array.isArray(p) || p.length < 2 || p.length > 400 || p.length % 2 || !p.every((v) => isInt(v, 0, 1000))) throw new AppError('VALIDATION', 'خط غير صالح');
     points += p.length / 2;
-    if (points > MAX_DRAW_POINTS) throw new AppError('VALIDATION', 'خلص الحبر! 🖍');
-    out.push({ s: s.s, c: s.c, w: s.w, p: [...p], ...(s.e ? { e: 1 as const } : {}) });
+    if (points > MAX_STROKE_POINTS + 4) throw new AppError('VALIDATION', 'الخط طويل كثير!');
+    // the server decides stroke id and colour: one line, your colour
+    out.push({ s: 1, c: color, w: s.w, p: [...p] });
   }
   return out;
 }
 
 export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
+  const totalTurns = (s: OutsiderDrawState) => s.order.length * s.settings.laps;
+  const drawerOf = (s: OutsiderDrawState) => (s.phase === 'turn' && s.order.length ? s.order[s.turnIndex % s.order.length] : null);
+
   function startRound(s: OutsiderDrawState, ctx: EngineCtx) {
     s.round += 1;
     const item = s.pool[(s.round - 1) % s.pool.length];
     const d = item.data as unknown as DrawWordData & { categoryName?: string };
     const word = d.word;
-    const same = (s.decoyLabels[item.category] ?? []).filter((w) => w !== word);
-    const others = Object.values(s.decoyLabels).flat().filter((w) => w !== word && !same.includes(w));
-    const decoys = [...pickN(Array.from(new Set(same)), 5, ctx.rng)];
-    if (decoys.length < 5) decoys.push(...pickN(Array.from(new Set(others)), 5 - decoys.length, ctx.rng));
+    const same = Array.from(new Set((s.decoyLabels[item.category] ?? []).filter((w) => w !== word)));
+    const decoys = pickN(same, 5, ctx.rng);
+    if (decoys.length < 5) {
+      const others = Array.from(new Set(Object.values(s.decoyLabels).flat().filter((w) => w !== word && !same.includes(w))));
+      decoys.push(...pickN(others, 5 - decoys.length, ctx.rng));
+    }
     s.secret = { itemId: item.id, category: item.category, categoryName: d.categoryName ?? item.category, word, alternatives: d.alternatives ?? [], guessOptions: shuffle([word, ...decoys], ctx.rng) };
     s.outsiders = pickN(s.players, 1, ctx.rng);
     s.order = shuffle(s.players, ctx.rng);
+    s.colors = Object.fromEntries(s.order.map((p, i) => [p, PLAYER_COLORS[i % PLAYER_COLORS.length]]));
+    s.turnIndex = 0;
+    s.strokes = [];
     s.seen = [];
-    s.drawings = {};
-    s.done = [];
     s.readyToVote = [];
     s.votes = {};
     s.caught = [];
@@ -102,8 +115,15 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     setPhase(s, 'reveal', ctx, REVEAL_SECONDS);
   }
 
-  const startDraw = (s: OutsiderDrawState, ctx: EngineCtx) => setPhase(s, 'draw', ctx, s.settings.drawSeconds);
-  const startGallery = (s: OutsiderDrawState, ctx: EngineCtx) => setPhase(s, 'gallery', ctx, s.settings.discussSeconds);
+  const startTurns = (s: OutsiderDrawState, ctx: EngineCtx) => {
+    s.turnIndex = 0;
+    setPhase(s, 'turn', ctx, s.settings.turnSeconds);
+  };
+  function nextTurn(s: OutsiderDrawState, ctx: EngineCtx) {
+    s.turnIndex += 1;
+    if (s.turnIndex >= totalTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
+    else setPhase(s, 'turn', ctx, s.settings.turnSeconds);
+  }
   const startVote = (s: OutsiderDrawState, ctx: EngineCtx) => setPhase(s, 'vote', ctx, s.settings.voteSeconds);
 
   function award(s: OutsiderDrawState, pid: string, pts: number) {
@@ -133,7 +153,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
   const engine: GameEngine<OutsiderDrawState> = {
     id: 'outsider-draw',
     minPlayers: 3,
-    maxPlayers: 12,
+    maxPlayers: 11, // one colour each
     content(settings) {
       return { kind: 'draw-word', count: Number(settings.rounds), decoys: 40 };
     },
@@ -146,7 +166,8 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         ...baseState('outsider-draw', input, Math.min(Number(st.rounds), input.content.length)),
         settings: {
           categoryHint: st.categoryHint !== false,
-          drawSeconds: Number(st.drawSeconds),
+          laps: Number(st.laps),
+          turnSeconds: Number(st.turnSeconds),
           discussSeconds: Number(st.discussSeconds),
           voteSeconds: Number(st.voteSeconds),
         },
@@ -155,9 +176,10 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         secret: null,
         outsiders: [],
         seen: [],
-        drawings: {},
-        done: [],
         order: [],
+        turnIndex: 0,
+        colors: {},
+        strokes: [],
         readyToVote: [],
         votes: {},
         caught: [],
@@ -179,23 +201,18 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         case 'seen': {
           requirePhase(s, 'reveal');
           if (!s.seen.includes(pid)) s.seen.push(pid);
-          if (s.players.every((p) => s.seen.includes(p))) startDraw(s, ctx);
+          if (s.players.every((p) => s.seen.includes(p))) startTurns(s, ctx);
           return;
         }
-        case 'drawing': {
-          // saves the whole drawing (autosave while drawing); done=true hands it in
-          requirePhase(s, 'draw');
-          if (s.done.includes(pid)) throw new AppError('INVALID_ACTION', 'سلّمت رسمتك.');
-          const p = asObject(payload);
-          s.drawings[pid] = parseDrawing(p.segments);
-          if (p.done === true) {
-            s.done.push(pid);
-            if (s.players.every((x) => s.done.includes(x))) startGallery(s, ctx);
-          }
-          return;
+        case 'stroke': {
+          // your one line for this turn
+          requirePhase(s, 'turn');
+          if (drawerOf(s) !== pid) throw new AppError('INVALID_ACTION', 'مش دورك.');
+          s.strokes.push({ pid, segs: parseStroke(asObject(payload).segments, s.colors[pid] ?? 0) });
+          return nextTurn(s, ctx);
         }
         case 'ready-vote': {
-          requirePhase(s, 'gallery');
+          requirePhase(s, 'discuss');
           if (!s.readyToVote.includes(pid)) s.readyToVote.push(pid);
           if (s.players.every((p) => s.readyToVote.includes(p))) startVote(s, ctx);
           return;
@@ -223,10 +240,10 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     tick(s, ctx) {
       switch (s.phase) {
         case 'reveal':
-          return startDraw(s, ctx);
-        case 'draw':
-          return startGallery(s, ctx); // unfinished drawings are shown as they are
-        case 'gallery':
+          return startTurns(s, ctx);
+        case 'turn':
+          return nextTurn(s, ctx); // time's up: no line this turn
+        case 'discuss':
           return startVote(s, ctx);
         case 'vote':
           return closeVoting(s, ctx);
@@ -239,19 +256,28 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       }
     },
     playerLeft(s, pid, ctx) {
+      const wasDrawer = drawerOf(s) === pid;
+      // keep the turn sequence consistent: count this player's turns that already passed
+      const n = s.order.length;
+      const idx = s.order.indexOf(pid);
+      if (idx >= 0 && n) {
+        const before = Math.floor(s.turnIndex / n) + (idx < s.turnIndex % n ? 1 : 0);
+        s.turnIndex -= before;
+      }
       s.players = s.players.filter((p) => p !== pid);
       s.order = s.order.filter((p) => p !== pid);
       delete s.votes[pid];
       for (const [v, t] of Object.entries(s.votes)) if (t === pid && !s.outsiders.includes(pid)) delete s.votes[v];
       if (s.players.length < 2) return finish(s, ctx);
-      if (s.outsiders.includes(pid) && ['reveal', 'draw', 'gallery', 'vote'].includes(s.phase)) {
-        // the round makes no sense without its outsider
+      if (s.outsiders.includes(pid) && ['reveal', 'turn', 'discuss', 'vote'].includes(s.phase)) {
         s.outsiders = [];
-        return advanceRound(s, ctx);
+        return advanceRound(s, ctx); // the round makes no sense without its outsider
       }
-      if (s.phase === 'reveal' && s.players.every((p) => s.seen.includes(p))) startDraw(s, ctx);
-      else if (s.phase === 'draw' && s.players.every((p) => s.done.includes(p))) startGallery(s, ctx);
-      else if (s.phase === 'gallery' && s.players.every((p) => s.readyToVote.includes(p))) startVote(s, ctx);
+      if (s.phase === 'turn') {
+        if (s.turnIndex >= totalTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
+        else if (wasDrawer) setPhase(s, 'turn', ctx, s.settings.turnSeconds);
+      } else if (s.phase === 'reveal' && s.players.every((p) => s.seen.includes(p))) startTurns(s, ctx);
+      else if (s.phase === 'discuss' && s.players.every((p) => s.readyToVote.includes(p))) startVote(s, ctx);
       else if (s.phase === 'vote' && s.players.every((p) => s.votes[p])) closeVoting(s, ctx);
       else if (s.phase === 'guess' && s.outsiders.every((o) => s.guesses[o] || !s.players.includes(o))) closeGuess(s, ctx);
     },
@@ -263,18 +289,13 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       const sec = s.secret;
       const isPlayer = s.players.includes(viewer);
       const isOutsider = s.outsiders.includes(viewer);
-      const galleryOpen = ['gallery', 'vote', 'verdict', 'guess', 'roundEnd', 'finished'].includes(s.phase);
       const revealed = ['verdict', 'guess', 'roundEnd', 'finished'].includes(s.phase);
       const hide = s.phase === 'verdict' || s.phase === 'guess'; // the word stays secret until the outsider guessed
-      const me: Record<string, unknown> = { isPlayer };
+      const me: Record<string, unknown> = { isPlayer, color: s.colors[viewer] ?? null };
       if (isPlayer && sec) {
         me.role = isOutsider ? 'outsider' : 'insider';
         if (!isOutsider) me.word = sec.word;
         me.category = !isOutsider || s.settings.categoryHint ? sec.categoryName : null;
-        if (s.phase === 'draw') {
-          me.drawing = s.drawings[viewer] ?? []; // only your own, e.g. after a reload
-          me.done = s.done.includes(viewer);
-        }
         if (s.phase === 'guess' && isOutsider) me.guessOptions = sec.guessOptions;
         me.voted = s.votes[viewer] ?? null;
         me.guess = s.guesses[viewer] ?? null;
@@ -282,12 +303,19 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       return {
         ...baseView(s, now),
         seenCount: s.seen.length,
-        done: s.done,
+        order: s.order,
+        colors: s.colors,
+        drawer: drawerOf(s),
+        turnNumber: Math.min(s.turnIndex + 1, totalTurns(s)),
+        totalTurns: totalTurns(s),
+        lap: Math.min(s.settings.laps, Math.floor(s.turnIndex / Math.max(1, s.order.length)) + 1),
+        laps: s.settings.laps,
+        turnSeconds: s.settings.turnSeconds,
+        maxStrokePoints: MAX_STROKE_POINTS,
+        strokes: s.phase === 'reveal' ? [] : s.strokes,
         readyToVote: s.readyToVote,
         votedCount: Object.keys(s.votes).length,
-        maxPoints: MAX_DRAW_POINTS,
         me,
-        gallery: galleryOpen ? s.order.map((pid) => ({ pid, segments: s.drawings[pid] ?? [] })) : null,
         reveal: revealed
           ? {
               outsiders: s.outsiders,
