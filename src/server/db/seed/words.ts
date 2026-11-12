@@ -1,4 +1,5 @@
-import { MORE_DRAW_WORDS, MORE_OUTSIDER_WORDS } from './more/words.ts';
+import { DRAW_WORDS_MSA, DRAW_WORDS_MSA_2 } from './more/drawMsa.ts';
+import { MORE_OUTSIDER_WORDS } from './more/words.ts';
 
 /**
  * Word packs for مين برا السالفة and ارسم وخمّن.
@@ -22,13 +23,8 @@ export const OUTSIDER_WORDS: Record<string, string[]> = {
   everyday: ['زحمة سير|e', 'عرس|e', 'امتحان|e', 'عزومة', 'رحلة', 'مقابلة شغل', 'سهرة', 'نومة الظهر', 'طابور بنك', 'دفع فاتورة', 'عيد|e', 'رمضان', 'سحور', 'إفطار', 'ولادة', 'خطبة', 'نزلة على البلد', 'تسوق', 'شوي لحمة', 'تقطيع بطيخ', 'تغيير إطار', 'انقطاع كهربا', 'انقطاع مي|h', 'ضيوف فجأة', 'أول يوم مدرسة', 'سفر', 'تخرج', 'عيد ميلاد', 'نتيجة توجيهي|h', 'صلحة|h'],
 };
 
-export const DRAW_WORDS: Record<string, string[]> = {
-  objects: ['شمس|e', 'قمر|e', 'نجمة|e', 'بيت|e', 'شجرة|e', 'وردة|e', 'سيارة|e', 'طيارة|e', 'كرة|e', 'ساعة', 'نظارة', 'مظلة', 'كاسة', 'مفتاح', 'قلم', 'كتاب', 'هاتف/موبايل/تلفون', 'كمبيوتر/حاسوب', 'كاميرا', 'مقص', 'شمعة', 'هدية', 'تاج', 'جرس', 'سلم', 'باب', 'شباك', 'كرسي', 'طاولة', 'ميزان|h', 'بوصلة|h', 'مصباح', 'قفل', 'صاروخ', 'غيمة', 'قوس قزح', 'برق', 'جبل', 'بركان|h', 'جزيرة', 'سفينة', 'دراجة/بسكليت', 'قطار', 'باص', 'خيمة', 'نافورة|h', 'ثلج', 'رجل ثلج', 'قلب', 'عين'],
-  food: ['تفاحة|e', 'موزة|e', 'بطيخة|e', 'فراولة', 'عنب', 'بيتزا', 'برغر', 'بيضة', 'جبنة', 'كيك/كيكة', 'آيس كريم/بوظة', 'فلافل', 'شاورما', 'جزرة', 'بندورة/طماطم', 'خيارة', 'ليمونة', 'أناناس', 'كنافة|h', 'منسف|h', 'دونات', 'فشار', 'شوكولاتة', 'سندويشة', 'شوربة'],
-  animals: ['قطة|e', 'كلب|e', 'سمكة|e', 'عصفور', 'فيل', 'زرافة', 'جمل', 'أسد', 'أفعى/حية', 'سلحفاة', 'أرنب', 'بطة', 'بقرة', 'خروف', 'نحلة', 'فراشة', 'عنكبوت', 'قرش', 'حوت', 'بطريق', 'ديناصور', 'تمساح|h', 'قنفذ|h', 'بومة', 'حلزون'],
-  professions: ['دكتور', 'شرطي', 'طباخ', 'رائد فضاء|h', 'مهرج', 'ساحر', 'قرصان', 'نينجا', 'ملك', 'حارس مرمى'],
-  jordan: ['البترا|h', 'شماغ', 'دلة قهوة', 'المدرج', 'دبكة|h', 'خيمة بدوية|h', 'جرش|h', 'تكسي'],
-};
+/** ارسم وخمّن / مين برا الرسمة؟ — Modern Standard Arabic only (see more/drawMsa.ts). */
+export const DRAW_WORDS: Record<string, string[]> = {};
 
 export function parseWord(entry: string): { word: string; alternatives: string[]; difficulty: 'easy' | 'medium' | 'hard' } {
   const [body, d] = entry.split('|');
@@ -51,4 +47,8 @@ function mergeWords(base: Record<string, string[]>, extra: Record<string, string
   }
 }
 mergeWords(OUTSIDER_WORDS, MORE_OUTSIDER_WORDS);
-mergeWords(DRAW_WORDS, MORE_DRAW_WORDS);
+mergeWords(DRAW_WORDS, DRAW_WORDS_MSA);
+mergeWords(DRAW_WORDS, DRAW_WORDS_MSA_2);
+
+/** Every built-in drawing word (the seed switches off built-in drawing words that are not in this set). */
+export const DRAW_WORD_SET = new Set(Object.values(DRAW_WORDS).flat().map((w) => parseWord(w).word));
