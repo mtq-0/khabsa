@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Shuffle } from 'lucide-react';
-import { AVATAR_CHARACTERS, AVATAR_PALETTES, randomAvatar } from '../../shared/avatars.ts';
+import { AVATAR_CHARACTERS, AVATAR_PALETTES, parseAvatar, randomAvatar } from '../../shared/avatars.ts';
+import { characterUrl } from '../../shared/characters.ts';
 import { useSession } from '../lib/session.ts';
 import { errorText } from '../lib/api.ts';
 import { reconnectSocket } from '../lib/socket.ts';
@@ -13,23 +14,27 @@ export function AvatarPicker({ value, onChange }: { value: string; onChange: (v:
   return (
     <div>
       <div className="mb-3 flex items-center gap-3">
-        <Avatar avatar={value} size={64} />
+        <Avatar avatar={value} size={72} />
+        <p className="min-w-0 flex-1 truncate font-bold" data-testid="avatar-name">
+          {parseAvatar(value).name}
+        </p>
         <Button type="button" variant="secondary" size="sm" icon={<Shuffle className="size-4" />} onClick={() => onChange(randomAvatar())}>
           عشوائي
         </Button>
       </div>
-      <div className="grid grid-cols-8 gap-1.5" role="radiogroup" aria-label="الشخصية">
+      <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="الشخصية">
         {AVATAR_CHARACTERS.map((ch, i) => (
           <button
             key={ch}
             type="button"
             role="radio"
             aria-checked={i === c}
-            aria-label={`شخصية ${i + 1}`}
+            aria-label={ch}
+            title={ch}
             onClick={() => onChange(`${i}-${p}`)}
-            className={cx('grid aspect-square place-items-center rounded-xl text-xl transition', i === c ? 'bg-brand-500/40 ring-2 ring-brand-400' : 'bg-white/5 hover:bg-white/10')}
+            className={cx('aspect-square overflow-hidden rounded-xl transition', i === c ? 'bg-brand-500/40 ring-2 ring-brand-400' : 'bg-white/5 hover:bg-white/10')}
           >
-            {ch}
+            <img src={characterUrl(i)} alt="" className="size-full" loading="lazy" draggable={false} />
           </button>
         ))}
       </div>
