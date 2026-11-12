@@ -186,15 +186,30 @@
   "path": "/7eqb8Iv9DrxN2nkOTUiZzviEOlv.jpg",
   "title": "أبطال الديجيتال الجزئين 1-2"
  },
- "يو-غي-يو": null,
- "القناص": null,
+ "يو-غي-يو": {
+  "tmdbId": 902,
+  "type": "tv",
+  "path": "/dJas6Y7lXzgPHgr4ro0qCOTgNiM.jpg",
+  "title": "يوغي اوه مبارزة الوحوش"
+ },
+ "القناص": {
+  "tmdbId": 46298,
+  "type": "tv",
+  "path": "/uTP81XMRbAIRY3wH3w1r8NpR2wq.jpg",
+  "title": "القناص"
+ },
  "هجوم العمالقة": {
   "tmdbId": 1429,
   "type": "tv",
   "path": "/jHXGiVEA1bWC1m6PB7rRL5Uzzql.jpg",
   "title": "هجوم العمالقة"
  },
- "سلام دانك": null,
+ "سلام دانك": {
+  "tmdbId": 42573,
+  "type": "tv",
+  "path": "/fDuykQUpVgVOcO3MALu4HgXtZtM.jpg",
+  "title": "سلام دانك"
+ },
  "سابق ولاحق": {
   "tmdbId": 81157,
   "type": "tv",
@@ -207,7 +222,12 @@
   "path": "/mbMI59239J5y7VnAB96YxmiEBUY.jpg",
   "title": "بيل وسبستيان"
  },
- "الحديقة السرية": null,
+ "الحديقة السرية": {
+  "tmdbId": 111450,
+  "type": "tv",
+  "path": "/rsa2BRSzFqud2wvqvDbNFo1t86A.jpg",
+  "title": "الحديقه السرية"
+ },
  "النمر المقنع": {
   "tmdbId": 232413,
   "type": "tv",
@@ -268,7 +288,12 @@
   "path": "/inJJn8lUPWdvdy2h259UnoHWVqC.jpg",
   "title": "مختبر دكستر"
  },
- "أفاتار آخر مسخري الهواء": null,
+ "أفاتار آخر مسخري الهواء": {
+  "tmdbId": 246,
+  "type": "tv",
+  "path": "/wb2pg7zNS0u6DFxrWCRFkP555z4.jpg",
+  "title": "آفاتار: مسخر الهواء الأخير"
+ },
  "الدعسوقة والقط الأسود": {
   "tmdbId": 65334,
   "type": "tv",
@@ -317,8 +342,18 @@
   "path": "/mA2apmkA0GZiPxBWDNjhVZb8SOE.jpg",
   "title": "أوغي والمشاكسون"
  },
- "ليلو وستيتش": null,
- "تيمون وبومبا": null,
+ "ليلو وستيتش": {
+  "tmdbId": 11544,
+  "type": "movie",
+  "path": "/6qBsL9AWlDEwnpXqLNKdDjmvnc.jpg",
+  "title": "ليلو وستيتش"
+ },
+ "تيمون وبومبا": {
+  "tmdbId": 4429,
+  "type": "tv",
+  "path": "/zIeH63sSOMkotZyD0BTjnNPQ0xP.jpg",
+  "title": "تيمون وبومبا"
+ },
  "ساكورا": {
   "tmdbId": 35790,
   "type": "tv",
@@ -619,7 +654,12 @@
   "path": "/5UxLAGzKY02j7Efbtjp51RQRUte.jpg",
   "title": "الجميلة والوحش"
  },
- "سندريلا": null,
+ "سندريلا": {
+  "tmdbId": 11224,
+  "type": "movie",
+  "path": "/s5wMnx1PQ28vWlbt5oqsvHVg9DI.jpg",
+  "title": "سندريلا"
+ },
  "بينوكيو": {
   "tmdbId": 10895,
   "type": "movie",
@@ -788,8 +828,18 @@
   "path": "/bdHG5Mo83VPobeZZdlSz0Y7HQHB.jpg",
   "title": "جومانجي"
  },
- "اللمبي": null,
- "عسل أسود": null,
+ "اللمبي": {
+  "tmdbId": 42315,
+  "type": "movie",
+  "path": "/xrCgrBgAeOS24sxToCPN1HW7eOL.jpg",
+  "title": "اللمبي"
+ },
+ "عسل أسود": {
+  "tmdbId": 84250,
+  "type": "movie",
+  "path": "/7IRqRKyPth00lITljHES4zAsdyk.jpg",
+  "title": "عسل أسود"
+ },
  "الناظر": {
   "tmdbId": 415488,
   "type": "movie",
@@ -802,8 +852,18 @@
   "path": "/oLdJ9SiQ6DgwXDh0a6aLfr7tGID.jpg",
   "title": "صعيدي في الجامعة الأمريكية"
  },
- "الفيل الأزرق": null,
- "الممر": null,
+ "الفيل الأزرق": {
+  "tmdbId": 289510,
+  "type": "movie",
+  "path": "/nwbeL5DrDvcAutoftgERh2bnilb.jpg",
+  "title": "الفيل الأزرق"
+ },
+ "الممر": {
+  "tmdbId": 603400,
+  "type": "movie",
+  "path": "/o1k1sH3i4idKxucryiS81ziHb8s.jpg",
+  "title": "الممر"
+ },
  "وجدة": {
   "tmdbId": 129112,
   "type": "movie",
@@ -997,14 +1057,24 @@
   "path": "/l3eqehnU1U3VbBRGKAq0HbvQfj.jpg",
   "title": "التغريبة الفلسطينية"
  },
- "نشرة الأخبار": null,
+ "نشرة الأخبار": {
+  "tmdbId": 15621,
+  "type": "tv",
+  "path": "/fk2YALp6mslK1H82vJ0wm0BLLRo.jpg",
+  "title": "The Newsroom"
+ },
  "برنامج طبخ": {
   "tmdbId": 40290,
   "type": "tv",
   "path": "/42gO1qCC6GPtHKNXvOdhunhzyS3.jpg",
   "title": "MasterChef"
  },
- "كورة ليلة الجمعة": null,
+ "كورة ليلة الجمعة": {
+  "tmdbId": 224,
+  "type": "tv",
+  "path": "/tVFCu0jE9m5QHmHM4rzEFGs1kUI.jpg",
+  "title": "Match of the Day"
+ },
  "عرب آيدول": {
   "tmdbId": 40072,
   "type": "tv",
@@ -1169,7 +1239,12 @@
   "path": "/iFy89ucyqbKJFG0mC5wqtrblPW.jpg",
   "title": "أبو جانتي"
  },
- "لعبة الحبار": null,
+ "لعبة الحبار": {
+  "tmdbId": 93405,
+  "type": "tv",
+  "path": "/uI8ij7csb43a4DblctmTnzjWLAi.jpg",
+  "title": "لعبة الحبّار"
+ },
  "سترينجر ثينغز": {
   "tmdbId": 66732,
   "type": "tv",
