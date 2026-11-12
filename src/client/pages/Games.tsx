@@ -16,7 +16,7 @@ export default function GamesPage() {
   const list = GAME_IDS.filter((id) => !tag || GAMES[id].tags.includes(tag));
   return (
     <div>
-      <PageTitle title="مكتبة الألعاب" emoji="🎮" subtitle="سبع ألعاب جماعية... اختار خبصتك" />
+      <PageTitle title="مكتبة الألعاب" emoji="🎮" subtitle="ثماني ألعاب جماعية... اختار خبصتك" />
       <div className="scrollbar-thin mb-6 flex gap-2 overflow-x-auto pb-1">
         <button onClick={() => setTag(null)} className={cx('chip shrink-0 px-4 py-2 text-sm', !tag && 'border-brand-400 bg-brand-500/25 text-white')}>
           الكل

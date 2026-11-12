@@ -75,7 +75,7 @@ export default function HomePage() {
               <b className="text-ink-100">{info?.online.playing ?? '—'}</b> لعبة شغالة هلأ
             </span>
             <span>
-              <b className="text-ink-100">7</b> ألعاب
+              <b className="text-ink-100">{GAME_IDS.length}</b> ألعاب
             </span>
           </div>
         </div>
