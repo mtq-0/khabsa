@@ -122,7 +122,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext) {
         avatar: z.string().refine(isValidAvatar, 'أفاتار غير صالح').optional(),
         username: username.optional(),
         removeAvatarImage: z.boolean().optional(),
-        favoriteGames: z.array(z.enum(GAME_IDS)).max(7).optional(),
+        favoriteGames: z.array(z.enum(GAME_IDS)).max(GAME_IDS.length).optional(),
         settings: z
           .object({
             sound: z.boolean().optional(),

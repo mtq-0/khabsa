@@ -102,7 +102,7 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
 }
 
 /**
- * Real photos (Wikimedia Commons, free licenses) for مين برا الرسمة؟ — also added to databases
+ * Real photos (Wikimedia Commons, free licenses) for مين برا الصورة؟ — also added to databases
  * seeded before they existed. Marker: any built-in picture pair carrying `credits`.
  * The illustrated "normal" pairs showing the same subjects are disabled once (admins can re-enable);
  * the illustrated "hard" pairs (same subject, different detail) stay.

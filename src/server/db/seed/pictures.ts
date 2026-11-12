@@ -1,5 +1,5 @@
 /**
- * Procedurally generated picture pairs for مين برا الرسمة؟.
+ * Procedurally generated picture pairs for مين برا الصورة؟.
  * Each relation yields:
  *   - "normal" pairs: a related but different main subject (🍎 vs 🍐)
  *   - "hard" pairs: the same subject with one subtle detail changed

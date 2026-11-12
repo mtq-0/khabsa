@@ -1,4 +1,5 @@
 import { expect, test, devices, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { playDrawRound } from './drawRound.ts';
 
 async function player(browser: Browser, device: keyof typeof devices | null) {
   const ctx: BrowserContext = await browser.newContext(device ? { ...devices[device], locale: 'ar' } : { viewport: { width: 1366, height: 900 }, locale: 'ar' });
@@ -173,4 +174,28 @@ test('GitHub Pages edition: draw & guess strokes travel between peers and guesse
   await expect(other.page.getByText(/مخمّن \+\d+/)).toBeVisible();
   for (const p of [host, g]) expect(p.errors).toEqual([]);
   for (const p of [host, g]) await p.ctx.close();
+});
+
+test('GitHub Pages edition: مين برا الرسمة works between peers', async ({ browser }) => {
+  const names = ['أبو سند', 'سلمى', 'زيد'];
+  const all = await Promise.all([player(browser, null), player(browser, 'Pixel 7'), player(browser, null)]);
+  const host = all[0];
+  await host.page.goto('#/create?game=outsider-draw');
+  await guest(host.page, names[0]);
+  await host.page.getByTestId('create-submit').click();
+  await expect(host.page.getByTestId('host-badge')).toHaveAttribute('data-state', 'online', { timeout: 60_000 });
+  const code = host.page.url().split('/').pop()!;
+  for (const [i, p] of all.entries()) {
+    if (!i) continue;
+    await p.page.goto(`#/r/${code}`);
+    await guest(p.page, names[i]);
+    await gameTab(p.page);
+    await p.page.getByTestId('ready-btn').click({ timeout: 45_000 });
+  }
+  await host.page.locator('input[type=range]').first().fill('1');
+  await host.page.getByTestId('start-game').click();
+  for (const p of all) await gameTab(p.page);
+  await playDrawRound(all.map((p, i) => ({ page: p.page, name: names[i] })));
+  for (const p of all) expect(p.errors, 'no uncaught page errors').toEqual([]);
+  for (const p of all) await p.ctx.close();
 });

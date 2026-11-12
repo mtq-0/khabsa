@@ -1,5 +1,5 @@
 /**
- * Builds the real-photo set for مين برا الرسمة from Wikimedia Commons.
+ * Builds the real-photo set for مين برا الصورة from Wikimedia Commons.
  *
  *   node scripts/fetch-photos.ts candidates   → .tools/photo-candidates/ (contact sheets for review)
  *   node scripts/fetch-photos.ts finalize     → src/server/db/seed/photos/*.webp + credits.json
@@ -167,7 +167,7 @@ function writeCreditsMd() {
   writeFileSync(
     join(OUT_DIR, 'CREDITS.md'),
     [
-      '# Photo credits — مين برا الرسمة؟',
+      '# Photo credits — مين برا الصورة؟',
       '',
       'Real photos from [Wikimedia Commons](https://commons.wikimedia.org/), used under the free licence shown for each file',
       '(CC0, public domain, CC BY or CC BY-SA). **Changes:** every photo was resized and cropped to 800×600 and converted to WebP;',

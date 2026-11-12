@@ -1,5 +1,5 @@
 /**
- * Real-photo pairs for مين برا الرسمة؟ built from PHOTO_PAIRS + ./photos/credits.json.
+ * Real-photo pairs for مين برا الصورة؟ built from PHOTO_PAIRS + ./photos/credits.json.
  * A pair is only used when BOTH photos exist (subjects rejected during review have none).
  * Shared by the server seed and the GitHub Pages content build.
  */

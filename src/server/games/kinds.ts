@@ -9,4 +9,5 @@ export const KIND_FOR_GAME: Record<string, ContentKind> = {
   taboo: 'taboo-card',
   'speed-quiz': 'trivia',
   'draw-guess': 'draw-word',
+  'outsider-draw': 'draw-word',
 };

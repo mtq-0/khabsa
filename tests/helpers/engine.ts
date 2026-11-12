@@ -42,6 +42,7 @@ export function contentFor(gameId: GameId, n = 40): ContentItem[] {
         out.push(item('trivia', i, { question: `سؤال ${i}`, options: ['أ', 'ب', 'ج', 'د'], answer: i % 4 }));
         break;
       case 'draw-guess':
+      case 'outsider-draw':
         out.push(item('draw-word', i, { word: `بطيخة${i}` }));
         break;
     }
