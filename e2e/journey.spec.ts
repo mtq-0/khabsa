@@ -245,6 +245,11 @@ test('sound and visual effects: a correct guess plays sounds, shows +points and 
   await expect(host.page).toHaveURL(/\/r\//);
   await g.page.goto(host.page.url());
   await guest(g.page, 'مخمّن');
+  // background music would also create oscillators: switch it off to count effects only
+  for (const p of [host, g]) {
+    await p.page.getByTestId('music-toggle').click();
+    await expect(p.page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'false');
+  }
   await g.page.getByTestId('ready-btn').click();
   await host.page.getByTestId('start-game').click();
   await expect.poll(() => sounds(g.page)).toBeGreaterThan(0); // start jingle
@@ -352,4 +357,59 @@ test('مين برا الرسمة with real photos: private photos, then both pho
   await host.page.screenshot({ path: 'test-results/photo-round-end.png', fullPage: true });
   for (const p of all) expect(p.errors, 'no uncaught page errors').toEqual([]);
   for (const p of all) await p.ctx.close();
+});
+
+test('background music plays and can be switched off; every press makes a sound unless muted', async ({ browser }) => {
+  const p = await player(browser, null);
+  await p.page.addInitScript(() => {
+    const w = window as unknown as { __osc: number };
+    w.__osc = 0;
+    const orig = AudioContext.prototype.createOscillator;
+    AudioContext.prototype.createOscillator = function (this: AudioContext) {
+      w.__osc++;
+      return orig.call(this);
+    };
+  });
+  const osc = () => p.page.evaluate(() => (window as unknown as { __osc: number }).__osc);
+  await p.page.goto('/create');
+  await guest(p.page, 'دي جي');
+  await p.page.getByTestId('create-submit').click();
+  await expect(p.page).toHaveURL(/\/r\//);
+  await expect(p.page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'true');
+
+  // music: notes keep coming with nobody touching anything
+  await p.page.mouse.click(5, 300); // a gesture on empty space (browsers need one before audio)
+  const t0 = await osc();
+  await p.page.waitForTimeout(2500);
+  expect((await osc()) - t0).toBeGreaterThan(8);
+
+  // music off: silence (after a short fade)
+  await p.page.getByTestId('music-toggle').click();
+  await expect(p.page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await p.page.waitForTimeout(600);
+  const t1 = await osc();
+  await p.page.waitForTimeout(2000);
+  expect(await osc()).toBe(t1);
+
+  // a press makes a sound
+  await p.page.getByTestId('invite-btn').click();
+  await expect.poll(osc).toBeGreaterThan(t1);
+  await p.page.keyboard.press('Escape');
+
+  // sound off: presses are silent too
+  await p.page.getByTestId('sound-toggle').click();
+  await expect(p.page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'true');
+  await p.page.waitForTimeout(300);
+  const t2 = await osc();
+  await p.page.getByTestId('invite-btn').click();
+  await p.page.keyboard.press('Escape');
+  await p.page.waitForTimeout(800);
+  expect(await osc()).toBe(t2);
+
+  // the choices are remembered
+  await p.page.reload();
+  await expect(p.page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await expect(p.page.getByTestId('sound-toggle')).toHaveAttribute('aria-pressed', 'true');
+  expect(p.errors).toEqual([]);
+  await p.ctx.close();
 });
