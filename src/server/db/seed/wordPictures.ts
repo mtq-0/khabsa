@@ -1,3 +1,4 @@
+import { MORE_TMDB_QUERIES } from './more/words.ts';
 /**
  * Original illustrated cards for the cartoon / movie / TV words of
  * مين برا السالفة؟. Each card hints at the title with emoji artwork
@@ -160,9 +161,10 @@ export const TMDB_QUERIES: Record<string, string> = {
 };
 
 /** Generic words that are not a specific title: no poster search. */
-export const NO_POSTER = new Set(['نشرة الأخبار', 'برنامج طبخ', 'كورة ليلة الجمعة', 'مسلسل تركي', 'كوميدي ستاند أب', 'برامج مسابقات', 'دراما رمضان', 'بسيط', 'نجوم الأردن', 'قصص الأنبياء']);
+// generic words with no single matching work (the others get a representative title, see MORE_TMDB_QUERIES)
+export const NO_POSTER = new Set(['نشرة الأخبار', 'كورة ليلة الجمعة', 'دراما رمضان', 'بسيط', 'نجوم الأردن', 'قصص الأنبياء']);
 
 export function tmdbQueryFor(word: string): string | null {
   if (NO_POSTER.has(word)) return null;
-  return TMDB_QUERIES[word] || word;
+  return TMDB_QUERIES[word] || MORE_TMDB_QUERIES[word] || word;
 }

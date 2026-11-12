@@ -8,6 +8,9 @@ import { ACHIEVEMENTS } from '../../stats/stats.ts';
 import { CATEGORIES } from './categories.ts';
 import { DRAW_WORDS, OUTSIDER_WORDS, parseWord } from './words.ts';
 import { QUESTION_PAIRS } from './questionPairs.ts';
+import { MORE_QUESTION_PAIRS } from './more/questions.ts';
+import { MORE_MOST_LIKELY, MORE_TABOO_CARDS } from './more/party.ts';
+import { MORE_TRIVIA } from './more/trivia.ts';
 import { MOST_LIKELY, TABOO_CARDS } from './party.ts';
 import { TRIVIA } from './trivia.ts';
 import { generatePicturePairs } from './pictures.ts';
@@ -58,10 +61,10 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
       items.push({ kind: 'draw-word', category: cat, difficulty: p.difficulty, data: { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) } });
     }
   }
-  for (const [cat, d, majority, outsider] of QUESTION_PAIRS) items.push({ kind: 'question-pair', category: cat, difficulty: DIFF[d], data: { majority, outsider } });
-  for (const [cat, text] of MOST_LIKELY) items.push({ kind: 'most-likely', category: cat, difficulty: 'medium', data: { text } });
-  for (const [cat, d, word, forbidden] of TABOO_CARDS) items.push({ kind: 'taboo-card', category: cat, difficulty: DIFF[d], data: { word, forbidden } });
-  for (const [cat, d, question, ...opts] of TRIVIA) items.push({ kind: 'trivia', category: cat, difficulty: DIFF[d], data: { question, options: opts, answer: 0 } });
+  for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS]) items.push({ kind: 'question-pair', category: cat, difficulty: DIFF[d], data: { majority, outsider } });
+  for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY]) items.push({ kind: 'most-likely', category: cat, difficulty: 'medium', data: { text } });
+  for (const [cat, d, word, forbidden] of [...TABOO_CARDS, ...MORE_TABOO_CARDS]) items.push({ kind: 'taboo-card', category: cat, difficulty: DIFF[d], data: { word, forbidden } });
+  for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA]) items.push({ kind: 'trivia', category: cat, difficulty: DIFF[d], data: { question, options: opts, answer: 0 } });
   const res = await repo.bulkInsert(items, null);
   if (res.inserted) log(`seeded ${res.inserted} content items`);
   if (res.errors.length) log(`seed validation errors: ${JSON.stringify(res.errors.slice(0, 5))}`);

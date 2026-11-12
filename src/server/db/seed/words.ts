@@ -1,3 +1,5 @@
+import { MORE_DRAW_WORDS, MORE_OUTSIDER_WORDS } from './more/words.ts';
+
 /**
  * Word packs for مين برا السالفة and ارسم وخمّن.
  * Format per category: "word" (medium) or "word|e" / "word|h" for easy / hard.
@@ -34,3 +36,19 @@ export function parseWord(entry: string): { word: string; alternatives: string[]
   const difficulty = d === 'e' ? 'easy' : d === 'h' ? 'hard' : 'medium';
   return { word: word.trim(), alternatives: alternatives.map((a) => a.trim()), difficulty };
 }
+
+/** Adds extra packs, skipping words that already exist anywhere in the same game. */
+function mergeWords(base: Record<string, string[]>, extra: Record<string, string[]>) {
+  const seen = new Set(Object.values(base).flat().map((w) => parseWord(w).word));
+  for (const [cat, words] of Object.entries(extra)) {
+    const add = words.filter((w) => {
+      const k = parseWord(w).word;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    base[cat] = [...(base[cat] ?? []), ...add];
+  }
+}
+mergeWords(OUTSIDER_WORDS, MORE_OUTSIDER_WORDS);
+mergeWords(DRAW_WORDS, MORE_DRAW_WORDS);

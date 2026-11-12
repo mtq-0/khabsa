@@ -288,6 +288,8 @@ describe('مين برا الرسمة image privacy', () => {
 
 describe('مين برا السالفة word pictures over the network', () => {
   it('insiders get a viewer-bound picture link; the outsider gets nothing', async () => {
+    // words with a drawn picture only (TMDB posters need the network, which tests don't use)
+    await srv.built.ctx.db.query(`update content_items set status = 'disabled' where kind = 'word' and category = 'cartoons' and data->>'image' is null`);
     const { ps, code, host } = await roomWith(4, 'outsider-word');
     await host.act(code, 'settings', { settings: { rounds: 1, category: 'cartoons' } });
     await readyAll(ps, code);
