@@ -6,7 +6,7 @@ import type { ContentKind } from '../../games/types.ts';
 import { GAME_IDS } from '../../../shared/games.ts';
 import { ACHIEVEMENTS } from '../../stats/stats.ts';
 import { CATEGORIES } from './categories.ts';
-import { DRAW_WORDS, OUTSIDER_WORDS, parseWord } from './words.ts';
+import { DRAW_WORDS, DRAW_WORD_SET, OUTSIDER_WORDS, parseWord } from './words.ts';
 import { QUESTION_PAIRS } from './questionPairs.ts';
 import { MORE_QUESTION_PAIRS } from './more/questions.ts';
 import { MORE_MOST_LIKELY, MORE_TABOO_CARDS } from './more/party.ts';
@@ -67,6 +67,14 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
   const res = await repo.bulkInsert(items, null);
   if (res.inserted) log(`seeded ${res.inserted} content items`);
   if (res.errors.length) log(`seed validation errors: ${JSON.stringify(res.errors.slice(0, 5))}`);
+
+  // drawing words are Modern Standard Arabic only: switch off older built-in ones that are not in the current list
+  const oldDraw = await db.query(
+    `update content_items set status = 'disabled', updated_at = now()
+      where kind = 'draw-word' and pack_id is null and created_by is null and status = 'active' and not (data->>'word' = any($1::text[]))`,
+    [[...DRAW_WORD_SET]],
+  );
+  if (oldDraw.rowCount) log(`switched off ${oldDraw.rowCount} old drawing words`);
 
   // illustrated cards for cartoon / movie / TV words (also added to databases seeded before this existed)
   const missingWordPictures = await db.query<{ id: string; word: string; data: Record<string, unknown> }>(

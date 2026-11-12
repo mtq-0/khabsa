@@ -173,6 +173,19 @@ describe('content system', () => {
     expect((await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n).toBe(before);
   });
 
+  it('drawing words are Modern Standard Arabic: many words, and old built-in ones are switched off on upgrade', async () => {
+    const n = (await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'draw-word' and status = 'active'`)).rows[0].n;
+    expect(n).toBeGreaterThanOrEqual(1000);
+    // a word from the previous (dialect) list that is not in the new list
+    await db.query(
+      `insert into content_items (kind, category, difficulty, data, dedupe_key) values ('draw-word', 'household', 'medium', '{"word":"كنباية"}'::jsonb, 'old-dialect-test')`,
+    );
+    await seed(db, new Storage(db));
+    const old = await db.query<{ status: string }>(`select status from content_items where dedupe_key = 'old-dialect-test'`);
+    expect(old.rows[0].status).toBe('disabled');
+    expect((await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'draw-word' and status = 'active'`)).rows[0].n).toBe(n);
+  });
+
   it('مين برا الصورة؟ is real photos only: every pair has WebP photos stored in the database and their credits', async () => {
     const photos = await db.query<{ n: number; hard: number; bad: number }>(
       `select count(*)::int n, count(*) filter (where c.data->>'mode' = 'hard')::int hard,
