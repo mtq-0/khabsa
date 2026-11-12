@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react';
 import { Headphones, HeadphoneOff, Mic, MicOff, PhoneOff, Volume2, Signal } from 'lucide-react';
 import type { RoomView } from '../../shared/protocol.ts';
 import { Button, cx } from '../components/ui.tsx';
+import { PAGES } from '../lib/mode.ts';
 import { useVoice } from './voiceStore.ts';
 
-type VoiceModule = typeof import('./voiceClient.ts');
+type VoiceModule = typeof import('./voiceClient.ts') & Partial<typeof import('./voiceP2p.ts')>;
 let modPromise: Promise<VoiceModule> | null = null;
-const loadVoice = () => (modPromise ??= import('./voiceClient.ts'));
+const loadVoice = () => (modPromise ??= PAGES ? import('./voiceP2p.ts') : import('./voiceClient.ts'));
 
 /** Voice controls. Voice is optional and never blocks joining or playing. */
 export function VoicePanel({ view }: { view: RoomView }) {
@@ -23,6 +24,11 @@ export function VoicePanel({ view }: { view: RoomView }) {
     [view.code],
   );
 
+  const memberIds = view.members.map((m) => m.id).join(',');
+  useEffect(() => {
+    if (PAGES) void modPromise?.then((m) => m.syncMembers?.(memberIds ? memberIds.split(',') : []));
+  }, [memberIds, mod]);
+
   if (!view.voiceAvailable)
     return (
       <div className="rounded-2xl bg-white/5 px-3 py-2 text-xs text-ink-400">
@@ -33,7 +39,7 @@ export function VoicePanel({ view }: { view: RoomView }) {
   const join = async () => {
     const m = await loadVoice();
     setMod(m);
-    await m.joinVoice(view.code);
+    await (m.joinVoice as (c: string, ids?: string[]) => Promise<void>)(view.code, view.members.map((x) => x.id));
     setMics(await m.listMics());
   };
 
