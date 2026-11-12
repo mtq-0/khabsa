@@ -89,11 +89,53 @@ async function download(url: string): Promise<Buffer> {
 
 function subjects() {
   const list: { key: string; label: string; query: string; category: string }[] = [];
+  const seen = new Set<string>();
   for (const [category, la, qa, lb, qb] of PHOTO_PAIRS) {
-    list.push({ key: slug(qa), label: la, query: qa, category });
-    list.push({ key: slug(qb), label: lb, query: qb, category });
+    for (const [label, query] of [[la, qa], [lb, qb]]) {
+      if (seen.has(slug(query))) continue; // a subject used by two pairs is fetched once
+      seen.add(slug(query));
+      list.push({ key: slug(query), label, query, category });
+    }
   }
   return list;
+}
+
+async function candidatesNew() {
+  mkdirSync(CAND_DIR, { recursive: true });
+  const file = join(CAND_DIR, 'candidates.json');
+  const all: Record<string, Candidate[]> = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
+  const todo = subjects().filter((s) => !(s.key in all));
+  for (const [i, s] of todo.entries()) {
+    all[s.key] = (await search(s.query, 480)).slice(0, PER_SUBJECT);
+    process.stdout.write(`${i + 1}/${todo.length} ${s.key}: ${all[s.key].length}\n`);
+    writeFileSync(file, JSON.stringify(all, null, 1));
+  }
+  writeFileSync(join(CAND_DIR, 'new-keys.json'), JSON.stringify(todo.map((s) => s.key)));
+  console.log(`${todo.length} new subjects; run: node scripts/fetch-photos.ts newsheets N`);
+}
+
+/** Contact sheet N (8 subjects) of the subjects listed in new-keys.json. */
+async function newSheet(n: number) {
+  const keys = JSON.parse(readFileSync(join(CAND_DIR, 'new-keys.json'), 'utf8')) as string[];
+  const all = JSON.parse(readFileSync(join(CAND_DIR, 'candidates.json'), 'utf8')) as Record<string, Candidate[]>;
+  const rows = keys.slice(n * 8, n * 8 + 8);
+  if (!rows.length) return console.log('no such sheet');
+  const W = 240, H = 160;
+  const tiles: OverlayOptions[] = [];
+  for (const [r, key] of rows.entries()) {
+    const label = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="${H}"><rect width="200" height="${H}" fill="#111"/><text x="8" y="40" font-size="20" fill="#fff" font-family="sans-serif">${key.slice(0, 18)}</text></svg>`);
+    tiles.push({ input: await sharp(label).png().toBuffer(), left: 0, top: r * H });
+    for (const [c, cand] of (all[key] ?? []).entries()) {
+      const raw = await download(cand.thumb).catch(() => null);
+      if (!raw) continue;
+      const img = await sharp(raw).resize(W, H, { fit: 'cover' }).png().toBuffer();
+      const num = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34"><rect width="34" height="34" rx="6" fill="#000"/><text x="10" y="25" font-size="22" fill="#ff0" font-family="sans-serif">${c}</text></svg>`);
+      tiles.push({ input: img, left: 200 + c * W, top: r * H }, { input: await sharp(num).png().toBuffer(), left: 200 + c * W + 4, top: r * H + 4 });
+    }
+  }
+  const full = await sharp({ create: { width: 200 + PER_SUBJECT * W, height: rows.length * H, channels: 3, background: '#222' } }).composite(tiles).png().toBuffer();
+  await sharp(full).jpeg({ quality: 80 }).toFile(join(CAND_DIR, `nsheet-${n}.jpg`));
+  console.log(rows.map((k, i) => `${n * 8 + i} ${k}`).join('\n'));
 }
 
 async function candidates(sheetsOnly = false, fromSheet = 0) {
@@ -186,6 +228,8 @@ function writeCreditsMd() {
 const cmd = process.argv[2];
 if (cmd === 'candidates') await candidates();
 else if (cmd === 'sheets') await candidates(true, Number(process.argv[3] ?? 0));
+else if (cmd === 'new') await candidatesNew();
+else if (cmd === 'newsheet') await newSheet(Number(process.argv[3] ?? 0));
 else if (cmd === 'finalize') await finalize();
 else if (cmd === 'credits') writeCreditsMd();
 else console.log('usage: node scripts/fetch-photos.ts candidates|sheets N|finalize|credits');

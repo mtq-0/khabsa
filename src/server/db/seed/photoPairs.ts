@@ -1,3 +1,5 @@
+import { MORE_PHOTO_PAIRS } from './photoPairsMore.ts';
+
 /**
  * Real photo pairs for مين برا الصورة؟ — [category, labelA, searchA, labelB, searchB].
  * Photos come from Wikimedia Commons under free licenses (CC0 / public domain /
@@ -5,7 +7,10 @@
  * files, resized to 800x600 WebP, live in ./photos with their credits.
  * Subjects avoid identifiable people (personality rights).
  */
-export const PHOTO_PAIRS: [string, string, string, string, string][] = [
+/** [category, labelA, searchA, labelB, searchB, 'hard'?] */
+export type PhotoPairDef = [string, string, string, string, string, 'hard'?];
+
+export const PHOTO_PAIRS: PhotoPairDef[] = [
   // food
   ['food', 'تفاحة', 'red apple fruit', 'إجاصة', 'pear fruit'],
   ['food', 'بطيخة', 'watermelon slice', 'شمامة', 'cantaloupe melon cut'],
@@ -92,3 +97,5 @@ export const PHOTO_PAIRS: [string, string, string, string, string][] = [
   ['jordan', 'المدرج الروماني بعمّان', 'Roman Theatre Amman', 'أعمدة جرش', 'Jerash colonnade'],
   ['jordan', 'قلعة عجلون', 'Ajloun Castle', 'قلعة الكرك', 'Kerak Castle'],
 ];
+
+PHOTO_PAIRS.push(...MORE_PHOTO_PAIRS);

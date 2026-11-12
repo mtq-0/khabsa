@@ -1,5 +1,6 @@
 import { expect, test, devices, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { playDrawRound } from './drawRound.ts';
+import { PHOTO_PAIRS } from '../src/server/db/seed/photoPairs.ts';
 
 /** Each player is an isolated browser context (own cookies/storage) on a different device profile. */
 async function player(browser: Browser, device: keyof typeof devices | null): Promise<{ ctx: BrowserContext; page: Page; errors: string[] }> {
@@ -277,7 +278,8 @@ test('sound and visual effects: a correct guess plays sounds, shows +points and 
   for (const p of [host, g]) await p.ctx.close();
 });
 
-test('مين برا الرسمة with real photos: private photos, then both photos with their credits', async ({ browser }) => {
+for (const mode of ['normal', 'hard'] as const)
+test(`مين برا الصورة (${mode}): real photos are private, then both photos are revealed with their credits`, async ({ browser }) => {
   const names = ['أبو سند', 'سلمى', 'زيد'];
   const all = await Promise.all(names.map(() => player(browser, null)));
   const [host] = all;
@@ -294,8 +296,10 @@ test('مين برا الرسمة with real photos: private photos, then both pho
     await expect(p.page.getByTestId('ready-btn')).toBeVisible();
   }
   await host.page.getByTestId('select-game-outsider-picture').click();
-  // Jordan only has real photos (Petra, Wadi Rum, …)
-  await host.page.locator('select:has(option[value="jordan"])').selectOption('jordan');
+  // wait for THIS game's lobby (the previous game's lobby has a "hard" select too)
+  await expect(host.page.getByRole('heading', { name: 'مين برا الصورة؟' })).toBeVisible();
+  // photos only; the hard mode uses look-alikes (lime/lemon, wolf/husky...)
+  await host.page.locator('select:has(option[value="easy"][value="easy"]):has(option[value="normal"])').selectOption(mode);
   await host.page.locator('input[type=range]').first().fill('1');
   for (const p of all.slice(1)) await p.page.getByTestId('ready-btn').click();
   await expect(host.page.getByTestId('start-game')).toBeEnabled();
@@ -355,7 +359,16 @@ test('مين برا الرسمة with real photos: private photos, then both pho
       expect(await c.locator('a').first().getAttribute('href')).toMatch(/^https:\/\/commons\.wikimedia\.org\/wiki\/File:/);
     }
   }
-  await host.page.screenshot({ path: 'test-results/photo-round-end.png', fullPage: true });
+  // the two pictures are labelled with two different things
+  const labels = await host.page.locator('p', { hasText: /^صورة (الأغلبية|البرّا): / }).allInnerTexts();
+  expect(labels).toHaveLength(2);
+  const [la, lb] = labels.map((l) => l.split(': ')[1]);
+  expect(la).not.toBe(lb);
+  // …and it is a pair of the chosen kind: normal = related things, hard = look-alikes
+  const def = PHOTO_PAIRS.find((x) => x[1] === la && x[3] === lb);
+  expect(def, `unknown pair ${la} / ${lb}`).toBeTruthy();
+  expect(def![5] ?? 'normal').toBe(mode);
+  await host.page.screenshot({ path: `test-results/photo-round-end-${mode}.png`, fullPage: true });
   for (const p of all) expect(p.errors, 'no uncaught page errors').toEqual([]);
   for (const p of all) await p.ctx.close();
 });

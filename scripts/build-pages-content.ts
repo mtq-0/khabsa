@@ -14,7 +14,6 @@ import { MORE_MOST_LIKELY, MORE_TABOO_CARDS } from '../src/server/db/seed/more/p
 import { MORE_TRIVIA } from '../src/server/db/seed/more/trivia.ts';
 import { MOST_LIKELY, TABOO_CARDS } from '../src/server/db/seed/party.ts';
 import { TRIVIA } from '../src/server/db/seed/trivia.ts';
-import { generatePicturePairs } from '../src/server/db/seed/pictures.ts';
 import { renderWordPicture } from '../src/server/db/seed/wordPictures.ts';
 import { PHOTOS_DIR, itemCredit, photoPairs } from '../src/server/db/seed/photoSeed.ts';
 import { POSTER_CATEGORIES, loadPosters } from '../src/server/db/seed/posters.ts';
@@ -55,7 +54,6 @@ const pictures: ContentItem[] = [];
 const images: Record<string, string> = {};
 // real photos (static files under content/photos/, fetched by the host only when picked)
 const photos = photoPairs();
-const photoLabels = new Set(photos.flatMap((p) => [p.labelA, p.labelB]));
 const photoKeys = new Set<string>();
 photos.forEach((p, i) => {
   photoKeys.add(p.keyA).add(p.keyB);
@@ -63,18 +61,9 @@ photos.forEach((p, i) => {
     id: `photo-pair-${i + 1}`,
     kind: 'picture-pair',
     category: p.category,
-    difficulty: 'medium',
-    data: { a: `photo-${p.keyA}`, b: `photo-${p.keyB}`, labelA: p.labelA, labelB: p.labelB, mode: 'normal', credits: { a: itemCredit(p.creditA), b: itemCredit(p.creditB) } },
+    difficulty: p.mode === 'hard' ? 'hard' : 'medium',
+    data: { a: `photo-${p.keyA}`, b: `photo-${p.keyB}`, labelA: p.labelA, labelB: p.labelB, mode: p.mode, credits: { a: itemCredit(p.creditA), b: itemCredit(p.creditB) } },
   });
-});
-generatePicturePairs().forEach((p, i) => {
-  // illustrated pairs showing the same subjects as a photo pair are replaced (hard ones stay)
-  if (p.mode === 'normal' && (photoLabels.has(p.labelA) || photoLabels.has(p.labelB))) return;
-  const a = `img-${i}-a`;
-  const b = `img-${i}-b`;
-  images[a] = p.svgA;
-  images[b] = p.svgB;
-  pictures.push({ id: `picture-pair-${i + 1}`, kind: 'picture-pair', category: p.category, difficulty: p.mode === 'hard' ? 'hard' : 'medium', data: { a, b, labelA: p.labelA, labelB: p.labelB, mode: p.mode } });
 });
 
 const dir = join(outDir, 'content');

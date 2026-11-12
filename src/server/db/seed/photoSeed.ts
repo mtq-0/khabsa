@@ -29,6 +29,8 @@ export interface PhotoPair {
   keyB: string;
   creditA: PhotoCredit;
   creditB: PhotoCredit;
+  /** 'hard' = two look-alikes */
+  mode: 'normal' | 'hard';
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -38,14 +40,14 @@ export function photoPairs(): PhotoPair[] {
   if (!existsSync(file)) return [];
   const credits = JSON.parse(readFileSync(file, 'utf8')) as Record<string, PhotoCredit>;
   const out: PhotoPair[] = [];
-  for (const [category, labelA, qa, labelB, qb] of PHOTO_PAIRS) {
+  for (const [category, labelA, qa, labelB, qb, mode] of PHOTO_PAIRS) {
     const keyA = slug(qa);
     const keyB = slug(qb);
     const creditA = credits[keyA];
     const creditB = credits[keyB];
     if (!creditA || !creditB) continue;
     if (!existsSync(join(PHOTOS_DIR, `${keyA}.webp`)) || !existsSync(join(PHOTOS_DIR, `${keyB}.webp`))) continue;
-    out.push({ category, labelA, labelB, keyA, keyB, creditA, creditB });
+    out.push({ category, labelA, labelB, keyA, keyB, creditA, creditB, mode: mode ?? 'normal' });
   }
   return out;
 }

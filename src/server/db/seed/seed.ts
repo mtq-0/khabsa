@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Db } from '../db.ts';
 import type { Storage } from '../../storage/storage.ts';
 import { ContentRepo } from '../../content/content.ts';
@@ -13,7 +13,6 @@ import { MORE_MOST_LIKELY, MORE_TABOO_CARDS } from './more/party.ts';
 import { MORE_TRIVIA } from './more/trivia.ts';
 import { MOST_LIKELY, TABOO_CARDS } from './party.ts';
 import { TRIVIA } from './trivia.ts';
-import { generatePicturePairs } from './pictures.ts';
 import { WORD_PICTURES, renderWordPicture } from './wordPictures.ts';
 import { itemCredit, photoPairs, readPhoto } from './photoSeed.ts';
 import { POSTER_CATEGORIES, loadPosters, type PosterEntry } from './posters.ts';
@@ -85,23 +84,6 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
   }
   if (missingWordPictures.rows.length) log(`added pictures to ${missingWordPictures.rows.length} words`);
 
-  const havePictures = (await db.query<{ n: number }>(`select count(*)::int as n from content_items where kind = 'picture-pair' and pack_id is null`, [])).rows[0].n;
-  if (!havePictures) {
-    const pairs = generatePicturePairs();
-    const pictureItems: typeof items = [];
-    for (const p of pairs) {
-      const ids = [randomUUID(), randomUUID()];
-      for (const [j, svg] of [p.svgA, p.svgB].entries()) {
-        const key = `private/images/${ids[j]}.svg`;
-        await storage.put(key, svg);
-        await db.query('insert into images (id, storage_key, mime, bytes, width, height) values ($1, $2, $3, $4, 800, 600)', [ids[j], key, 'image/svg+xml', Buffer.byteLength(svg)]);
-      }
-      pictureItems.push({ kind: 'picture-pair', category: p.category, difficulty: p.mode === 'hard' ? 'hard' : 'medium', data: { a: ids[0], b: ids[1], labelA: p.labelA, labelB: p.labelB, mode: p.mode } });
-    }
-    const r = await repo.bulkInsert(pictureItems, null);
-    log(`seeded ${r.inserted} picture pairs`);
-  }
-
   await seedPhotoPairs(db, storage, repo, log);
   await seedPosters(db, loadPosters(), log);
 }
@@ -127,48 +109,51 @@ export async function seedPosters(db: Db, posters: Map<string, PosterEntry>, log
   if (n) log(`added TMDB posters to ${n} words`);
 }
 
+/** Same UUID for the same photo on every server and every boot (so images are never duplicated). */
+const photoUuid = (key: string) => {
+  const h = createHash('sha1').update(`khabsa-photo:${key}`).digest('hex');
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+};
+
 /**
- * Real photos (Wikimedia Commons, free licenses) for مين برا الصورة؟ — also added to databases
- * seeded before they existed. Marker: any built-in picture pair carrying `credits`.
- * The illustrated "normal" pairs showing the same subjects are disabled once (admins can re-enable);
- * the illustrated "hard" pairs (same subject, different detail) stay.
+ * Real photos (Wikimedia Commons, free licenses) for مين برا الصورة؟. Idempotent and incremental:
+ * every pair carries a `pairId` ("keyA|keyB"), so pairs added in later releases are inserted on the
+ * next boot, and pairs seeded by older versions (no pairId) are recognised by their labels.
+ * (The built-in drawn pairs are switched off by migration 003.)
  */
 export async function seedPhotoPairs(db: Db, storage: Storage, repo: ContentRepo, log: (m: string) => void = () => {}) {
-  const has = await db.query<{ n: number }>(`select count(*)::int as n from content_items where kind = 'picture-pair' and pack_id is null and data ? 'credits'`, []);
-  if (has.rows[0].n) return;
   const pairs = photoPairs();
   if (!pairs.length) return;
-  const imageIds = new Map<string, string>();
-  const imageFor = async (key: string) => {
-    let id = imageIds.get(key);
-    if (id) return id;
-    id = randomUUID();
+  const pairId = (p: { keyA: string; keyB: string }) => `${p.keyA}|${p.keyB}`;
+  // pairs seeded before ids existed: tag them so they are not added a second time
+  const legacy = await db.query<{ id: string; data: Record<string, unknown> }>(`select id, data from content_items where kind = 'picture-pair' and pack_id is null and data ? 'credits' and not (data ? 'pairId')`, []);
+  for (const row of legacy.rows) {
+    const p = pairs.find((x) => x.labelA === row.data.labelA && x.labelB === row.data.labelB && x.mode === (row.data.mode ?? 'normal'));
+    if (p) await db.query(`update content_items set data = $2::jsonb where id = $1`, [row.id, JSON.stringify({ ...row.data, pairId: pairId(p) })]);
+  }
+  const have = new Set((await db.query<{ id: string | null }>(`select data->>'pairId' as id from content_items where kind = 'picture-pair' and pack_id is null`, [])).rows.map((r) => r.id));
+  const todo = pairs.filter((p) => !have.has(pairId(p)));
+  if (!todo.length) return;
+  const ensureImage = async (key: string) => {
+    const id = photoUuid(key);
     const buf = readPhoto(key);
     const storageKey = `private/images/${id}.webp`;
-    await storage.put(storageKey, buf);
-    await db.query('insert into images (id, storage_key, mime, bytes, width, height) values ($1, $2, $3, $4, 800, 600)', [id, storageKey, 'image/webp', buf.length]);
-    imageIds.set(key, id);
+    const ins = await db.query(`insert into images (id, storage_key, mime, bytes, width, height) values ($1, $2, 'image/webp', $3, 800, 600) on conflict (id) do nothing returning id`, [id, storageKey, buf.length]);
+    if (ins.rows.length) await storage.put(storageKey, buf);
     return id;
   };
   const items: { kind: ContentKind; category: string; difficulty: string; data: unknown }[] = [];
-  for (const p of pairs) {
-    const a = await imageFor(p.keyA);
-    const b = await imageFor(p.keyB);
+  for (const p of todo) {
+    const a = await ensureImage(p.keyA);
+    const b = await ensureImage(p.keyB);
     items.push({
       kind: 'picture-pair',
       category: p.category,
-      difficulty: 'medium',
-      data: { a, b, labelA: p.labelA, labelB: p.labelB, mode: 'normal', credits: { a: itemCredit(p.creditA), b: itemCredit(p.creditB) } },
+      difficulty: p.mode === 'hard' ? 'hard' : 'medium',
+      data: { a, b, labelA: p.labelA, labelB: p.labelB, mode: p.mode, pairId: pairId(p), credits: { a: itemCredit(p.creditA), b: itemCredit(p.creditB) } },
     });
   }
   const r = await repo.bulkInsert(items, null);
   if (r.errors.length) log(`photo pair validation errors: ${JSON.stringify(r.errors.slice(0, 5))}`);
-  const labels = pairs.flatMap((p) => [p.labelA, p.labelB]);
-  const off = await db.query(
-    `update content_items set status = 'disabled', updated_at = now()
-      where kind = 'picture-pair' and pack_id is null and status = 'active' and not (data ? 'credits')
-        and data->>'mode' = 'normal' and (data->>'labelA' = any($1::text[]) or data->>'labelB' = any($1::text[]))`,
-    [labels],
-  );
-  log(`seeded ${r.inserted} real-photo pairs (${off.rowCount} illustrated pairs replaced)`);
+  log(`seeded ${r.inserted} real-photo pairs`);
 }
