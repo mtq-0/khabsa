@@ -126,7 +126,11 @@ export function renderWordPicture(word: string): string | null {
  */
 export const TMDB_QUERIES: Record<string, string> = {
   'غرندايزر': 'Grendizer',
-  'بات مان': 'Batman',
+  // pinned after reviewing the poster sheet (the plain search picked the wrong work)
+  'بات مان': 'tv:Batman: The Animated Series',
+  'باتمان': 'movie:Batman Begins',
+  'بن تن': 'tv:Ben 10',
+  'توي ستوري': 'movie:Toy Story',
   'الكابتن رابح': 'Ganbare Kickers',
   'بسيط': '',
   'تايتانيك': 'Titanic',

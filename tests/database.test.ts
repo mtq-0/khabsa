@@ -275,3 +275,13 @@ describe('file storage in Postgres (no disk needed)', () => {
     expect(r.rows[0].n).toBeGreaterThanOrEqual(552);
   });
 });
+
+describe('real poster list', () => {
+  it('posters.json is valid: every entry passes validation and covers most cartoon/movie/TV words', async () => {
+    const { POSTERS_FILE } = await import('../src/server/db/seed/posters.ts');
+    expect(POSTERS_FILE).toContain('fixtures-no-posters'); // the env override is active in tests
+    const real = loadPosters(new URL('../src/server/db/seed/posters.json', import.meta.url).pathname);
+    expect(real.size).toBeGreaterThanOrEqual(70);
+    for (const [word, p] of real) expect(() => validateContent('word', { word, poster: p }), word).not.toThrow();
+  });
+});
