@@ -281,6 +281,11 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       else if (s.phase === 'vote' && s.players.every((p) => s.votes[p])) closeVoting(s, ctx);
       else if (s.phase === 'guess' && s.outsiders.every((o) => s.guesses[o] || !s.players.includes(o))) closeGuess(s, ctx);
     },
+    /** live preview: the current drawer's line streams to everyone while it is being drawn */
+    canvas(s) {
+      const d = drawerOf(s);
+      return d ? { drawer: d, turnKey: s.phaseKey } : null;
+    },
     chatSecrets(s) {
       if (!s.secret || s.phase === 'roundEnd' || s.phase === 'finished') return [];
       return [s.secret.word, ...s.secret.alternatives];

@@ -10,8 +10,8 @@ export const inked = (page: Page, sel = '[data-testid="draw-canvas"]') =>
     return n;
   });
 
-/** One line: pen down, move, pen up. */
-async function line(page: Page, k: number) {
+/** One line: pen down, move, pen up. While the pen is still down, `whileDrawing` runs. */
+async function line(page: Page, k: number, whileDrawing?: () => Promise<void>) {
   const canvas = page.getByTestId('draw-canvas');
   await canvas.scrollIntoViewIfNeeded();
   const box = (await canvas.boundingBox())!;
@@ -19,6 +19,7 @@ async function line(page: Page, k: number) {
   await page.mouse.move(box.x + box.width * 0.15, box.y + box.height * y);
   await page.mouse.down();
   for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + box.width * (0.15 + i * 0.05), box.y + box.height * (y + (i % 2) * 0.04));
+  if (whileDrawing) await whileDrawing();
   await page.mouse.up();
 }
 
@@ -46,7 +47,13 @@ export async function playDrawRound(players: { page: Page; name: string }[], lap
     const current = await Promise.race(players.map((p) => p.page.getByTestId('your-turn').waitFor({ timeout: 15_000 }).then(() => p)));
     for (const p of players) if (p !== current) await expect(p.page.getByTestId('your-turn')).toHaveCount(0);
     order.push(current.name);
-    await line(current.page, t);
+    const others = players.filter((p) => p !== current);
+    const before = await Promise.all(others.map((p) => inked(p.page)));
+    await line(current.page, t, async () => {
+      // live: the others watch the line grow before the pen is lifted
+      for (const [i, p] of others.entries()) await expect.poll(() => inked(p.page), { timeout: 5000 }).toBeGreaterThan(before[i] + 100);
+      for (const p of others) await expect(p.page.getByTestId('draw-canvas')).toHaveAttribute('data-strokes', String(t));
+    });
     // the line shows up on everybody's copy of the same canvas
     for (const p of players) await expect(p.page.getByTestId('draw-canvas')).toHaveAttribute('data-strokes', String(t + 1), { timeout: 15_000 });
   }
