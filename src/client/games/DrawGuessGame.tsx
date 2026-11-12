@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Eraser, Trash2, Undo2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Circle, Ellipsis, Eraser, Heart, Highlighter, Minus, PaintBucket, Pencil, Square, SprayCan, Star, Trash2, Triangle, Undo2 } from 'lucide-react';
 import type { DrawEvent, DrawSegment, RoomView } from '../../shared/protocol.ts';
 import { getSocket, request } from '../lib/socket.ts';
 import { useRoomContext } from '../lib/room.ts';
 import { Button, cx } from '../components/ui.tsx';
+import { PALETTE, SIZES, isShape, paint } from './drawPaint.ts';
 import { PhaseHeader, PlayerTag, Scoreboard, useGameAction, useMembers } from '../room/common.tsx';
 
 interface DrawView {
@@ -25,44 +26,40 @@ interface DrawView {
   me: { isPlayer: boolean; isDrawer: boolean; guessed: boolean };
 }
 
-export const PALETTE = ['#111827', '#ffffff', '#ef4444', '#f97316', '#facc15', '#22c55e', '#14b8a6', '#3b82f6', '#8b5cf6', '#ec4899', '#a16207', '#94a3b8'];
-export const SIZES = [3, 6, 11, 18, 30];
+export { PALETTE, SIZES, paint };
 
-/** Draws one segment; coordinates are quantized to 0..1000 on both axes. */
-export function paint(ctx: CanvasRenderingContext2D, seg: DrawSegment, w: number, h: number) {
-  const p = seg.p;
-  ctx.save();
-  ctx.globalCompositeOperation = seg.e ? 'destination-out' : 'source-over';
-  ctx.strokeStyle = PALETTE[seg.c] ?? '#fff';
-  ctx.fillStyle = ctx.strokeStyle;
-  ctx.lineWidth = (SIZES[seg.w] ?? 6) * (w / 800);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  const X = (v: number) => (v / 1000) * w;
-  const Y = (v: number) => (v / 1000) * h;
-  if (p.length === 2) {
-    ctx.beginPath();
-    ctx.arc(X(p[0]), Y(p[1]), ctx.lineWidth / 2, 0, Math.PI * 2);
-    ctx.fill();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(X(p[0]), Y(p[1]));
-    for (let i = 2; i < p.length; i += 2) ctx.lineTo(X(p[i]), Y(p[i + 1]));
-    ctx.stroke();
-  }
-  ctx.restore();
-}
+type ToolId = 'pen' | 'eraser' | NonNullable<DrawSegment['t']>;
+const TOOL_LIST: { id: ToolId; label: string; icon: ReactNode }[] = [
+  { id: 'pen', label: 'قلم', icon: <Pencil className="size-4" /> },
+  { id: 'hl', label: 'تظليل', icon: <Highlighter className="size-4" /> },
+  { id: 'dash', label: 'خط متقطع', icon: <Ellipsis className="size-4" /> },
+  { id: 'spray', label: 'بخّاخ', icon: <SprayCan className="size-4" /> },
+  { id: 'line', label: 'خط مستقيم', icon: <Minus className="size-4" /> },
+  { id: 'rect', label: 'مستطيل', icon: <Square className="size-4" /> },
+  { id: 'ellipse', label: 'دائرة', icon: <Circle className="size-4" /> },
+  { id: 'tri', label: 'مثلث', icon: <Triangle className="size-4" /> },
+  { id: 'star', label: 'نجمة', icon: <Star className="size-4" /> },
+  { id: 'heart', label: 'قلب', icon: <Heart className="size-4" /> },
+  { id: 'fill', label: 'تعبئة لون', icon: <PaintBucket className="size-4" /> },
+  { id: 'eraser', label: 'ممحاة', icon: <Eraser className="size-4" /> },
+];
 
 function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; canDraw: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const previewRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const segments = useRef<DrawSegment[]>([]);
   const [color, setColor] = useState(0);
   const [size, setSize] = useState(1);
-  const [eraser, setEraser] = useState(false);
-  const stroke = useRef<{ id: number; pending: number[]; last: [number, number] | null } | null>(null);
+  const [tool, setTool] = useState<ToolId>('pen');
+  const [filled, setFilled] = useState(false);
+  const stroke = useRef<{ id: number; pending: number[]; last: [number, number] | null; sent: boolean } | null>(null);
+  const shape = useRef<{ id: number; start: [number, number]; cur: [number, number] } | null>(null);
   const strokeSeq = useRef(1);
   const flushTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const eraser = tool === 'eraser';
+  const freehandTool = tool === 'hl' || tool === 'dash' || tool === 'spray' ? tool : undefined;
+  const isShapeTool = isShape(tool === 'pen' || tool === 'eraser' ? undefined : tool);
 
   const redraw = useCallback(() => {
     const c = canvasRef.current;
@@ -75,13 +72,14 @@ function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; can
   // size canvas to its container with device pixel ratio for crisp lines
   useEffect(() => {
     const c = canvasRef.current!;
+    const pv = previewRef.current!;
     const wrap = wrapRef.current!;
     const ro = new ResizeObserver(() => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const w = wrap.clientWidth;
-      c.width = Math.round(w * dpr);
-      c.height = Math.round(w * 0.75 * dpr);
-      c.style.height = `${w * 0.75}px`;
+      c.width = pv.width = Math.round(w * dpr);
+      c.height = pv.height = Math.round(w * 0.75 * dpr);
+      c.style.height = pv.style.height = `${w * 0.75}px`;
       redraw();
     });
     ro.observe(wrap);
@@ -136,15 +134,23 @@ function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; can
     [code, turnKey],
   );
 
+  /** the style fields every segment of the current tool carries */
+  const style = useCallback(
+    () => ({ c: color, w: size, ...(eraser ? { e: 1 as const } : {}), ...(freehandTool ? { t: freehandTool } : {}) }),
+    [color, size, eraser, freehandTool],
+  );
+
   const flush = useCallback(() => {
     const st = stroke.current;
-    if (!st || st.pending.length < 2) return;
-    const seg: DrawSegment = { s: st.id, c: color, w: size, p: st.pending, ...(eraser ? { e: 1 as const } : {}) };
+    // after the first piece, only send when the pen actually moved (a lone carried-over point would be a stray dot)
+    if (!st || st.pending.length < (st.sent ? 4 : 2)) return;
+    st.sent = true;
+    const seg: DrawSegment = { s: st.id, p: st.pending, ...style() };
     segments.current.push(seg);
     send({ op: 'seg', seg });
     // keep continuity: next segment starts at the last point
     st.pending = st.last ? [st.last[0], st.last[1]] : [];
-  }, [color, size, eraser, send]);
+  }, [style, send]);
 
   useEffect(
     () => () => {
@@ -158,29 +164,76 @@ function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; can
     return [Math.max(0, Math.min(1000, Math.round(((e.clientX - r.left) / r.width) * 1000))), Math.max(0, Math.min(1000, Math.round(((e.clientY - r.top) / r.height) * 1000)))];
   };
 
+  const shapeSeg = (sh: { id: number; start: [number, number]; cur: [number, number] }): DrawSegment => ({
+    s: sh.id,
+    c: color,
+    w: size,
+    t: tool as NonNullable<DrawSegment['t']>,
+    p: [sh.start[0], sh.start[1], sh.cur[0], sh.cur[1]],
+    ...(filled && tool !== 'line' ? { f: 1 as const } : {}),
+  });
+  const clearPreview = () => {
+    const pv = previewRef.current;
+    pv?.getContext('2d')?.clearRect(0, 0, pv.width, pv.height);
+  };
+
   const onDown = (e: React.PointerEvent) => {
     if (!canDraw) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     const pt = toPoint(e);
-    stroke.current = { id: strokeSeq.current++, pending: [pt[0], pt[1]], last: pt };
     const c = canvasRef.current!;
-    paint(c.getContext('2d')!, { s: 0, c: color, w: size, p: pt, ...(eraser ? { e: 1 as const } : {}) }, c.width, c.height);
+    if (tool === 'fill') {
+      const seg: DrawSegment = { s: strokeSeq.current++, c: color, w: size, t: 'fill', p: [pt[0], pt[1]] };
+      segments.current.push(seg);
+      paint(c.getContext('2d')!, seg, c.width, c.height);
+      send({ op: 'seg', seg });
+      return;
+    }
+    if (isShapeTool) {
+      shape.current = { id: strokeSeq.current++, start: pt, cur: pt };
+      return;
+    }
+    stroke.current = { id: strokeSeq.current++, pending: [pt[0], pt[1]], last: pt, sent: false };
+    paint(c.getContext('2d')!, { s: 0, p: pt, ...style() }, c.width, c.height);
     if (flushTimer.current) clearInterval(flushTimer.current);
     flushTimer.current = setInterval(flush, 50);
   };
   const onMove = (e: React.PointerEvent) => {
+    if (!canDraw) return;
+    const sh = shape.current;
+    if (sh) {
+      sh.cur = toPoint(e);
+      const pv = previewRef.current!;
+      const ctx = pv.getContext('2d')!;
+      ctx.clearRect(0, 0, pv.width, pv.height);
+      paint(ctx, shapeSeg(sh), pv.width, pv.height);
+      return;
+    }
     const st = stroke.current;
-    if (!canDraw || !st) return;
+    if (!st) return;
     const pt = toPoint(e);
     if (st.last && Math.abs(pt[0] - st.last[0]) + Math.abs(pt[1] - st.last[1]) < 3) return;
     const c = canvasRef.current!;
-    if (st.last) paint(c.getContext('2d')!, { s: 0, c: color, w: size, p: [st.last[0], st.last[1], pt[0], pt[1]], ...(eraser ? { e: 1 as const } : {}) }, c.width, c.height);
+    if (st.last) paint(c.getContext('2d')!, { s: 0, p: [st.last[0], st.last[1], pt[0], pt[1]], ...style() }, c.width, c.height);
     st.pending.push(pt[0], pt[1]);
     st.last = pt;
     if (st.pending.length >= 380) flush();
   };
   const onUp = () => {
+    const sh = shape.current;
+    if (sh) {
+      shape.current = null;
+      clearPreview();
+      // a tiny drag is a mis-click, not a shape
+      if (Math.abs(sh.cur[0] - sh.start[0]) + Math.abs(sh.cur[1] - sh.start[1]) < 12) return;
+      const seg = shapeSeg(sh);
+      segments.current.push(seg);
+      const c = canvasRef.current!;
+      paint(c.getContext('2d')!, seg, c.width, c.height);
+      send({ op: 'seg', seg });
+      return;
+    }
     if (!stroke.current) return;
     flush();
     stroke.current = null;
@@ -193,7 +246,7 @@ function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; can
       <div ref={wrapRef} className="relative w-full overflow-hidden rounded-2xl bg-white shadow-inner">
         <canvas
           ref={canvasRef}
-          className={cx('block w-full touch-none', canDraw ? 'cursor-crosshair' : 'cursor-default')}
+          className={cx('block w-full touch-none', canDraw ? (tool === 'fill' ? 'cursor-cell' : 'cursor-crosshair') : 'cursor-default')}
           onPointerDown={onDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -202,49 +255,85 @@ function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; can
           aria-label="لوحة الرسم"
           data-testid="draw-canvas"
         />
+        <canvas ref={previewRef} className="pointer-events-none absolute inset-0 block w-full" aria-hidden />
       </div>
       {canDraw && (
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1.5">
-            {PALETTE.map((c, i) => (
-              <button key={c} onClick={() => { setColor(i); setEraser(false); }} aria-label={`لون ${i + 1}`} className={cx('size-8 rounded-full border border-white/20', color === i && !eraser && 'ring-2 ring-volt-400 ring-offset-2 ring-offset-ink-900')} style={{ background: c }} />
-            ))}
-          </div>
-          <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1">
-            {SIZES.map((s, i) => (
-              <button key={s} onClick={() => setSize(i)} aria-label={`حجم ${i + 1}`} className={cx('grid size-9 place-items-center rounded-lg', size === i && 'bg-white/15')}>
-                <span className="rounded-full bg-white" style={{ width: Math.min(22, s), height: Math.min(22, s) }} />
+        <div className="mt-3 space-y-2" data-testid="draw-toolbar">
+          <div className="flex flex-wrap gap-1 rounded-xl bg-white/5 p-1" role="toolbar" aria-label="أدوات الرسم">
+            {TOOL_LIST.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTool(t.id)}
+                title={t.label}
+                aria-label={t.label}
+                aria-pressed={tool === t.id}
+                data-testid={`tool-${t.id}`}
+                className={cx('flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold', tool === t.id ? 'bg-volt-400 text-ink-950' : 'bg-white/5 text-ink-100 hover:bg-white/10')}
+              >
+                {t.icon}
+                <span className="hidden sm:inline">{t.label}</span>
               </button>
             ))}
           </div>
-          <Button size="sm" variant={eraser ? 'volt' : 'secondary'} icon={<Eraser className="size-4" />} onClick={() => setEraser((x) => !x)}>
-            ممحاة
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<Undo2 className="size-4" />}
-            onClick={() => {
-              const last = segments.current.at(-1)?.s;
-              segments.current = segments.current.filter((x) => x.s !== last);
-              redraw();
-              send({ op: 'undo' });
-            }}
-          >
-            تراجع
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            icon={<Trash2 className="size-4" />}
-            onClick={() => {
-              segments.current = [];
-              redraw();
-              send({ op: 'clear' });
-            }}
-          >
-            امسح
-          </Button>
+          {isShapeTool && tool !== 'line' && (
+            <div className="flex gap-1 text-xs" role="group" aria-label="نوع الشكل">
+              <button type="button" onClick={() => setFilled(false)} aria-pressed={!filled} data-testid="shape-outline" className={cx('rounded-lg px-3 py-1.5 font-semibold', !filled ? 'bg-white/20' : 'bg-white/5')}>
+                ⬜ فاضي
+              </button>
+              <button type="button" onClick={() => setFilled(true)} aria-pressed={filled} data-testid="shape-filled" className={cx('rounded-lg px-3 py-1.5 font-semibold', filled ? 'bg-white/20' : 'bg-white/5')}>
+                ⬛ ممتلئ
+              </button>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex max-w-full flex-wrap gap-1.5" data-testid="palette">
+              {PALETTE.map((c, i) => (
+                <button
+                  key={c}
+                  onClick={() => {
+                    setColor(i);
+                    if (eraser) setTool('pen');
+                  }}
+                  aria-label={`لون ${i + 1}`}
+                  className={cx('size-7 rounded-full border border-white/20', color === i && !eraser && 'ring-2 ring-volt-400 ring-offset-2 ring-offset-ink-900')}
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1">
+              {SIZES.map((s, i) => (
+                <button key={s} onClick={() => setSize(i)} aria-label={`حجم ${i + 1}`} className={cx('grid size-9 place-items-center rounded-lg', size === i && 'bg-white/15')}>
+                  <span className="rounded-full bg-white" style={{ width: Math.min(22, s), height: Math.min(22, s) }} />
+                </button>
+              ))}
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Undo2 className="size-4" />}
+              onClick={() => {
+                const last = segments.current.at(-1)?.s;
+                segments.current = segments.current.filter((x) => x.s !== last);
+                redraw();
+                send({ op: 'undo' });
+              }}
+            >
+              تراجع
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              icon={<Trash2 className="size-4" />}
+              onClick={() => {
+                segments.current = [];
+                redraw();
+                send({ op: 'clear' });
+              }}
+            >
+              امسح
+            </Button>
+          </div>
         </div>
       )}
     </div>

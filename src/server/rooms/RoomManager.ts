@@ -11,6 +11,7 @@ import { AppError } from '../../shared/errors.ts';
 import { GAMES, isGameId, sanitizeSettings, type GameId, type GameSettings } from '../../shared/games.ts';
 import {
   ROOM_CODE_ALPHABET,
+  DRAW_TOOLS,
   ROOM_CODE_RE,
   levelForXp,
   normalizeRoomCode,
@@ -920,11 +921,16 @@ function validateSegment(raw: unknown): DrawSegment {
   const s = raw as DrawSegment;
   if (!s || typeof s !== 'object') throw new AppError('VALIDATION');
   if (!Number.isInteger(s.s) || s.s < 0 || s.s > 1e6) throw new AppError('VALIDATION');
-  if (!Number.isInteger(s.c) || s.c < 0 || s.c > 15) throw new AppError('VALIDATION');
-  if (!Number.isInteger(s.w) || s.w < 0 || s.w > 4) throw new AppError('VALIDATION');
+  if (!Number.isInteger(s.c) || s.c < 0 || s.c > 31) throw new AppError('VALIDATION');
+  if (!Number.isInteger(s.w) || s.w < 0 || s.w > 5) throw new AppError('VALIDATION');
+  if (s.t !== undefined && !(DRAW_TOOLS as readonly string[]).includes(s.t)) throw new AppError('VALIDATION');
   if (!Array.isArray(s.p) || s.p.length < 2 || s.p.length > 400 || s.p.length % 2) throw new AppError('VALIDATION');
+  // shapes are corner to corner; the paint bucket is a single point
+  const isShape = !!s.t && !['hl', 'dash', 'spray', 'fill'].includes(s.t);
+  if (isShape && s.p.length !== 4) throw new AppError('VALIDATION');
+  if (s.t === 'fill' && s.p.length !== 2) throw new AppError('VALIDATION');
   for (const v of s.p) if (!Number.isInteger(v) || v < 0 || v > 1000) throw new AppError('VALIDATION');
-  return { s: s.s, c: s.c, w: s.w, p: s.p, ...(s.e ? { e: 1 as const } : {}) };
+  return { s: s.s, c: s.c, w: s.w, p: s.p, ...(s.e ? { e: 1 as const } : {}), ...(s.t ? { t: s.t } : {}), ...(s.f ? { f: 1 as const } : {}) };
 }
 
 interface SerializedRoom {
