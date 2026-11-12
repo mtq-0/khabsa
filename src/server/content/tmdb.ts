@@ -62,9 +62,18 @@ export class TmdbService {
   async search(rawQuery: string): Promise<TmdbMatch | null> {
     const pref = /^(tv|movie):\s*/i.exec(rawQuery);
     const only = pref ? (pref[1].toLowerCase() as 'tv' | 'movie') : null;
-    const query = pref ? rawQuery.slice(pref[0].length) : rawQuery;
+    let query = pref ? rawQuery.slice(pref[0].length) : rawQuery;
+    // "tv:Title@2005" / "movie:Title@2002": only works first released that year (for remakes and shared names)
+    const yearM = only ? /@(\d{4})$/.exec(query) : null;
+    if (yearM) query = query.slice(0, -yearM[0].length);
     type R = { media_type?: string; id: number; title?: string; name?: string; original_title?: string; original_name?: string; release_date?: string; first_air_date?: string; poster_path?: string | null; popularity?: number; vote_count?: number };
-    const res = await this.get<{ results: R[] }>(only ? `/search/${only}` : '/search/multi', { query, language: 'ar', include_adult: 'false', page: '1' });
+    const res = await this.get<{ results: R[] }>(only ? `/search/${only}` : '/search/multi', {
+      query,
+      language: 'ar',
+      include_adult: 'false',
+      page: '1',
+      ...(yearM ? (only === 'tv' ? { first_air_date_year: yearM[1] } : { year: yearM[1] }) : {}),
+    });
     if (only) for (const r of res.results ?? []) r.media_type = only;
     const q = normalizeArabic(query);
     const candidates = (res.results ?? []).filter((r) => (r.media_type === 'movie' || r.media_type === 'tv') && r.poster_path && POSTER_PATH_RE.test(r.poster_path));

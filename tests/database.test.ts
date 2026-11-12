@@ -151,14 +151,21 @@ describe('content system', () => {
     const items = csvToItems('taboo-card', 'category,difficulty,word,forbidden\nfood,easy,منسف,جميد|رز|لحمة');
     expect(items[0].data).toEqual({ word: 'منسف', forbidden: ['جميد', 'رز', 'لحمة'] });
   });
-  it('cartoon, movie and TV words have private pictures', async () => {
+  it('cartoon, movie and TV words have a picture: a drawn private card, or (new words) a TMDB poster', async () => {
     const r = await db.query<{ n: number; with_img: number }>(
       `select count(*)::int n, count(*) filter (where i.id is not null)::int with_img
        from content_items c left join images i on i.id = (c.data->>'image')::uuid
        where c.kind = 'word' and c.category in ('cartoons','movies','tv')`,
     );
-    expect(r.rows[0].n).toBeGreaterThan(80);
-    expect(r.rows[0].with_img).toBe(r.rows[0].n);
+    expect(r.rows[0].n).toBeGreaterThan(200);
+    expect(r.rows[0].with_img).toBeGreaterThanOrEqual(89); // the original drawn cards
+    // with the real poster list, every word has a drawn card or a poster, except a few generic ones
+    const real = loadPosters(new URL('../src/server/db/seed/posters.json', import.meta.url).pathname);
+    const words = await db.query<{ word: string; img: boolean; poster: boolean }>(
+      `select data->>'word' word, data->>'image' is not null img, data ? 'poster' poster from content_items where kind = 'word' and category in ('cartoons','movies','tv')`,
+    );
+    const missing = words.rows.filter((w) => !w.img && !w.poster && !real.has(w.word)).map((w) => w.word);
+    expect(missing.length, `words with no picture or poster: ${missing.join('، ')}`).toBeLessThanOrEqual(12);
     // seeding again does not duplicate pictures
     const before = (await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n;
     await seed(db, new Storage(db));
@@ -283,5 +290,14 @@ describe('real poster list', () => {
     const real = loadPosters(new URL('../src/server/db/seed/posters.json', import.meta.url).pathname);
     expect(real.size).toBeGreaterThanOrEqual(70);
     for (const [word, p] of real) expect(() => validateContent('word', { word, poster: p }), word).not.toThrow();
+  });
+});
+
+describe('e2e poster fixture', () => {
+  it('covers every movie word, so the browser test always gets a poster (regenerate it when movie words are added)', async () => {
+    const { OUTSIDER_WORDS, parseWord } = await import('../src/server/db/seed/words.ts');
+    const fx = loadPosters(new URL('../e2e/fixtures/posters.json', import.meta.url).pathname);
+    const missing = OUTSIDER_WORDS.movies.map((w) => parseWord(w).word).filter((w) => !fx.has(w));
+    expect(missing, 'run: node scripts/make-poster-fixture.ts').toEqual([]);
   });
 });

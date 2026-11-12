@@ -9,6 +9,9 @@ import { join } from 'node:path';
 import { CATEGORIES } from '../src/server/db/seed/categories.ts';
 import { DRAW_WORDS, OUTSIDER_WORDS, parseWord } from '../src/server/db/seed/words.ts';
 import { QUESTION_PAIRS } from '../src/server/db/seed/questionPairs.ts';
+import { MORE_QUESTION_PAIRS } from '../src/server/db/seed/more/questions.ts';
+import { MORE_MOST_LIKELY, MORE_TABOO_CARDS } from '../src/server/db/seed/more/party.ts';
+import { MORE_TRIVIA } from '../src/server/db/seed/more/trivia.ts';
 import { MOST_LIKELY, TABOO_CARDS } from '../src/server/db/seed/party.ts';
 import { TRIVIA } from '../src/server/db/seed/trivia.ts';
 import { generatePicturePairs } from '../src/server/db/seed/pictures.ts';
@@ -43,10 +46,10 @@ for (const [cat, words] of Object.entries(DRAW_WORDS))
     const p = parseWord(w);
     add('draw-word', cat, p.difficulty, { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) });
   }
-for (const [cat, d, majority, outsider] of QUESTION_PAIRS) add('question-pair', cat, DIFF[d], { majority, outsider });
-for (const [cat, text] of MOST_LIKELY) add('most-likely', cat, 'medium', { text });
-for (const [cat, d, word, forbidden] of TABOO_CARDS) add('taboo-card', cat, DIFF[d], { word, forbidden });
-for (const [cat, d, question, ...opts] of TRIVIA) add('trivia', cat, DIFF[d], { question, options: opts, answer: 0 });
+for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS]) add('question-pair', cat, DIFF[d], { majority, outsider });
+for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY]) add('most-likely', cat, 'medium', { text });
+for (const [cat, d, word, forbidden] of [...TABOO_CARDS, ...MORE_TABOO_CARDS]) add('taboo-card', cat, DIFF[d], { word, forbidden });
+for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA]) add('trivia', cat, DIFF[d], { question, options: opts, answer: 0 });
 
 const pictures: ContentItem[] = [];
 const images: Record<string, string> = {};

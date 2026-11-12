@@ -9,6 +9,7 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 let fake: Server;
 let fakeUrl = '';
 const seen: { auth?: string; query?: string | null }[] = [];
+const years: { path: string; query: string | null; year: string | null }[] = [];
 
 beforeAll(async () => {
   fake = createServer((req, res) => {
@@ -20,6 +21,12 @@ beforeAll(async () => {
         { media_type: 'person', id: 1, name: 'x', poster_path: null },
         { media_type: 'tv', id: 1234, name: 'توم وجيري', original_name: 'Tom and Jerry', first_air_date: '1965-09-25', poster_path: '/tomjerryposter.jpg' },
       ];
+      return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ results }));
+    }
+    if (u.pathname === '/3/search/movie' || (u.pathname === '/3/search/tv' && u.searchParams.has('first_air_date_year'))) {
+      // year-pinned searches: echo what was asked so the test can check it
+      years.push({ path: u.pathname, query: u.searchParams.get('query'), year: u.searchParams.get('year') ?? u.searchParams.get('first_air_date_year') });
+      const results = [{ id: 77, title: 'Pinned', name: 'Pinned', poster_path: '/pinnedposter.jpg', vote_count: 1 }];
       return res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ results }));
     }
     if (u.pathname === '/3/search/tv' || (u.pathname === '/3/search/multi' && u.searchParams.get('query') === 'جن')) {
@@ -51,6 +58,20 @@ async function admin() {
   return p;
 }
 
+describe('year-pinned searches', () => {
+  it('"tv:Title@2005" and "movie:Title@2002" search only that year', async () => {
+    const t = new TmdbService({ token: 'eyJfake-token', apiBase: `${fakeUrl}/3`, imageBase: `${fakeUrl}/t/p` });
+    const tv = await t.search('tv:Avatar: The Last Airbender@2005');
+    const mv = await t.search('movie:Lilo & Stitch@2002');
+    expect(tv).toMatchObject({ type: 'tv', tmdbId: 77, posterPath: '/pinnedposter.jpg' });
+    expect(mv).toMatchObject({ type: 'movie', tmdbId: 77 });
+    expect(years).toEqual([
+      { path: '/3/search/tv', query: 'Avatar: The Last Airbender', year: '2005' },
+      { path: '/3/search/movie', query: 'Lilo & Stitch', year: '2002' },
+    ]);
+  });
+});
+
 describe('TMDB matching', () => {
   it('prefers an exact title over a more popular unrelated result, and supports tv:/movie: prefixes', async () => {
     const t = new TmdbService({ token: 'eyJfake-token', apiBase: `${fakeUrl}/3`, imageBase: `${fakeUrl}/t/p` });
@@ -59,7 +80,8 @@ describe('TMDB matching', () => {
     expect(tv).toMatchObject({ type: 'tv', tmdbId: 10, year: '2019' });
   });
   it('skips generic words and uses better search terms for known titles', () => {
-    expect(tmdbQueryFor('نشرة الأخبار')).toBeNull();
+    expect(tmdbQueryFor('دراما رمضان')).toBeNull();
+    expect(tmdbQueryFor('نشرة الأخبار')).toBe('tv:The Newsroom@2012'); // a representative title instead of nothing
     expect(tmdbQueryFor('أفاتار')).toBe('Avatar');
     expect(tmdbQueryFor('باب الحارة')).toBe('باب الحارة');
   });
