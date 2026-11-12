@@ -70,6 +70,20 @@ describe('مين برا الرسمة؟ (outsider-draw, one shared canvas, one li
     for (const st of strokes) expect(st.segs.every((s) => s.c === v.colors[st.pid] && s.s === 1)).toBe(true);
   });
 
+  it('opens the live draw channel only to the current drawer, for the current turn', () => {
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 3, { laps: 1 });
+    expect(h.engine.canvas!(h.state)).toBeNull(); // reveal
+    for (const p of h.players) h.act(p, 'seen');
+    const c1 = h.engine.canvas!(h.state)!;
+    expect(c1.drawer).toBe(drawer(h));
+    h.act(c1.drawer, 'stroke', { segments: [line(1)] });
+    const c2 = h.engine.canvas!(h.state)!;
+    expect(c2.drawer).not.toBe(c1.drawer);
+    expect(c2.turnKey).not.toBe(c1.turnKey); // old live lines can't leak into the next turn
+    while (h.state.phase === 'turn') h.act(drawer(h), 'stroke', { segments: [line(2)] });
+    expect(h.engine.canvas!(h.state)).toBeNull(); // discuss
+  });
+
   it('a turn that runs out of time passes without a line', () => {
     const h = new Harness<OutsiderDrawState>('outsider-draw', 3, { laps: 1 });
     for (const p of h.players) h.act(p, 'seen');

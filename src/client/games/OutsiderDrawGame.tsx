@@ -1,5 +1,6 @@
 import type { DrawSegment, RoomView } from '../../shared/protocol.ts';
 import { Button, cx } from '../components/ui.tsx';
+import { useRoomContext } from '../lib/room.ts';
 import { PhaseHeader, PlayerTag, SecretCard, VoteGrid, useGameAction, useMembers } from '../room/common.tsx';
 import { SharedCanvas, colorOf, type StrokeView } from './Sketch.tsx';
 
@@ -78,6 +79,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
   const g = view.game as unknown as G;
   const act = useGameAction();
   const { byId, name } = useMembers(view);
+  const { code } = useRoomContext();
   const me = g.me;
   const sendStroke = async (segs: DrawSegment[]) => (await act('stroke', { segments: segs })).ok;
 
@@ -112,7 +114,15 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
           <RoleCard g={g} compact />
           <Order g={g} view={view} />
           <div className="mx-auto max-w-2xl">
-            <SharedCanvas key={`${g.turnNumber}`} strokes={g.strokes} canDraw={mine} color={me.color ?? 0} maxPoints={g.maxStrokePoints} onStroke={sendStroke} />
+            <SharedCanvas
+              key={`${g.turnNumber}`}
+              strokes={g.strokes}
+              canDraw={mine}
+              color={me.color ?? 0}
+              maxPoints={g.maxStrokePoints}
+              onStroke={sendStroke}
+              live={{ code, turnKey: g.phaseKey, color: g.colors[g.drawer ?? ''] ?? 0 }}
+            />
             {mine ? (
               <p className="mt-2 flex items-center justify-center gap-2 text-sm text-volt-300" data-testid="your-turn">
                 لونك <span className="size-4 rounded-full ring-1 ring-white/50" style={{ background: colorOf(me.color) }} /> · خط واحد بس، فكّر قبل!
