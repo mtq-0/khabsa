@@ -1,0 +1,44 @@
+name: Refresh TMDB posters
+
+# Finds TMDB posters for the cartoon / movie / TV words and pushes the updated
+# src/server/db/seed/posters.json (metadata only, no images) to the "posters-update"
+# branch, ready for a pull request. Needs the repository secret TMDB_TOKEN.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: posters
+  cancel-in-progress: false
+
+jobs:
+  posters:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Find posters
+        env:
+          TMDB_TOKEN: ${{ secrets.TMDB_TOKEN }}
+        run: node scripts/fetch-posters.ts
+      - name: Push to the posters-update branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B posters-update
+          git add src/server/db/seed/posters.json
+          if git diff --cached --quiet; then echo "posters.json unchanged"; exit 0; fi
+          git commit -m "Refresh TMDB posters"
+          git push -f origin posters-update
+      - uses: actions/upload-artifact@v4
+        with:
+          name: posters
+          path: src/server/db/seed/posters.json
+          retention-days: 7

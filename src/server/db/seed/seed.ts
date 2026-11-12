@@ -13,6 +13,7 @@ import { TRIVIA } from './trivia.ts';
 import { generatePicturePairs } from './pictures.ts';
 import { WORD_PICTURES, renderWordPicture } from './wordPictures.ts';
 import { itemCredit, photoPairs, readPhoto } from './photoSeed.ts';
+import { POSTER_CATEGORIES, loadPosters, type PosterEntry } from './posters.ts';
 
 const DIFF = { e: 'easy', m: 'medium', h: 'hard' } as const;
 
@@ -99,6 +100,28 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
   }
 
   await seedPhotoPairs(db, storage, repo, log);
+  await seedPosters(db, loadPosters(), log);
+}
+
+/**
+ * TMDB posters (from posters.json) for built-in cartoon / movie / TV words that don't have one yet.
+ * Words where an admin removed the poster (`posterOff`) are left alone. Idempotent.
+ */
+export async function seedPosters(db: Db, posters: Map<string, PosterEntry>, log: (m: string) => void = () => {}) {
+  if (!posters.size) return;
+  const rows = await db.query<{ id: string; word: string; data: Record<string, unknown> }>(
+    `select id, data->>'word' as word, data from content_items
+      where kind = 'word' and pack_id is null and category = any($1::text[]) and data->'poster' is null and coalesce((data->>'posterOff')::boolean, false) = false`,
+    [POSTER_CATEGORIES],
+  );
+  let n = 0;
+  for (const r of rows.rows) {
+    const p = posters.get(r.word);
+    if (!p) continue;
+    await db.query(`update content_items set data = $2::jsonb, updated_at = now() where id = $1`, [r.id, JSON.stringify({ ...r.data, poster: p })]);
+    n++;
+  }
+  if (n) log(`added TMDB posters to ${n} words`);
 }
 
 /**

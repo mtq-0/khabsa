@@ -68,6 +68,11 @@ const PHOTO_PREFIX = 'photo-';
  * and it still works after the host refreshes.
  */
 export function imageUrl(id: string): string {
+  if (id.startsWith('tmdb:')) {
+    // TMDB poster, straight from TMDB's image CDN (no key needed for images)
+    const path = id.slice(5);
+    return /^\/[A-Za-z0-9_-]{5,64}\.(jpg|jpeg|png|webp)$/.test(path) ? `https://image.tmdb.org/t/p/w342${path}` : '';
+  }
   if (id.startsWith(PHOTO_PREFIX)) {
     const key = id.slice(PHOTO_PREFIX.length);
     return /^[a-z0-9-]{1,80}$/.test(key) ? asset(`content/photos/${key}.webp`) : '';

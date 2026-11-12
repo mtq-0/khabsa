@@ -23,6 +23,8 @@ export const CONTENT_SCHEMAS: Record<ContentKind, z.ZodType<Record<string, unkno
     alternatives: z.array(t(40)).max(5).optional(),
     image: z.uuid().optional(),
     poster: z.object({ tmdbId: z.number().int().positive(), type: z.enum(['movie', 'tv']), path: z.string().regex(/^\/[A-Za-z0-9_-]{5,64}\.(jpg|jpeg|png|webp)$/), title: z.string().max(120).optional() }).optional(),
+    /** an admin removed the poster: don't add it back automatically */
+    posterOff: z.boolean().optional(),
   }),
   'draw-word': z.object({ word: t(30), alternatives: z.array(t(30)).max(5).optional() }),
   'question-pair': z.object({ majority: t(160), outsider: t(160) }).refine((d) => d.majority !== d.outsider, 'السؤالين لازم يكونوا مختلفين'),

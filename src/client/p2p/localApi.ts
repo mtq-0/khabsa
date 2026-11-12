@@ -8,7 +8,7 @@ import { isValidAvatar, randomAvatar } from '../../shared/avatars.ts';
 import { ROOM_CODE_ALPHABET } from '../../shared/protocol.ts';
 import { cleanText, containsProfanity } from '../../server/security/text.ts';
 import { ApiError } from '../lib/api.ts';
-import { categoriesFor } from './content.ts';
+import { categoriesFor, loadBase } from './content.ts';
 import { clearIdentity, loadIdentity, saveIdentity, toSessionUser } from './identity.ts';
 import { Hub, isHosting, markHosting } from './host.ts';
 import { randomInt } from './cryptoShim.ts';
@@ -68,6 +68,10 @@ async function handle(path: string, method: string, body: Record<string, unknown
       voice: false,
       games: GAME_IDS.map((id, i) => ({ id, enabled: true, featured: i < 3, sort: i })),
       online: { online: 0, rooms: 0, playing: 0, players: 0 },
+      // TMDB attribution is shown whenever posters are in use
+      tmdb: await loadBase()
+        .then((b) => b.items.some((i) => !!(i.data as { poster?: unknown }).poster))
+        .catch(() => false),
     };
   }
   if (p === '/api/categories') return { categories: await categoriesFor(url.searchParams.get('game')) };
