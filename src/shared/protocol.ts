@@ -22,6 +22,8 @@ export interface SessionUser extends PublicUser {
 
 export interface UserSettings {
   sound: boolean;
+  /** background music (separate from sound effects) */
+  music: boolean;
   reducedMotion: boolean;
   allowInvites: 'everyone' | 'friends' | 'none';
   showOnline: boolean;
@@ -29,6 +31,7 @@ export interface UserSettings {
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   sound: true,
+  music: true,
   reducedMotion: false,
   allowInvites: 'everyone',
   showOnline: true,

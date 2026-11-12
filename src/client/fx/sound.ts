@@ -10,9 +10,11 @@ let enabled = true;
 export function setSoundEnabled(on: boolean) {
   enabled = on;
 }
+export const soundEnabled = () => enabled;
 
-function audio(): AudioContext | null {
-  if (!enabled || typeof window === 'undefined') return null;
+/** The shared audio context (also used by the music), created lazily. */
+export function audioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AC) return null;
   if (!ctx) {
@@ -29,9 +31,13 @@ function audio(): AudioContext | null {
   return ctx;
 }
 
-/** Call from a click/tap so later sounds are allowed to play. */
+function audio(): AudioContext | null {
+  return enabled ? audioContext() : null;
+}
+
+/** Call from a click/tap so later sounds (and music) are allowed to play. */
 export function unlockAudio() {
-  audio();
+  audioContext();
 }
 
 interface Note {
@@ -84,7 +90,19 @@ function noise(t: number, d: number, v: number, filterHz: number) {
 }
 
 export const sfx = {
-  click: () => play([{ f: 660, d: 0.05, type: 'triangle', v: 0.25 }]),
+  /** UI feedback: a bubbly pop for buttons */
+  click: () => play([{ f: 420, to: 880, d: 0.07, type: 'sine', v: 0.32 }, { f: 1320, t: 0.02, d: 0.03, type: 'triangle', v: 0.06 }]),
+  /** big / main buttons: a brighter double pop */
+  press: () => play([{ f: 523, to: 1046, d: 0.07, type: 'sine', v: 0.32 }, { f: 784, to: 1568, t: 0.06, d: 0.09, type: 'sine', v: 0.26 }]),
+  /** tabs, toggles, choices: a short wooden tick */
+  tick2: () => play([{ f: 1200, to: 700, d: 0.035, type: 'triangle', v: 0.3 }]),
+  /** links / navigation: a soft swish */
+  swish: () => {
+    play([{ f: 300, to: 700, d: 0.12, type: 'sine', v: 0.12 }]);
+    noise(0, 0.12, 0.08, 2500);
+  },
+  /** destructive buttons (leave, stop, kick) */
+  thud: () => play([{ f: 260, to: 150, d: 0.12, type: 'triangle', v: 0.32 }]),
   join: () => play([{ f: 523, d: 0.12, type: 'triangle' }, { f: 784, t: 0.09, d: 0.18, type: 'triangle' }]),
   leave: () => play([{ f: 523, d: 0.12, type: 'triangle', v: 0.3 }, { f: 349, t: 0.09, d: 0.2, type: 'triangle', v: 0.3 }]),
   chat: () => play([{ f: 880, d: 0.06, type: 'sine', v: 0.25 }, { f: 1175, t: 0.05, d: 0.08, type: 'sine', v: 0.2 }]),

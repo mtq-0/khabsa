@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode 
 import { create } from 'zustand';
 import { Loader2, X } from 'lucide-react';
 import { parseAvatar } from '../../shared/avatars.ts';
+import { characterUrl } from '../../shared/characters.ts';
 import { GAMES, type GameId } from '../../shared/games.ts';
 import { asset } from '../lib/mode.ts';
 
@@ -69,11 +70,11 @@ export function Avatar({ avatar, url, size = 40, name, ring, speaking, offline, 
     <span
       className={cx('relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full', ring && 'ring-2 ring-volt-400 ring-offset-2 ring-offset-ink-900', speaking && 'animate-pulse-ring', offline && 'opacity-45 grayscale', className)}
       style={{ width: size, height: size, background: `linear-gradient(135deg, ${a.from}, ${a.to})` }}
-      title={name}
+      title={name ?? a.name}
       role="img"
       aria-label={name ?? 'avatar'}
     >
-      {url ? <img src={url} alt="" className="size-full object-cover" loading="lazy" /> : <span style={{ fontSize: size * 0.55 }} className="leading-none">{a.char}</span>}
+      <img src={url || characterUrl(a.index)} alt="" className="size-full object-cover" loading="lazy" draggable={false} />
     </span>
   );
 }

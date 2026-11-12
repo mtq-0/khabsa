@@ -126,6 +126,7 @@ export function authRoutes(app: FastifyInstance, ctx: AppContext) {
         settings: z
           .object({
             sound: z.boolean().optional(),
+            music: z.boolean().optional(),
             reducedMotion: z.boolean().optional(),
             allowInvites: z.enum(['everyone', 'friends', 'none']).optional(),
             showOnline: z.boolean().optional(),

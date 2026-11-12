@@ -50,7 +50,7 @@ async function handle(path: string, method: string, body: Record<string, unknown
     const cur = loadIdentity();
     if (!cur) throw new ApiError('UNAUTHENTICATED');
     const s = (body.settings ?? {}) as Record<string, unknown>;
-    const settings = Object.fromEntries(Object.entries(s).filter(([k, v]) => ['sound', 'reducedMotion', 'showOnline'].includes(k) ? typeof v === 'boolean' : k === 'allowInvites' && typeof v === 'string'));
+    const settings = Object.fromEntries(Object.entries(s).filter(([k, v]) => ['sound', 'music', 'reducedMotion', 'showOnline'].includes(k) ? typeof v === 'boolean' : k === 'allowInvites' && typeof v === 'string'));
     const me = saveIdentity({
       displayName: body.displayName !== undefined ? nickname(body.displayName) : undefined,
       avatar: isValidAvatar(body.avatar) ? body.avatar : undefined,

@@ -120,7 +120,8 @@ function Settings() {
 
       <div className="card p-5">
         <h2 className="mb-2 font-bold">التفضيلات</h2>
-        <Toggle label="أصوات اللعبة" checked={u.settings.sound} onChange={(v) => setSetting('sound', v)} />
+        <Toggle label="أصوات اللعبة والكبسات" checked={u.settings.sound} onChange={(v) => setSetting('sound', v)} />
+        <Toggle label="الموسيقى" checked={u.settings.music !== false} onChange={(v) => setSetting('music', v)} />
         <Toggle label="تقليل الحركة والأنيميشن" checked={u.settings.reducedMotion} onChange={(v) => setSetting('reducedMotion', v)} />
         <Toggle label="خلّي الأصحاب يشوفوني أونلاين" checked={u.settings.showOnline} onChange={(v) => setSetting('showOnline', v)} />
         <label className="flex items-center justify-between gap-4 py-2">

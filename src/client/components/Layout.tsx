@@ -10,7 +10,7 @@ import { getSocket, reconnectSocket, useConnection } from '../lib/socket.ts';
 import { Avatar, Button, cx, Logo, toast, Toaster } from './ui.tsx';
 import { TmdbNotice } from './TmdbNotice.tsx';
 import { FxLayer, setReducedMotion } from '../fx/visual.tsx';
-import { setSoundEnabled, unlockAudio } from '../fx/sound.ts';
+import { AudioToggles, useAudioRuntime } from '../fx/audioUi.tsx';
 
 const NAV = PAGES
   ? [
@@ -35,19 +35,10 @@ export function Layout() {
   useEffect(() => {
     document.documentElement.classList.toggle('reduce-motion', !!settings?.reducedMotion);
     setReducedMotion(!!settings?.reducedMotion);
-    setSoundEnabled(settings?.sound !== false);
-  }, [settings?.reducedMotion, settings?.sound]);
+  }, [settings?.reducedMotion]);
 
-  // browsers only allow sound after a user gesture
-  useEffect(() => {
-    const unlock = () => unlockAudio();
-    window.addEventListener('pointerdown', unlock, { passive: true });
-    window.addEventListener('keydown', unlock);
-    return () => {
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
-    };
-  }, []);
+  // sound effects for every press, background music, and their settings
+  useAudioRuntime();
 
   // connect realtime once a session exists
   useEffect(() => {
@@ -75,6 +66,7 @@ export function Layout() {
             </NavLink>}
           </nav>
           <div className="ms-auto flex items-center gap-2">
+            {!inRoom && <AudioToggles />}
             {!PAGES && <OnlineBadge />}
             {user?.role === 'admin' && (
               <Link to="/admin" className="rounded-xl p-2 text-ink-300 hover:bg-white/10" aria-label="لوحة الإدارة">

@@ -1,13 +1,42 @@
 /**
- * Avatar system: a character glyph on a branded gradient. Encoded as
+ * Avatar system: an original cartoon character (Arab / Jordanian, drawn in
+ * src/shared/characters.ts — names here, same order) on a branded gradient. Encoded as
  * "<characterIndex>-<paletteIndex>" so it is tiny on the wire and easy to validate.
  * Registered users may also upload a profile picture (avatarUrl).
  */
 export const AVATAR_CHARACTERS = [
-  '🦊', '🐼', '🐯', '🦁', '🐸', '🐵', '🐨', '🐙', '🦄', '🐲',
-  '🦉', '🐧', '🐺', '🐻', '🐱', '🐶', '🦖', '🐢', '🦩', '🐝',
-  '👽', '🤖', '👻', '🎃', '🧞', '🧙', '🥷', '🧛', '🤠', '😎',
-  '🐪', '🦅',
+  'أبو العبد',
+  'أم العبد',
+  'الحجّي أبو صالح',
+  'أبو شنب سوّاق التكسي',
+  'بيّاع الفلافل',
+  'القهوجي',
+  'الشب الكول',
+  'البنت المهضومة',
+  'الولد الشقي',
+  'تيتا',
+  'البدوي',
+  'طالب التوجيهي',
+  'الأستاذ',
+  'لاعب النشامى',
+  'الشيف أبو المناسف',
+  'اليوتيوبر',
+  'أم العروس',
+  'العريس',
+  'أبو نومة',
+  'أبو زعل',
+  'المبرمج',
+  'الدكتورة',
+  'الحكم',
+  'خالتو الحشرية',
+  'المهندس',
+  'الدبّيك',
+  'سيدو',
+  'أبو الشاورما',
+  'الفنّانة',
+  'الكابتن الطيّار',
+  'الجمل أبو سنام',
+  'بسبس قطّة الحارة',
 ] as const;
 
 export const AVATAR_PALETTES = [
@@ -32,11 +61,11 @@ export function isValidAvatar(code: unknown): code is AvatarCode {
   return Number(m[1]) < AVATAR_CHARACTERS.length && Number(m[2]) < AVATAR_PALETTES.length;
 }
 
-export function parseAvatar(code: string | null | undefined): { char: string; from: string; to: string } {
+export function parseAvatar(code: string | null | undefined): { index: number; name: string; from: string; to: string } {
   const safe = code && isValidAvatar(code) ? code : '0-0';
   const [c, p] = safe.split('-').map(Number);
   const pal = AVATAR_PALETTES[p];
-  return { char: AVATAR_CHARACTERS[c], from: pal[0], to: pal[1] };
+  return { index: c, name: AVATAR_CHARACTERS[c], from: pal[0], to: pal[1] };
 }
 
 export function randomAvatar(rand: () => number = Math.random): AvatarCode {
