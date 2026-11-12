@@ -129,6 +129,10 @@ export interface RoomActionPayload {
   phaseKey?: string;
 }
 
+/** Drawing tools beyond the plain pen: styles, two-point shapes and the paint bucket. */
+export const DRAW_TOOLS = ['hl', 'dash', 'spray', 'line', 'rect', 'ellipse', 'tri', 'star', 'heart', 'fill'] as const;
+export type DrawTool = (typeof DRAW_TOOLS)[number];
+
 export interface DrawSegment {
   /** stroke id, unique per drawer turn */
   s: number;
@@ -138,6 +142,10 @@ export interface DrawSegment {
   w: number;
   /** eraser */
   e?: 1;
+  /** tool (omitted = pen). Shapes carry 2 points (corner to corner); fill carries 1 point */
+  t?: DrawTool;
+  /** filled shape */
+  f?: 1;
   /** flattened points, each coordinate quantized to 0..1000 */
   p: number[];
 }
