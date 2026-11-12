@@ -162,7 +162,7 @@ export const TMDB_QUERIES: Record<string, string> = {
 
 /** Generic words that are not a specific title: no poster search. */
 // generic words with no single matching work (the others get a representative title, see MORE_TMDB_QUERIES)
-export const NO_POSTER = new Set(['نشرة الأخبار', 'كورة ليلة الجمعة', 'دراما رمضان', 'بسيط', 'نجوم الأردن', 'قصص الأنبياء']);
+export const NO_POSTER = new Set(['دراما رمضان', 'بسيط', 'نجوم الأردن', 'قصص الأنبياء']);
 
 export function tmdbQueryFor(word: string): string | null {
   if (NO_POSTER.has(word)) return null;

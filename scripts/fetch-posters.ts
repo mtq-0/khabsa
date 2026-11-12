@@ -24,10 +24,12 @@ async function fetchAll() {
     process.exit(2);
   }
   const tmdb = new TmdbService({ token, apiBase: 'https://api.themoviedb.org/3', imageBase: 'https://image.tmdb.org/t/p' });
-  const out: Record<string, PosterEntry | null> = {};
+  // keep what is already there (reviewed); only words with no entry yet are searched
+  const out: Record<string, PosterEntry | null> = existsSync(POSTERS_FILE) ? (JSON.parse(readFileSync(POSTERS_FILE, 'utf8')) as Record<string, PosterEntry | null>) : {};
+  const keep = new Set(Object.entries(out).filter(([, v]) => v).map(([k]) => k));
   let found = 0;
   for (const { word } of words) {
-    if (word in out) continue; // a word can be in two categories
+    if (keep.has(word) || (word in out && !tmdbQueryFor(word))) continue; // already done / nothing to look for
     const q = tmdbQueryFor(word);
     if (!q) {
       out[word] = null;
