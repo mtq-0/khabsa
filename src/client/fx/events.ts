@@ -16,7 +16,7 @@ export type FxEvent =
   | { type: 'points'; amount: number }
   | { type: 'correct' }
   | { type: 'wrong' }
-  | { type: 'reveal'; good: boolean }
+  | { type: 'reveal'; good: boolean; /** the roulette animation plays its own sounds */ roulette?: true }
   | { type: 'win' }
   | { type: 'gameOver' };
 
@@ -92,7 +92,7 @@ export function deriveFx(prev: RoomView | null, next: RoomView, chatCountPrev: n
           const iAmOutsider = outsiders.includes(me);
           // good for me = I escaped as outsider, or the group caught them
           const good = iAmOutsider ? !caught.includes(me) : caught.length > 0;
-          out.push({ type: 'reveal', good });
+          out.push({ type: 'reveal', good, roulette: true });
         }
         break;
       case 'odd-question':

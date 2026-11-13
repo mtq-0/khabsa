@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Eye, ZoomIn } from 'lucide-react';
 import type { RoomView } from '../../shared/protocol.ts';
 import { Button, Modal, cx } from '../components/ui.tsx';
+import { OutsiderRoulette } from './OutsiderRoulette.tsx';
 import { PhaseHeader, PlayerTag, SecretCard, VoteGrid, useGameAction, useMembers } from '../room/common.tsx';
 
 interface PhotoCredit {
@@ -221,6 +222,9 @@ export function OutsiderGame({ view }: { view: RoomView }) {
       return (
         <div>
           <PhaseHeader game={g!} title={g.phase === 'guess' ? 'فرصة أخيرة 🎯' : r.caught.length ? 'انكشف! 😱' : 'هرب! 😎'} total={g.phase === 'guess' ? 25 : 10} />
+          {g.phase === 'verdict' ? (
+            <OutsiderRoulette view={view} players={g.players} outsiders={outsiders} caught={r.caught} label={isWord ? 'برا السالفة' : 'برا الصورة'} seed={`${g.phaseKey}`} />
+          ) : (
           <div className="card mb-5 p-5 text-center">
             <p className="text-sm text-ink-300">{outsiders.length > 1 ? 'اللي كانوا برا' : 'اللي كان برا'}</p>
             <div className="mt-2 flex flex-wrap justify-center gap-4">
@@ -232,6 +236,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
               ))}
             </div>
           </div>
+          )}
           {g.phase === 'guess' &&
             (iAmOutsider && me.guessOptions ? (
               <div className="card p-5">

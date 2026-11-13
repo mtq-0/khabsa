@@ -40,6 +40,7 @@ function run(e: FxEvent) {
       navigator.vibrate?.([40, 40, 40]);
       return;
     case 'reveal':
+      if (e.roulette) return; // OutsiderRoulette plays its own ticks, hit and confetti
       sfx.drumroll();
       setTimeout(() => {
         if (e.good) {

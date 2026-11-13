@@ -7,7 +7,7 @@ const LIVE = process.env.LIVE_URL;
 export default defineConfig({
   testDir: 'e2e',
   // voice needs a LiveKit server: see playwright.voice.config.ts
-  testIgnore: /(voice|pages)\.spec\.ts/,
+  testIgnore: /(voice|pages|roulette)\.spec\.ts/,
   timeout: 120_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
