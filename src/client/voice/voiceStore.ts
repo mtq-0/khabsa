@@ -12,6 +12,8 @@ export interface VoiceState {
   inVoice: Record<string, boolean>;
   volumes: Record<string, number>;
   needsAudioUnlock: boolean;
+  /** serverless edition: connection state per other player in voice (undefined = not in voice) */
+  peerState: Record<string, 'connecting' | 'connected' | 'failed'>;
 }
 
 export const useVoice = create<VoiceState>(() => ({
@@ -24,4 +26,5 @@ export const useVoice = create<VoiceState>(() => ({
   inVoice: {},
   volumes: {},
   needsAudioUnlock: false,
+  peerState: {},
 }));

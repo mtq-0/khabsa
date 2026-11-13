@@ -6,6 +6,9 @@
  * rooms (mesh scales to roughly 6-8 speakers). Same API as voiceClient.ts.
  */
 import type { DataConnection, MediaConnection } from 'peerjs';
+import { audioContext } from '../fx/sound.ts';
+import { getSocket } from '../lib/socket.ts';
+import { asset } from '../lib/mode.ts';
 import { loadIdentity } from '../p2p/identity.ts';
 import { PEER_OPTIONS, Peer } from '../p2p/link.ts';
 import { useVoice } from './voiceStore.ts';
@@ -38,6 +41,7 @@ function drop(id: string) {
   r.el?.remove();
   r.call.close();
   remotes.delete(id);
+  setPeerState(id, null);
   refresh();
 }
 
@@ -56,7 +60,13 @@ function watch(id: string, conn: DataConnection) {
   conn.on('error', gone);
 }
 
-function audioCtx() {
+/**
+ * The app's shared AudioContext: it is created and unlocked by the very first tap anywhere in the
+ * app (iPhones refuse to start a new one outside a tap, and then every call stays silent).
+ */
+function audioCtx(): AudioContext {
+  const shared = audioContext();
+  if (shared) return shared;
   ctx ??= new AudioContext();
   return ctx;
 }
@@ -79,9 +89,22 @@ function outgoing(): MediaStream {
 }
 
 function micError(e: Error) {
-  if (e.name === 'NotAllowedError') return 'المايك مرفوض. اسمح للمتصفح يستخدم المايك من إعدادات الموقع.';
+  if (e.name === 'NotAllowedError' || e.name === 'SecurityError') return 'المايك مرفوض. اسمح للمتصفح يستخدم المايك من إعدادات الموقع. (إذا فتحت الرابط من داخل واتساب أو إنستا، افتحه بكروم أو سفاري.)';
   if (e.name === 'NotFoundError') return 'ما لقينا مايك على هالجهاز.';
+  if (e.name === 'NotReadableError') return 'المايك مستخدم من تطبيق ثاني. سكّره وجرّب من جديد.';
   return 'مشكلة بالمايك: ' + e.message;
+}
+
+const NO_MIC = 'هالمتصفح ما بيسمح بالمايك. افتح الرابط بكروم أو سفاري (مش من داخل تطبيق واتساب أو إنستا). بتقدر تسمع بس.';
+
+/** Extra STUN/TURN servers an owner may drop next to the site as turn.json (an array of RTCIceServer). */
+let extraIce: Promise<RTCIceServer[]> | null = null;
+function loadExtraIce(): Promise<RTCIceServer[]> {
+  extraIce ??= fetch(asset('turn.json'), { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : []))
+    .then((j) => (Array.isArray(j) ? (j as RTCIceServer[]).filter((x) => x && (typeof x.urls === 'string' || Array.isArray(x.urls))).slice(0, 8) : []))
+    .catch(() => []);
+  return extraIce;
 }
 
 function memberIdOf(call: MediaConnection): string | null {
@@ -149,6 +172,7 @@ function register(call: MediaConnection) {
     el.dataset.voice = id;
     document.body.appendChild(el);
     remotes.set(id, { call, el, analyser: analyse(stream) });
+    setPeerState(id, 'connected');
     applyVolume(id);
     void el.play().catch(() => useVoice.setState({ needsAudioUnlock: true }));
     refresh();
@@ -158,6 +182,7 @@ function register(call: MediaConnection) {
     if (cur?.call !== call) return;
     cur.el?.remove();
     remotes.delete(id);
+    setPeerState(id, null);
     refresh();
   };
   call.on('close', gone);
@@ -165,16 +190,59 @@ function register(call: MediaConnection) {
   if (!prev) remotes.set(id, { call });
 }
 
+/** How long a call may take to connect before we hang up and try again. */
+const CONNECT_TIMEOUT_MS = 10_000;
+const dialedAt = new Map<string, number>();
+
+/**
+ * Who is in voice right now. Every browser announces itself over the room link (the host relays it)
+ * once its voice peer is registered, so we only ever dial players who are really there. (Calling
+ * somebody who has not registered yet leaves a dead call that only times out much later.)
+ */
+type RoomSock = { on: (ev: string, h: (p: { ids?: string[] }) => void) => unknown; off: (ev: string, h: (p: { ids?: string[] }) => void) => unknown; emit: (ev: string, p: unknown) => unknown };
+const roomSock = () => getSocket() as unknown as RoomSock;
+let present = new Set<string>();
+const onPresence = (p: { ids?: string[] }) => {
+  present = new Set(Array.isArray(p?.ids) ? p.ids.filter((x) => typeof x === 'string') : []);
+  dialAll();
+};
+const announce = () => roomSock().emit('voice:presence', { on: true });
+
+function setPeerState(id: string, state: 'connecting' | 'connected' | 'failed' | null) {
+  useVoice.setState((s) => {
+    const next = { ...s.peerState };
+    if (state) next[id] = state;
+    else delete next[id];
+    return { peerState: next };
+  });
+}
+
+/**
+ * Only ONE side of every pair dials (the one with the smaller id), the other just answers.
+ * When both sides dialled at the same time the two calls cancelled each other out and the pair
+ * stayed silent (that is what broke voice with 3+ people).
+ */
 function dialAll() {
   if (!peer || peer.destroyed || !currentCode) return;
+  const now = Date.now();
   for (const m of members) {
-    if (m === myId) continue;
+    if (m === myId || myId > m || !present.has(m)) continue;
     const r = remotes.get(m);
     if (r?.el) continue;
-    if (r) continue; // a call is in progress
+    if (r) {
+      // a call exists but never produced sound: hang up so the next round dials again
+      if (now - (dialedAt.get(m) ?? now) > CONNECT_TIMEOUT_MS) {
+        r.call.close();
+        remotes.delete(m);
+        setPeerState(m, 'failed');
+      }
+      continue;
+    }
     try {
       const pid = voicePeerId(currentCode, m);
+      dialedAt.set(m, now);
       register(peer.call(pid, outgoing()));
+      setPeerState(m, 'connecting');
       const c = peer.connect(pid, { reliable: true });
       c.on('open', () => watch(m, c));
     } catch {
@@ -201,16 +269,22 @@ export async function joinVoice(code: string, memberIds: string[] = []) {
   members = memberIds;
   useVoice.setState({ status: 'connecting', error: null });
   // microphone: listening still works without it
-  try {
-    local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    local.getAudioTracks().forEach((t) => (t.enabled = !useVoice.getState().muted));
-    selfAnalyser = analyse(local);
-  } catch (e) {
-    local = null;
-    useVoice.setState({ muted: true, error: micError(e as Error) });
+  if (!navigator.mediaDevices?.getUserMedia) {
+    useVoice.setState({ muted: true, error: NO_MIC });
+  } else {
+    try {
+      local = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      local.getAudioTracks().forEach((t) => (t.enabled = !useVoice.getState().muted));
+      selfAnalyser = analyse(local);
+    } catch (e) {
+      local = null;
+      useVoice.setState({ muted: true, error: micError(e as Error) });
+    }
   }
   await audioCtx().resume().catch(() => {});
-  const p = new Peer(voicePeerId(code, me.id), PEER_OPTIONS);
+  const extra = await loadExtraIce();
+  if (currentCode !== code) return; // left while we were setting up
+  const p = new Peer(voicePeerId(code, me.id), { ...PEER_OPTIONS, config: { ...PEER_OPTIONS.config, iceServers: [...(PEER_OPTIONS.config?.iceServers ?? []), ...extra] } });
   peer = p;
   p.on('connection', (conn) => {
     const id = members.find((m) => conn.peer === voicePeerId(code, m));
@@ -230,6 +304,7 @@ export async function joinVoice(code: string, memberIds: string[] = []) {
         if (!r.el && m && r.call.peer === m) {
           r.call.close();
           remotes.delete(id);
+          setPeerState(id, null);
         }
       return;
     }
@@ -247,12 +322,26 @@ export async function joinVoice(code: string, memberIds: string[] = []) {
   if (peer !== p || p.destroyed) return;
   useVoice.setState({ status: 'connected', needsAudioUnlock: false });
   refresh();
+  // tell the room we are here (and again if the room link reconnects); everybody who is in voice dials us / we dial them
+  const sock = roomSock();
+  sock.on('voice:presence', onPresence);
+  sock.on('connect', announce as never);
+  announce();
   dialAll();
-  redial = setInterval(dialAll, 5000);
+  redial = setInterval(dialAll, 2500);
   startMeter();
 }
 
 function cleanup(status: 'off' | 'error', error: string | null = null) {
+  try {
+    const sock = roomSock();
+    if (currentCode) sock.emit('voice:presence', { on: false });
+    sock.off('voice:presence', onPresence);
+    sock.off('connect', announce as never);
+  } catch {
+    /* the room link may already be gone */
+  }
+  present = new Set();
   if (redial) clearInterval(redial);
   if (meter) clearInterval(meter);
   redial = meter = null;
@@ -270,7 +359,8 @@ function cleanup(status: 'off' | 'error', error: string | null = null) {
   peer?.destroy();
   peer = null;
   currentCode = null;
-  useVoice.setState({ status, error, speaking: {}, inVoice: {}, quality: {}, needsAudioUnlock: false });
+  dialedAt.clear();
+  useVoice.setState({ status, error, speaking: {}, inVoice: {}, quality: {}, peerState: {}, needsAudioUnlock: false });
 }
 
 export async function leaveVoice() {
