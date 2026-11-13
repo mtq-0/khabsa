@@ -137,6 +137,15 @@ export function attachSockets(io: Server<ClientToServerEvents, ServerToClientEve
       }),
     );
     socket.on(
+      'voice:presence',
+      handle(async (p: { code: string; on: boolean }) => {
+        limit('action');
+        const u = await user();
+        ctx.rooms.voicePresence(u, socket, p ?? ({} as never));
+        return null;
+      }),
+    );
+    socket.on(
       'draw:sync',
       handle(async (p: { code: string }) => ctx.rooms.drawSync(userId, p?.code)),
     );

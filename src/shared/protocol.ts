@@ -164,6 +164,8 @@ export interface ClientToServerEvents {
   'room:sync': (p: { code: string }, ack: Ack<RoomView>) => void;
   'draw:event': (p: { code: string } & DrawEvent, ack?: Ack<null>) => void;
   'draw:sync': (p: { code: string }, ack: Ack<{ turnKey: string; segments: DrawSegment[] }>) => void;
+  /** I am in (on) / out of (off) the room's peer-to-peer voice chat */
+  'voice:presence': (p: { code: string; on: boolean }, ack?: Ack<null>) => void;
   'presence:ping': (ack: Ack<{ now: number }>) => void;
 }
 
@@ -174,6 +176,8 @@ export interface ServerToClientEvents {
   'room:closed': (p: { code: string; reason: string }) => void;
   'room:toast': (p: { kind: 'info' | 'success' | 'warning' | 'error'; text: string }) => void;
   'draw:event': (p: DrawEvent) => void;
+  /** who is in the room's peer-to-peer voice chat right now */
+  'voice:presence': (p: { ids: string[] }) => void;
   'invite:new': (p: InviteView) => void;
   'friends:update': () => void;
 }

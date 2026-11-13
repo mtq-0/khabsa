@@ -9,7 +9,6 @@ import type { DataConnection, MediaConnection } from 'peerjs';
 import { audioContext } from '../fx/sound.ts';
 import { getSocket } from '../lib/socket.ts';
 import { asset } from '../lib/mode.ts';
-import { loadIdentity } from '../p2p/identity.ts';
 import { PEER_OPTIONS, Peer } from '../p2p/link.ts';
 import { useVoice } from './voiceStore.ts';
 
@@ -206,7 +205,7 @@ const onPresence = (p: { ids?: string[] }) => {
   present = new Set(Array.isArray(p?.ids) ? p.ids.filter((x) => typeof x === 'string') : []);
   dialAll();
 };
-const announce = () => roomSock().emit('voice:presence', { on: true });
+const announce = () => roomSock().emit('voice:presence', { code: currentCode, on: true });
 
 function setPeerState(id: string, state: 'connecting' | 'connected' | 'failed' | null) {
   useVoice.setState((s) => {
@@ -256,14 +255,14 @@ export function syncMembers(ids: string[]) {
   members = ids;
 }
 
-export async function joinVoice(code: string, memberIds: string[] = []) {
+export async function joinVoice(code: string, memberIds: string[] = [], meId = '') {
   if (peer && currentCode === code) return;
   await leaveVoice();
-  const me = loadIdentity();
-  if (!me) {
+  if (!meId) {
     useVoice.setState({ status: 'error', error: 'لازم تسجّل دخول أول.' });
     return;
   }
+  const me = { id: meId };
   currentCode = code;
   myId = me.id;
   members = memberIds;
@@ -335,7 +334,7 @@ export async function joinVoice(code: string, memberIds: string[] = []) {
 function cleanup(status: 'off' | 'error', error: string | null = null) {
   try {
     const sock = roomSock();
-    if (currentCode) sock.emit('voice:presence', { on: false });
+    if (currentCode) sock.emit('voice:presence', { code: currentCode, on: false });
     sock.off('voice:presence', onPresence);
     sock.off('connect', announce as never);
   } catch {

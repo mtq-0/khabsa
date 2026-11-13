@@ -46,6 +46,8 @@ Required production variables (see `.env.example`): `NODE_ENV=production`, `PUBL
 
 ## 4. Voice (LiveKit) and TURN
 
+**No LiveKit? Voice still works.** Without the `LIVEKIT_*` variables the room falls back to peer-to-peer voice (the same mesh the GitHub Pages edition uses, `src/client/voice/voiceP2p.ts`): the server only relays who is in voice (`voice:presence`), the audio goes browser to browser. That is fine for friends' rooms of up to about 6–8 people in voice. Configure LiveKit below for bigger rooms and strict networks.
+
 ### LiveKit Cloud (recommended)
 1. Create a project at cloud.livekit.io → Settings → Keys.
 2. Set `LIVEKIT_URL=wss://<project>.livekit.cloud`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`.
