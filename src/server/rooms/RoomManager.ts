@@ -277,6 +277,7 @@ export class RoomManager {
         m.sockets.add(socket.id);
         void socket.join(this.channel(room));
         (socket.data.rooms as Set<string>).add(room.code);
+        socket.emit('voice:presence', { ids: this.voiceIds(room) });
       }
       m.disconnectedAt = null;
       if (isNew) this.system(room, `${m.name} دخل الغرفة 👋`);
@@ -295,6 +296,7 @@ export class RoomManager {
     const m = room.members.get(userId);
     if (!m) return;
     room.members.delete(userId);
+    this.dropVoice(room, userId);
     for (const sid of m.sockets) {
       const s = this.deps.io.sockets.sockets.get(sid);
       if (s) {
@@ -322,6 +324,39 @@ export class RoomManager {
     this.system(room, `${next.name} صار المضيف 👑`);
   }
 
+  // -------------------------------------------------------------------------
+  // peer-to-peer voice presence (used when no LiveKit server is configured)
+  // -------------------------------------------------------------------------
+  /** room code → players who announced they are in voice (memory only; pruned when they disconnect or leave) */
+  private voiceIn = new Map<string, Set<string>>();
+
+  private voiceIds(room: Room): string[] {
+    const set = this.voiceIn.get(room.code);
+    if (!set) return [];
+    return [...set].filter((id) => (room.members.get(id)?.sockets.size ?? 0) > 0);
+  }
+
+  private broadcastVoice(room: Room) {
+    this.deps.io.to(this.channel(room)).emit('voice:presence', { ids: this.voiceIds(room) });
+  }
+
+  voicePresence(user: UserRow, socket: Sock, p: { code?: unknown; on?: unknown }) {
+    const room = this.getRoom(p.code);
+    if (!room.members.has(user.id)) throw new AppError('FORBIDDEN');
+    let set = this.voiceIn.get(room.code);
+    if (p.on === true) {
+      if (!set) this.voiceIn.set(room.code, (set = new Set()));
+      set.add(user.id);
+    } else set?.delete(user.id);
+    this.broadcastVoice(room);
+    void socket;
+  }
+
+  /** a player's last connection dropped, or they left: they are no longer in voice */
+  private dropVoice(room: Room, userId: string) {
+    if (this.voiceIn.get(room.code)?.delete(userId)) this.broadcastVoice(room);
+  }
+
   onDisconnect(socket: Sock) {
     const codes = [...((socket.data.rooms as Set<string>) ?? [])];
     for (const code of codes) {
@@ -332,6 +367,7 @@ export class RoomManager {
         if (!m) return;
         m.sockets.delete(socket.id);
         if (m.sockets.size === 0) {
+          this.dropVoice(room, m.id);
           m.disconnectedAt = this.now();
           this.system(room, `${m.name} انقطع اتصاله ⚠️`);
           this.touch(room);
@@ -823,6 +859,7 @@ export class RoomManager {
   }
 
   private async close(room: Room, reason: string) {
+    this.voiceIn.delete(room.code);
     if (room.closed) return;
     room.closed = true;
     this.clearTimer(room);

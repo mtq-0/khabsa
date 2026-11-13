@@ -96,6 +96,36 @@ describe('rooms', () => {
     ps[0].disconnect();
   });
 
+  it('relays who is in peer-to-peer voice, only for room members, and forgets players who disconnect or leave', async () => {
+    const { ps, code } = await roomWith(3);
+    const [a, b, c] = ps;
+    const outsider = new Player(srv.url);
+    await outsider.guest('غريب');
+    await outsider.connect();
+    expect((await outsider.emit('voice:presence', { code, on: true })).ok).toBe(false); // not in the room
+    expect((await a.emit('voice:presence', { code: 'nope', on: true })).ok).toBe(false);
+    expect((await a.emit('voice:presence', { code, on: true })).ok).toBe(true);
+    await waitFor(() => ps.every((p) => p.voiceIds.length === 1 && p.voiceIds[0] === a.user!.id), 2000, 'a in voice');
+    expect((await b.emit('voice:presence', { code, on: true })).ok).toBe(true);
+    await waitFor(() => ps.every((p) => p.voiceIds.length === 2), 2000, 'a and b in voice');
+    // a player who joins the room later is told right away who is in voice
+    const late = new Player(srv.url);
+    await late.guest('متأخر');
+    await late.connect();
+    await late.join(code);
+    await waitFor(() => late.voiceIds.length === 2, 2000, 'late player sees the list');
+    // out of voice, disconnect and leaving all remove the player
+    expect((await a.emit('voice:presence', { code, on: false })).ok).toBe(true);
+    await waitFor(() => c.voiceIds.length === 1 && c.voiceIds[0] === b.user!.id, 2000, 'a out');
+    b.disconnect();
+    await waitFor(() => c.voiceIds.length === 0, 3000, 'b disconnected');
+    expect((await c.emit('voice:presence', { code, on: true })).ok).toBe(true);
+    await waitFor(() => a.voiceIds.length === 1, 2000, 'c in voice');
+    expect((await c.emit('room:leave', { code })).ok).toBe(true);
+    await waitFor(() => a.voiceIds.length === 0, 2000, 'c left');
+    for (const p of [a, c, late, outsider]) p.disconnect();
+  });
+
   it('enforces host permissions and supports host transfer and leave with host migration', async () => {
     const { ps, code, host } = await roomWith(3);
     expect((await ps[1].act(code, 'select-game', { gameId: 'taboo' })).code).toBe('NOT_HOST');

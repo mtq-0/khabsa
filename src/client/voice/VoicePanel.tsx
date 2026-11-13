@@ -7,7 +7,11 @@ import { useVoice } from './voiceStore.ts';
 
 type VoiceModule = typeof import('./voiceClient.ts') & Partial<typeof import('./voiceP2p.ts')>;
 let modPromise: Promise<VoiceModule> | null = null;
-const loadVoice = () => (modPromise ??= PAGES ? import('./voiceP2p.ts') : import('./voiceClient.ts'));
+/**
+ * LiveKit (SFU, best for bigger rooms) when the server has it configured; otherwise a small
+ * peer-to-peer mesh that needs no server at all (also what the GitHub Pages edition uses).
+ */
+const loadVoice = (p2p: boolean) => (modPromise ??= p2p ? import('./voiceP2p.ts') : import('./voiceClient.ts'));
 
 /** Voice controls. Voice is optional and never blocks joining or playing. */
 export function VoicePanel({ view }: { view: RoomView }) {
@@ -15,6 +19,7 @@ export function VoicePanel({ view }: { view: RoomView }) {
   const [mod, setMod] = useState<VoiceModule | null>(null);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [showMixer, setShowMixer] = useState(false);
+  const p2p = PAGES || !view.voiceAvailable;
 
   // leave voice when leaving the room page
   useEffect(
@@ -26,20 +31,13 @@ export function VoicePanel({ view }: { view: RoomView }) {
 
   const memberIds = view.members.map((m) => m.id).join(',');
   useEffect(() => {
-    if (PAGES) void modPromise?.then((m) => m.syncMembers?.(memberIds ? memberIds.split(',') : []));
+    if (p2p) void modPromise?.then((m) => m.syncMembers?.(memberIds ? memberIds.split(',') : []));
   }, [memberIds, mod]);
 
-  if (!view.voiceAvailable)
-    return (
-      <div className="rounded-2xl bg-white/5 px-3 py-2 text-xs text-ink-400">
-        🎙️ الصوت مش مفعّل على هالخادم. احكوا بالشات.
-      </div>
-    );
-
   const join = async () => {
-    const m = await loadVoice();
+    const m = await loadVoice(p2p);
     setMod(m);
-    await (m.joinVoice as (c: string, ids?: string[]) => Promise<void>)(view.code, view.members.map((x) => x.id));
+    await (m.joinVoice as (c: string, ids?: string[], me?: string) => Promise<void>)(view.code, view.members.map((x) => x.id), view.you);
     setMics(await m.listMics());
   };
 
