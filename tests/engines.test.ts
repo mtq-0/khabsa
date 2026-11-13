@@ -55,6 +55,54 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
     expect(json(h.view('spectator'))).not.toContain(word);
   });
 
+  it('questions are random but fair, endless until everybody is ready, with a hard stop', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    const askers: string[] = [];
+    for (let i = 0; i < 12; i++) {
+      const v = h.view(h.players[0]);
+      expect(h.state.phase).toBe('turns');
+      expect(v.target).not.toBe(v.asker); // you never ask yourself
+      expect(h.players).toContain(v.asker);
+      expect(h.players).toContain(v.target);
+      askers.push(v.asker as string);
+      h.act(v.asker as string, 'turn:done');
+    }
+    // never the same asker twice in a row, and everybody asks equally often (3 times in 12 turns)
+    for (let i = 1; i < askers.length; i++) expect(askers[i]).not.toBe(askers[i - 1]);
+    for (const p of h.players) expect(askers.filter((a) => a === p)).toHaveLength(3);
+    // each block of 4 turns is a random permutation (not always the same order)
+    const blocks = [askers.slice(0, 4), askers.slice(4, 8), askers.slice(8, 12)].map((b) => b.join());
+    for (const b of [askers.slice(0, 4), askers.slice(4, 8), askers.slice(8, 12)]) expect([...b].sort()).toEqual([...h.players].sort());
+    expect(blocks.length).toBe(3);
+    // a time-out also moves on to a new random asker
+    const before = h.view(h.players[0]).asker;
+    h.expire();
+    expect(h.state.phase).toBe('turns');
+    expect(h.view(h.players[0]).asker).not.toBe(before);
+    // hard stop: after players × 6 turns the round goes to the discussion even if nobody is ready
+    let guard = 0;
+    while (h.state.phase === 'turns' && guard++ < 100) h.expire();
+    expect(h.state.phase).toBe('discuss');
+    expect(guard).toBeLessThan(30);
+    // still possible to get ready during the discussion
+    for (const p of h.players) h.act(p, 'ready-vote');
+    expect(h.state.phase).toBe('vote');
+  });
+
+  it('a player leaving while asking or being asked gets replaced; leaving as the last non-ready player opens the vote', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 5, { rounds: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    const ctx = { now: h.now, rng: () => 0.5 };
+    const asker = h.state.asker!;
+    h.engine.playerLeft!(h.state, asker, ctx);
+    expect(h.state.phase).toBe('turns');
+    expect(h.state.asker).not.toBe(asker);
+    expect(h.state.asker).not.toBe(asker);
+    expect(h.state.players).toContain(h.state.asker);
+    expect(h.state.players).toContain(h.state.target);
+  });
+
   it('plays a full round with correct scoring', () => {
     const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 });
     const out = h.state.outsiders[0];
@@ -62,11 +110,20 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
     for (const p of h.players) h.act(p, 'seen');
     expect(h.state.phase).toBe('turns');
     // turns: only the current asker may advance
-    const notAsker = h.state.order.find((p) => p !== h.state.order[h.state.turnIndex])!;
+    const notAsker = h.players.find((p) => p !== h.state.asker)!;
     expect(() => h.act(notAsker, 'turn:done')).toThrow();
-    for (let i = 0; i < 4; i++) h.act(h.state.order[h.state.turnIndex], 'turn:done');
-    expect(h.state.phase).toBe('discuss');
-    for (const p of h.players) h.act(p, 'ready-vote');
+    // too early to vote: everybody must have had a turn first
+    expect(() => h.act(insiders[0], 'ready-vote')).toThrow(/بدري/);
+    for (let i = 0; i < 4; i++) h.act(h.state.asker!, 'turn:done');
+    // the questions go on (randomly) until EVERYONE is ready to vote
+    expect(h.state.phase).toBe('turns');
+    expect(h.view(out).canVote).toBe(true);
+    for (const p of h.players.slice(0, 3)) h.act(p, 'ready-vote');
+    expect(h.state.phase).toBe('turns');
+    expect(h.view(out).readyToVote).toHaveLength(3);
+    h.act(h.state.asker!, 'turn:done'); // still asking while one player is not ready
+    expect(h.state.phase).toBe('turns');
+    h.act(h.players[3], 'ready-vote');
     expect(h.state.phase).toBe('vote');
     expect(() => h.act(insiders[0], 'vote', { target: insiders[0] })).toThrow(); // no self vote
     expect(() => h.act(insiders[0], 'vote', { target: 'ghost' })).toThrow();
@@ -98,7 +155,7 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
     const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 2 });
     const out = h.state.outsiders[0];
     h.expire(); // reveal → turns
-    for (let i = 0; i < 4; i++) h.expire(); // all turns time out
+    while (h.state.phase === 'turns') h.expire(); // nobody presses ready: all turns time out until the hard stop
     expect(h.state.phase).toBe('discuss');
     h.expire(); // discuss → vote
     h.expire(); // vote closes with no votes
@@ -145,7 +202,7 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
       } else expect(v.me.wordImage).toBe(`/img/${img}?for=${p}`);
     }
     for (const p of h.players) h.act(p, 'seen');
-    for (let i = 0; i < 4; i++) h.expire();
+    while (h.state.phase === 'turns') h.expire();
     h.expire(); // discuss → vote
     h.expire(); // close vote
     expect(json(h.view(out))).not.toContain(img); // still hidden during verdict
@@ -193,7 +250,7 @@ describe('مين برا الرسمة؟ (outsider-picture)', () => {
     const h = new Harness<OutsiderState>('outsider-picture', 3, { mode: 'hard', rounds: 1 });
     const out = h.state.outsiders[0];
     for (const p of h.players) h.act(p, 'seen');
-    for (let i = 0; i < 3; i++) h.expire();
+    while (h.state.phase === 'turns') h.expire();
     h.expire(); // discuss → vote
     h.expire(); // close vote
     h.expire(); // verdict → guess
@@ -216,7 +273,8 @@ describe('مين برا الرسمة؟ real photo credits', () => {
     // during play nobody can learn the other picture from its credit
     for (const p of h.players) expect(json(h.view(p))).not.toContain('Author');
     for (const p of h.players) h.act(p, 'seen');
-    for (let i = 0; i < 6; i++) h.expire(); // 3 turns → discuss → vote → verdict → guess
+    while (h.state.phase === 'turns') h.expire();
+    for (let i = 0; i < 3; i++) h.expire(); // discuss → vote → verdict → guess
     expect(json(h.view(out))).not.toContain('Author');
     h.act(out, 'guess', { choice: h.state.secret!.labelA });
     expect(h.state.phase).toBe('roundEnd');
@@ -294,6 +352,26 @@ describe('ممنوع تحكي! (taboo)', () => {
     const opp = h.players.find((p) => h.state.teams[p] !== team)!;
     return { h, explainer, team, mate, opp };
   }
+  it('one card per word: duplicates in the pool never come up, and a recycled deck never starts with the last card', () => {
+    const dup = [
+      ...Array.from({ length: 8 }, (_, i) => item('taboo-card', i, { word: `كلمة${i}`, forbidden: ['أ', 'ب', 'ج'] })),
+      ...Array.from({ length: 8 }, (_, i) => item('taboo-card', 100 + i, { word: ` كلمة${i} `, forbidden: ['د', 'ه', 'و'] })), // same words again
+    ];
+    const h = new Harness<TabooState>('taboo', 4, { turnsPerPlayer: 1, maxSkips: 10 }, dup);
+    expect(new Set(h.state.deck.map((c) => c.word.trim())).size).toBe(h.state.deck.length);
+    expect(h.state.deck).toHaveLength(8);
+    h.act(h.state.explainer!, 'start');
+    const seen: string[] = [h.state.card!.word];
+    for (let i = 0; i < 20; i++) {
+      h.act(h.state.explainer!, 'skip', { card: h.state.cardIndex });
+      seen.push(h.state.card!.word);
+      if (h.state.skipsLeft === 0) h.state.skipsLeft = 10;
+    }
+    // the first 8 cards are all different (the whole deck); after it runs out it is reshuffled without an immediate repeat
+    expect(new Set(seen.slice(0, 8)).size).toBe(8);
+    for (let i = 1; i < seen.length; i++) expect(seen[i]).not.toBe(seen[i - 1]);
+  });
+
   it('builds balanced teams and shows the card only to the explainer and opponents', () => {
     const { h, explainer, mate, opp } = setup();
     expect(Object.values(h.state.teams).filter((t) => t === 0)).toHaveLength(2);

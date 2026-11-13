@@ -57,12 +57,16 @@ export async function playDrawRound(players: { page: Page; name: string }[], lap
     // the line shows up on everybody's copy of the same canvas
     for (const p of players) await expect(p.page.getByTestId('draw-canvas')).toHaveAttribute('data-strokes', String(t + 1), { timeout: 15_000 });
   }
-  // random order, repeated each lap; everyone drew
-  expect(order.slice(players.length)).toEqual(order.slice(0, players.length));
-  expect([...order.slice(0, players.length)].sort()).toEqual(players.map((p) => p.name).sort());
+  // random but fair: every lap everybody draws once, never the same player twice in a row
+  for (let lap = 0; lap < laps; lap++) expect([...order.slice(lap * players.length, (lap + 1) * players.length)].sort()).toEqual(players.map((p) => p.name).sort());
+  for (let i = 1; i < order.length; i++) expect(order[i]).not.toBe(order[i - 1]);
+  // the canvas keeps going until EVERYONE is ready: with one player not ready it is still somebody's turn
+  for (const p of players.slice(0, -1)) await p.page.getByTestId('ready-vote').click();
+  await expect(players[players.length - 1].page.getByTestId('ready-count')).toContainText(`${players.length - 1}/${players.length}`, { timeout: 10_000 });
+  await expect(players[0].page.getByTestId('draw-canvas')).toBeVisible();
   for (const p of players) await expect.poll(() => inked(p.page)).toBeGreaterThan(300);
 
-  for (const p of players) await p.page.getByTestId('ready-vote').click();
+  await players[players.length - 1].page.getByTestId('ready-vote').click();
   for (const p of insiders) await p.page.getByRole('button', { name: new RegExp(outsider.name) }).first().click();
   await outsider.page.locator('[data-testid^="vote-"]:not([disabled])').first().click();
 

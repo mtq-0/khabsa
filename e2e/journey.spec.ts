@@ -78,7 +78,7 @@ test('full journey: create, invite link, chat, play مين برا السالفة
   expect(await insiders[1].page.getByTestId('secret-word').innerText()).toBe(word);
   expect(await outsider.page.content()).not.toContain(word);
 
-  // 8. gameplay: seen → turns → discuss → vote
+  // 8. gameplay: seen → random questions (until everybody is ready) → vote
   for (const p of all) await p.page.getByTestId('seen-btn').click();
   for (let i = 0; i < 3; i++) {
     const btn = await Promise.race(

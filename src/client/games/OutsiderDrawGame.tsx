@@ -13,7 +13,10 @@ interface DrawOutsiderView {
   colors: Record<string, number>;
   drawer: string | null;
   turnNumber: number;
-  totalTurns: number;
+  minTurns: number;
+  maxTurns: number;
+  canVote: boolean;
+  drawn: Record<string, number>;
   lap: number;
   laps: number;
   turnSeconds: number;
@@ -69,6 +72,8 @@ function Order({ g, view, mark }: { g: G; view: RoomView; mark?: string[] }) {
         <li key={id} className={cx('chip gap-2', g.drawer === id && 'border-volt-400 bg-volt-400/15 text-white', mark?.includes(id) && 'border-zing-400 bg-zing-500/15')}>
           <span className="size-3 rounded-full ring-1 ring-white/40" style={{ background: colorOf(g.colors[id]) }} aria-hidden />
           {byId.get(id)?.name ?? 'لاعب'}
+          {g.drawn && <span className="text-ink-400">· {g.drawn[id] ?? 0}</span>}
+          {g.readyToVote?.includes(id) && ' ✅'}
           {mark?.includes(id) && ' 🙈'}
         </li>
       ))}
@@ -109,7 +114,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
           <PhaseHeader
             game={g}
             title={mine ? 'دورك! ارسم خط واحد ✍' : <>دور {name(g.drawer)} 🖍</>}
-            subtitle={`خط ${g.turnNumber} من ${g.totalTurns} · اللفة ${g.lap} من ${g.laps}${mine ? ' · حط إصبعك وارسم بدون ما تشيله' : ''}`}
+            subtitle={`الخط رقم ${g.turnNumber}${mine ? ' · حط إصبعك وارسم بدون ما تشيله' : ''}`}
             total={g.turnSeconds}
           />
           <RoleCard g={g} compact />
@@ -130,6 +135,16 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
               </p>
             ) : (
               <p className="mt-2 text-center text-sm text-ink-400">استنى دورك... وراقب مين خطّه غريب 👀</p>
+            )}
+            {me.isPlayer && (
+              <div className="mt-4 text-center">
+                <Button variant={g.readyToVote.includes(view.you) ? 'secondary' : 'primary'} onClick={() => void act('ready-vote')} disabled={!g.canVote || g.readyToVote.includes(view.you)} data-testid="ready-vote">
+                  {g.readyToVote.includes(view.you) ? 'بانتظار الباقي...' : 'جاهز للتصويت 🗳'}
+                </Button>
+                <p className="mt-2 text-sm text-ink-400" data-testid="ready-count">
+                  {g.canVote ? `${g.readyToVote.length}/${g.players.length} جاهزين للتصويت · الدور عشوائي وبيضل لحد ما الكل يكبس` : `كل واحد لازم يرسم ${g.laps === 1 ? 'خط' : `${g.laps} خطوط`} على الأقل قبل التصويت`}
+                </p>
+              </div>
             )}
           </div>
         </div>

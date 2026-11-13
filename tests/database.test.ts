@@ -180,6 +180,17 @@ describe('content system', () => {
     expect((await db.query<{ n: number }>('select count(*)::int n from images')).rows[0].n).toBe(before);
   });
 
+  it('ممنوع تحكي!: 450+ cards, one per word, and old duplicate cards are switched off on upgrade', async () => {
+    const rows = (await db.query<{ w: string }>(`select data->>'word' as w from content_items where kind = 'taboo-card' and pack_id is null and status = 'active'`)).rows.map((r) => r.w);
+    expect(rows.length).toBeGreaterThanOrEqual(450);
+    expect(new Set(rows).size).toBe(rows.length); // no word twice
+    // an older database had the same word twice (different forbidden lists): the extra one is switched off, the cards stay one per word
+    await db.query(`insert into content_items (kind, category, difficulty, data, dedupe_key) values ('taboo-card', 'food', 'medium', '{"word":"منسف","forbidden":["أ","ب","ج","د"]}'::jsonb, 'old-dup-taboo')`);
+    await seed(db, new Storage(db));
+    const after = (await db.query<{ w: string; n: number }>(`select data->>'word' as w, count(*)::int n from content_items where kind = 'taboo-card' and pack_id is null and status = 'active' group by 1 having count(*) > 1`)).rows;
+    expect(after).toEqual([]);
+  });
+
   it('drawing words are Modern Standard Arabic: many words, and old built-in ones are switched off on upgrade', async () => {
     const n = (await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'draw-word' and status = 'active'`)).rows[0].n;
     expect(n).toBeGreaterThanOrEqual(1000);

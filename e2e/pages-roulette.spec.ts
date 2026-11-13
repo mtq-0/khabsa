@@ -31,12 +31,12 @@ test('reveal roulette (Pages edition): the spotlight visits several players, slo
   const outsider = P[roles.indexOf('out')];
   for (const p of P) await p.page.getByTestId('seen-btn').click();
 
-  // skip through the questions and the discussion until the vote opens
-  for (let i = 0; i < 60 && !(await host.getByText(/صوّت سراً/).isVisible().catch(() => false)); i++) {
-    const skip = host.getByTestId('host-skip');
-    if (await skip.isVisible().catch(() => false)) await skip.click();
-    await host.waitForTimeout(400);
+  // everybody asks once (host skips the turns), then all press "ready to vote"
+  for (let i = 0; i < P.length; i++) {
+    await host.getByTestId('host-skip').click();
+    await host.waitForTimeout(300);
   }
+  for (const p of P) await p.page.getByTestId('ready-vote').click();
   await expect(host.getByText(/صوّت سراً/)).toBeVisible({ timeout: 30_000 });
   for (const p of P) {
     const target = p.page.locator('[data-testid^="vote-"]:not([disabled])').first();

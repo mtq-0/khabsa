@@ -9,9 +9,9 @@ import { CATEGORIES } from './categories.ts';
 import { DRAW_WORDS, DRAW_WORD_SET, OUTSIDER_WORDS, parseWord } from './words.ts';
 import { QUESTION_PAIRS } from './questionPairs.ts';
 import { MORE_QUESTION_PAIRS } from './more/questions.ts';
-import { MORE_MOST_LIKELY, MORE_TABOO_CARDS } from './more/party.ts';
+import { MORE_MOST_LIKELY } from './more/party.ts';
 import { MORE_TRIVIA } from './more/trivia.ts';
-import { MOST_LIKELY, TABOO_CARDS } from './party.ts';
+import { MOST_LIKELY, TABOO_ALL } from './party.ts';
 import { TRIVIA } from './trivia.ts';
 import { WORD_PICTURES, renderWordPicture } from './wordPictures.ts';
 import { itemCredit, photoPairs, readPhoto } from './photoSeed.ts';
@@ -62,7 +62,7 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
   }
   for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS]) items.push({ kind: 'question-pair', category: cat, difficulty: DIFF[d], data: { majority, outsider } });
   for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY]) items.push({ kind: 'most-likely', category: cat, difficulty: 'medium', data: { text } });
-  for (const [cat, d, word, forbidden] of [...TABOO_CARDS, ...MORE_TABOO_CARDS]) items.push({ kind: 'taboo-card', category: cat, difficulty: DIFF[d], data: { word, forbidden } });
+  for (const [cat, d, word, forbidden] of TABOO_ALL) items.push({ kind: 'taboo-card', category: cat, difficulty: DIFF[d], data: { word, forbidden } });
   for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA]) items.push({ kind: 'trivia', category: cat, difficulty: DIFF[d], data: { question, options: opts, answer: 0 } });
   const res = await repo.bulkInsert(items, null);
   if (res.inserted) log(`seeded ${res.inserted} content items`);
@@ -75,6 +75,16 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
     [[...DRAW_WORD_SET]],
   );
   if (oldDraw.rowCount) log(`switched off ${oldDraw.rowCount} old drawing words`);
+
+  // one taboo card per word: switch off older built-in duplicates (same word, different forbidden list)
+  const dupTaboo = await db.query(
+    `update content_items c set status = 'disabled', updated_at = now()
+      where c.kind = 'taboo-card' and c.pack_id is null and c.created_by is null and c.status = 'active'
+        and exists (select 1 from content_items o where o.kind = 'taboo-card' and o.pack_id is null and o.created_by is null and o.status = 'active'
+                      and o.data->>'word' = c.data->>'word' and (o.created_at, o.id) < (c.created_at, c.id))`,
+    [],
+  );
+  if (dupTaboo.rowCount) log(`switched off ${dupTaboo.rowCount} duplicate taboo cards`);
 
   // illustrated cards for cartoon / movie / TV words (also added to databases seeded before this existed)
   const missingWordPictures = await db.query<{ id: string; word: string; data: Record<string, unknown> }>(

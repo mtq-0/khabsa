@@ -137,3 +137,24 @@ export function castVote(votes: Record<string, string>, players: string[], voter
   if (!allowSelf && target === voter) throw new AppError('INVALID_ACTION', 'ما بتقدر تصوّت لحالك.');
   votes[voter] = target;
 }
+
+/**
+ * Next player to take a turn: random, but fair — only among the players who have had the
+ * fewest turns so far, and never the same player twice in a row (when there is a choice).
+ */
+export function pickTurnPlayer(players: readonly string[], counts: Readonly<Record<string, number>>, last: string | null, rng: () => number): string {
+  const min = Math.min(...players.map((p) => counts[p] ?? 0));
+  let pool = players.filter((p) => (counts[p] ?? 0) === min);
+  if (pool.length > 1 && last) pool = pool.filter((p) => p !== last);
+  if (pool.length === 0) pool = players.filter((p) => p !== last);
+  if (pool.length === 0) pool = [...players];
+  return pool[Math.floor(rng() * pool.length)];
+}
+
+/** Random player other than `not` (prefers someone other than `avoid`, e.g. the previous target). */
+export function pickOther(players: readonly string[], not: string, avoid: string | null, rng: () => number): string {
+  let pool = players.filter((p) => p !== not);
+  const fresh = pool.filter((p) => p !== avoid);
+  if (fresh.length) pool = fresh;
+  return pool.length ? pool[Math.floor(rng() * pool.length)] : not;
+}

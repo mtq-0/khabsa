@@ -10,7 +10,7 @@
  */
 import { AppError } from '../../shared/errors.ts';
 import type { DrawSegment } from '../../shared/protocol.ts';
-import { accused, addScore, asObject, baseState, baseView, castVote, finish, pickN, requirePhase, requirePlayer, setPhase, shuffle, str, tally } from './common.ts';
+import { accused, addScore, asObject, baseState, baseView, castVote, finish, pickN, pickTurnPlayer, requirePhase, requirePlayer, setPhase, shuffle, str, tally } from './common.ts';
 import type { BaseState, ContentItem, EngineCtx, GameEngine, InitInput } from './types.ts';
 
 interface DrawWordData {
@@ -39,10 +39,13 @@ export interface OutsiderDrawState extends BaseState {
   secret: Secret | null;
   outsiders: string[];
   seen: string[];
-  /** random drawing order for this round */
+  /** players in a fixed (shuffled) order, only for listing them with their colours */
   order: string[];
-  /** index into the whole sequence of turns (order repeated `laps` times) */
-  turnIndex: number;
+  /** whose turn it is: random (fair) and endless until everybody is ready to vote */
+  drawer: string | null;
+  /** finished turns this round, and how many lines each player has added */
+  turns: number;
+  drawn: Record<string, number>;
   /** palette index per player, so everybody can tell whose line is whose */
   colors: Record<string, number>;
   strokes: Stroke[];
@@ -58,6 +61,8 @@ const REVEAL_SECONDS = 12;
 const VERDICT_SECONDS = 7;
 const GUESS_SECONDS = 25;
 const ROUND_END_SECONDS = 15;
+/** hard stop (lines per player) so the canvas cannot grow forever */
+const MAX_LINES_PER_PLAYER = 8;
 
 /** one line = one stroke of at most this many points (keeps the shared drawing small) */
 export const MAX_STROKE_POINTS = 250;
@@ -86,8 +91,11 @@ export function parseStroke(raw: unknown, color: number): DrawSegment[] {
 }
 
 export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
-  const totalTurns = (s: OutsiderDrawState) => s.order.length * s.settings.laps;
-  const drawerOf = (s: OutsiderDrawState) => (s.phase === 'turn' && s.order.length ? s.order[s.turnIndex % s.order.length] : null);
+  /** "ready to vote" opens once everybody has added the minimum number of lines (the `laps` setting) */
+  const minTurns = (s: OutsiderDrawState) => s.players.length * s.settings.laps;
+  const maxTurns = (s: OutsiderDrawState) => s.players.length * Math.max(MAX_LINES_PER_PLAYER, s.settings.laps);
+  const canVote = (s: OutsiderDrawState) => s.turns >= minTurns(s);
+  const drawerOf = (s: OutsiderDrawState) => (s.phase === 'turn' ? s.drawer : null);
 
   function startRound(s: OutsiderDrawState, ctx: EngineCtx) {
     s.round += 1;
@@ -104,7 +112,9 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     s.outsiders = pickN(s.players, 1, ctx.rng);
     s.order = shuffle(s.players, ctx.rng);
     s.colors = Object.fromEntries(s.order.map((p, i) => [p, PLAYER_COLORS[i % PLAYER_COLORS.length]]));
-    s.turnIndex = 0;
+    s.drawer = null;
+    s.turns = 0;
+    s.drawn = Object.fromEntries(s.players.map((p) => [p, 0]));
     s.strokes = [];
     s.seen = [];
     s.readyToVote = [];
@@ -115,14 +125,22 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     setPhase(s, 'reveal', ctx, REVEAL_SECONDS);
   }
 
-  const startTurns = (s: OutsiderDrawState, ctx: EngineCtx) => {
-    s.turnIndex = 0;
+  /** random drawer (fair: fewest lines first, never twice in a row) */
+  function beginTurn(s: OutsiderDrawState, ctx: EngineCtx) {
+    s.drawer = pickTurnPlayer(s.players, s.drawn, s.drawer, ctx.rng);
     setPhase(s, 'turn', ctx, s.settings.turnSeconds);
+  }
+  const startTurns = (s: OutsiderDrawState, ctx: EngineCtx) => {
+    s.turns = 0;
+    s.drawer = null;
+    s.drawn = Object.fromEntries(s.players.map((p) => [p, 0]));
+    beginTurn(s, ctx);
   };
-  function nextTurn(s: OutsiderDrawState, ctx: EngineCtx) {
-    s.turnIndex += 1;
-    if (s.turnIndex >= totalTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
-    else setPhase(s, 'turn', ctx, s.settings.turnSeconds);
+  function nextTurn(s: OutsiderDrawState, ctx: EngineCtx, counted = true) {
+    if (counted && s.drawer) s.drawn[s.drawer] = (s.drawn[s.drawer] ?? 0) + 1;
+    s.turns += 1;
+    if (s.turns >= maxTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
+    else beginTurn(s, ctx);
   }
   const startVote = (s: OutsiderDrawState, ctx: EngineCtx) => setPhase(s, 'vote', ctx, s.settings.voteSeconds);
 
@@ -177,7 +195,9 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         outsiders: [],
         seen: [],
         order: [],
-        turnIndex: 0,
+        drawer: null,
+        turns: 0,
+        drawn: {},
         colors: {},
         strokes: [],
         readyToVote: [],
@@ -212,7 +232,9 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
           return nextTurn(s, ctx);
         }
         case 'ready-vote': {
-          requirePhase(s, 'discuss');
+          // lines keep coming (in random order) until EVERYONE is ready to vote
+          requirePhase(s, 'turn', 'discuss');
+          if (s.phase === 'turn' && !canVote(s)) throw new AppError('INVALID_ACTION', 'لسا بدري! خلّي كل واحد يرسم كم خط الأول.');
           if (!s.readyToVote.includes(pid)) s.readyToVote.push(pid);
           if (s.players.every((p) => s.readyToVote.includes(p))) startVote(s, ctx);
           return;
@@ -242,7 +264,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         case 'reveal':
           return startTurns(s, ctx);
         case 'turn':
-          return nextTurn(s, ctx); // time's up: no line this turn
+          return nextTurn(s, ctx, false); // time's up: no line this turn
         case 'discuss':
           return startVote(s, ctx);
         case 'vote':
@@ -257,15 +279,10 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     },
     playerLeft(s, pid, ctx) {
       const wasDrawer = drawerOf(s) === pid;
-      // keep the turn sequence consistent: count this player's turns that already passed
-      const n = s.order.length;
-      const idx = s.order.indexOf(pid);
-      if (idx >= 0 && n) {
-        const before = Math.floor(s.turnIndex / n) + (idx < s.turnIndex % n ? 1 : 0);
-        s.turnIndex -= before;
-      }
       s.players = s.players.filter((p) => p !== pid);
       s.order = s.order.filter((p) => p !== pid);
+      delete s.drawn[pid];
+      s.readyToVote = s.readyToVote.filter((p) => p !== pid);
       delete s.votes[pid];
       for (const [v, t] of Object.entries(s.votes)) if (t === pid && !s.outsiders.includes(pid)) delete s.votes[v];
       if (s.players.length < 2) return finish(s, ctx);
@@ -274,8 +291,10 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         return advanceRound(s, ctx); // the round makes no sense without its outsider
       }
       if (s.phase === 'turn') {
-        if (s.turnIndex >= totalTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
-        else if (wasDrawer) setPhase(s, 'turn', ctx, s.settings.turnSeconds);
+        if (wasDrawer) {
+          s.drawer = null;
+          beginTurn(s, ctx);
+        } else if (canVote(s) && s.players.every((p) => s.readyToVote.includes(p))) startVote(s, ctx);
       } else if (s.phase === 'reveal' && s.players.every((p) => s.seen.includes(p))) startTurns(s, ctx);
       else if (s.phase === 'discuss' && s.players.every((p) => s.readyToVote.includes(p))) startVote(s, ctx);
       else if (s.phase === 'vote' && s.players.every((p) => s.votes[p])) closeVoting(s, ctx);
@@ -311,9 +330,11 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         order: s.order,
         colors: s.colors,
         drawer: drawerOf(s),
-        turnNumber: Math.min(s.turnIndex + 1, totalTurns(s)),
-        totalTurns: totalTurns(s),
-        lap: Math.min(s.settings.laps, Math.floor(s.turnIndex / Math.max(1, s.order.length)) + 1),
+        turnNumber: s.turns + 1,
+        minTurns: minTurns(s),
+        maxTurns: maxTurns(s),
+        canVote: canVote(s),
+        drawn: s.drawn,
         laps: s.settings.laps,
         turnSeconds: s.settings.turnSeconds,
         maxStrokePoints: MAX_STROKE_POINTS,
