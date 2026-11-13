@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Copy, LogOut, MessageCircle, Share2, SkipForward, Square, UserPlus, Users, Gamepad2 } from 'lucide-react';
-import { AudioToggles, useMusicMood } from '../fx/audioUi.tsx';
+import { AudioToggles, ThemeToggle, useMusicMood } from '../fx/audioUi.tsx';
 import { useGameFx } from '../fx/useGameFx.ts';
 import { ShakeArea } from '../fx/visual.tsx';
 import { GAMES } from '../../shared/games.ts';
@@ -147,6 +147,7 @@ function RoomInner({ code }: { code: string }) {
           </button>
           <div className="ms-auto flex gap-1">
             <AudioToggles />
+            <ThemeToggle />
             <Button size="sm" variant="secondary" icon={<Share2 className="size-4" />} onClick={() => void share()}>
               <span className="hidden sm:inline">شارك</span>
             </Button>
@@ -295,7 +296,7 @@ function InviteModal({ open, onClose, view, link }: { open: boolean; onClose: ()
             انسخ
           </Button>
         </div>
-        <a className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-bold text-ink-950" href={`https://wa.me/?text=${encodeURIComponent(`تعال العب معنا على خبصة 🎮 ${link}`)}`} target="_blank" rel="noopener noreferrer">
+        <a className="flex items-center justify-center gap-2 rounded-xl bg-[#25D366] py-3 font-bold text-[#07050f]" href={`https://wa.me/?text=${encodeURIComponent(`تعال العب معنا على خبصة 🎮 ${link}`)}`} target="_blank" rel="noopener noreferrer">
           ابعت على واتساب
         </a>
         {PAGES ? (

@@ -169,7 +169,7 @@ export function SharedCanvas({
   };
 
   return (
-    <div ref={wrapRef} className={cx('relative w-full overflow-hidden rounded-2xl bg-white shadow-inner', active && 'ring-4 ring-volt-400')}>
+    <div ref={wrapRef} className={cx('relative w-full overflow-hidden rounded-2xl bg-[#fff] shadow-inner', active && 'ring-4 ring-volt-400')}>
       <canvas
         ref={canvasRef}
         className={cx('block w-full touch-none', active ? 'cursor-crosshair' : 'cursor-default')}

@@ -10,7 +10,7 @@ import { getSocket, reconnectSocket, useConnection } from '../lib/socket.ts';
 import { Avatar, Button, cx, Logo, toast, Toaster } from './ui.tsx';
 import { TmdbNotice } from './TmdbNotice.tsx';
 import { FxLayer, setReducedMotion } from '../fx/visual.tsx';
-import { AudioToggles, useAudioRuntime } from '../fx/audioUi.tsx';
+import { AudioToggles, ThemeToggle, useAudioRuntime } from '../fx/audioUi.tsx';
 
 const NAV = PAGES
   ? [
@@ -51,7 +51,7 @@ export function Layout() {
       <FxLayer />
       <InviteListener />
       <header className={cx('sticky top-0 z-40 border-b border-white/5 bg-ink-950/75 backdrop-blur-xl', inRoom && 'hidden md:block')}>
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:gap-4">
           <Link to="/" className="shrink-0">
             <Logo compact />
           </Link>
@@ -65,8 +65,9 @@ export function Layout() {
               الإنجازات
             </NavLink>}
           </nav>
-          <div className="ms-auto flex items-center gap-2">
+          <div className="ms-auto flex items-center gap-1 sm:gap-2">
             {!inRoom && <AudioToggles />}
+            {!inRoom && <ThemeToggle />}
             {!PAGES && <OnlineBadge />}
             {user?.role === 'admin' && (
               <Link to="/admin" className="rounded-xl p-2 text-ink-300 hover:bg-white/10" aria-label="لوحة الإدارة">
@@ -78,9 +79,9 @@ export function Layout() {
                 <Link to="/settings" className="hidden rounded-xl p-2 text-ink-300 hover:bg-white/10 sm:block" aria-label="الإعدادات">
                   <Settings className="size-5" />
                 </Link>
-                <Link to={user.isGuest ? '/settings' : `/u/${user.username}`} className="flex items-center gap-2 rounded-full bg-white/5 py-1 pe-3 ps-1 hover:bg-white/10">
+                <Link to={user.isGuest ? '/settings' : `/u/${user.username}`} className="flex items-center gap-2 rounded-full bg-white/5 py-1 ps-1 hover:bg-white/10 pe-1 min-[400px]:pe-3">
                   <Avatar avatar={user.avatar} url={user.avatarUrl} size={32} />
-                  <span className="max-w-24 truncate text-sm font-semibold">{user.displayName}</span>
+                  <span className="hidden max-w-24 truncate text-sm font-semibold min-[400px]:inline">{user.displayName}</span>
                 </Link>
               </>
             ) : PAGES ? null : (

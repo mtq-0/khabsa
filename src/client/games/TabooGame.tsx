@@ -38,7 +38,7 @@ export function TabooGame({ view }: { view: RoomView }) {
       <PhaseHeader game={{ ...g, round: g.turnNumber, totalRounds: g.totalTurns }} title={g.phase === 'ready' ? 'استعدوا!' : g.phase === 'turn' ? `دور ${TEAM[g.turnTeam].name}` : 'خلص الدور'} total={60} />
       <div className="mb-5 grid grid-cols-2 gap-3">
         {[0, 1].map((t) => (
-          <div key={t} className={cx('rounded-2xl bg-gradient-to-br p-3', TEAM[t].cls, g.turnTeam === t ? 'ring-2 ring-white/70' : 'opacity-70')}>
+          <div key={t} className={cx('theme-dark rounded-2xl bg-gradient-to-br p-3', TEAM[t].cls, g.turnTeam === t ? 'ring-2 ring-white/70' : 'opacity-70')}>
             <p className="text-sm font-bold">الفريق {TEAM[t].name}</p>
             <p className="font-display text-4xl" data-testid={`team-score-${t}`}>
               {g.teamScores[t]}
@@ -74,7 +74,7 @@ export function TabooGame({ view }: { view: RoomView }) {
         <div className="space-y-4">
           {g.card ? (
             <div className="mx-auto max-w-sm animate-flip overflow-hidden rounded-3xl border border-white/15 bg-ink-800 shadow-glow" data-testid="taboo-card">
-              <div className="bg-gradient-to-l from-zing-500 to-brand-600 p-5 text-center">
+              <div className="theme-dark bg-gradient-to-l from-zing-500 to-brand-600 p-5 text-center">
                 <p className="font-display text-4xl">{g.card.word}</p>
               </div>
               <ul className="space-y-1 p-4 text-center">

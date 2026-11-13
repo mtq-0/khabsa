@@ -3,10 +3,11 @@
  * and the music on/off + mood wiring.
  */
 import { useEffect } from 'react';
-import { Music, Volume2, VolumeX } from 'lucide-react';
+import { Moon, Music, Sun, Volume2, VolumeX } from 'lucide-react';
 import type { SessionUser, UserSettings } from '../../shared/protocol.ts';
 import { api, errorText } from '../lib/api.ts';
 import { useSession } from '../lib/session.ts';
+import { useTheme } from '../lib/theme.ts';
 import { cx, toast } from '../components/ui.tsx';
 import { refreshMusic, setMusicEnabled, setMusicMood, type Mood } from './music.ts';
 import { setSoundEnabled, sfx, unlockAudio } from './sound.ts';
@@ -32,6 +33,26 @@ export function useAudioSettings() {
     }
   };
   return { soundOn, musicOn, toggle };
+}
+
+/** Day / night switch. */
+export function ThemeToggle({ className }: { className?: string }) {
+  const theme = useTheme((s) => s.theme);
+  const toggle = useTheme((s) => s.toggle);
+  const night = theme === 'dark';
+  return (
+    <button
+      type="button"
+      className={cx('relative grid size-9 place-items-center rounded-xl text-ink-300 transition hover:bg-white/10', className)}
+      onClick={toggle}
+      aria-label={night ? 'غيّر لوضع النهار' : 'غيّر لوضع الليل'}
+      title={night ? 'وضع النهار ☀️' : 'وضع الليل 🌙'}
+      data-testid="theme-toggle"
+      data-theme-now={theme}
+    >
+      {night ? <Sun className="size-5" /> : <Moon className="size-5" />}
+    </button>
+  );
 }
 
 /** The two speaker / music buttons. */

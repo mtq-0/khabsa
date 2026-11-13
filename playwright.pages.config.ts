@@ -10,7 +10,7 @@ const PORT = 4173;
 const deployed = process.env.PAGES_URL;
 export default defineConfig({
   testDir: 'e2e',
-  testMatch: /pages(-voice|-roulette)?\.spec\.ts/,
+  testMatch: /pages(-voice|-roulette|-theme)?\.spec\.ts/,
   timeout: 180_000,
   expect: { timeout: 30_000 },
   workers: 1,

@@ -243,7 +243,7 @@ function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; can
 
   return (
     <div>
-      <div ref={wrapRef} className="relative w-full overflow-hidden rounded-2xl bg-white shadow-inner">
+      <div ref={wrapRef} className="relative w-full overflow-hidden rounded-2xl bg-[#fff] shadow-inner">
         <canvas
           ref={canvasRef}
           className={cx('block w-full touch-none', canDraw ? (tool === 'fill' ? 'cursor-cell' : 'cursor-crosshair') : 'cursor-default')}
@@ -269,7 +269,7 @@ function Canvas({ code, turnKey, canDraw }: { code: string; turnKey: string; can
                 aria-label={t.label}
                 aria-pressed={tool === t.id}
                 data-testid={`tool-${t.id}`}
-                className={cx('flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold', tool === t.id ? 'bg-volt-400 text-ink-950' : 'bg-white/5 text-ink-100 hover:bg-white/10')}
+                className={cx('flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-semibold', tool === t.id ? 'bg-volt-400 text-[#07050f]' : 'bg-white/5 text-ink-100 hover:bg-white/10')}
               >
                 {t.icon}
                 <span className="hidden sm:inline">{t.label}</span>
