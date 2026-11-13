@@ -81,6 +81,24 @@ export function VoicePanel({ view }: { view: RoomView }) {
         </Button>
       </div>
       {v.error && <p className="text-xs text-zing-400">{v.error}</p>}
+      {(() => {
+        const names = (st: string) => view.members.filter((m) => v.peerState[m.id] === st).map((m) => m.name).join('، ');
+        const failed = names('failed');
+        const connecting = names('connecting');
+        if (failed)
+          return (
+            <p className="text-xs text-sun-400" data-testid="voice-failed">
+              ما قدرنا نوصل الصوت مع {failed}. غالبًا شبكة الموبايل أو الواي فاي بتمنع الاتصال المباشر. جرّبوا واي فاي ثاني، أو اطلبوا منهم يطلعوا من الصوت وينضموا من جديد.
+            </p>
+          );
+        if (connecting)
+          return (
+            <p className="text-xs text-ink-400" data-testid="voice-connecting">
+              عم نوصل مع {connecting}...
+            </p>
+          );
+        return null;
+      })()}
       {showMixer && (
         <div className="space-y-2 pt-1">
           {mics.length > 1 && (

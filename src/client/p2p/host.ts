@@ -126,6 +126,8 @@ export class Hub {
   /** user id → secret token, so nobody can take over another player's seat */
   private tokens: Record<string, string>;
   private links = new Set<Link>();
+  /** players currently in voice chat (announced by their browsers, relayed to everybody so they can dial each other) */
+  private voice = new Set<string>();
 
   private constructor(code: string) {
     this.code = code;
@@ -259,6 +261,13 @@ export class Hub {
         }
         if (!user || !sock) return;
         if (m.t === 'emit') {
+          if (m.ev === 'voice:presence') {
+            const on = !!(m.p as { on?: unknown } | undefined)?.on;
+            if (on) this.voice.add(user.id);
+            else this.voice.delete(user.id);
+            this.sendVoicePresence();
+            return;
+          }
           if (m.ev === 'draw:event') {
             limit('draw');
             try {
@@ -277,6 +286,7 @@ export class Hub {
             const view: RoomView = await this.rooms.join(user, sock as never, p.code);
             const room = this.rooms.roomByCode(view.code);
             if (room) for (const msg of this.rooms.chatHistory(room)) sock.emit('room:chat', msg);
+            sock.emit('voice:presence', { ids: [...this.voice] });
             return reply(m.id, { ok: true, data: view });
           }
           case 'room:leave':
@@ -313,11 +323,17 @@ export class Hub {
     link.onClose(() => {
       this.links.delete(link);
       useHubStatus.setState({ guests: Math.max(0, this.links.size - 1) });
+      if (user && this.voice.delete(user.id)) this.sendVoicePresence();
       if (sock) {
         this.rooms.onDisconnect(sock as never);
         this.io.sockets.sockets.delete(sock.id);
       }
     });
+  }
+
+  private sendVoicePresence() {
+    const ids = [...this.voice];
+    for (const s of this.io.sockets.sockets.values()) s.emit('voice:presence', { ids });
   }
 
   /** Stop hosting. With forget=true the room is removed from this browser. */
