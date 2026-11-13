@@ -234,6 +234,11 @@ describe('units', () => {
   it('sanitizes game settings to the schema', () => {
     const s = sanitizeSettings('outsider-word', { rounds: -5, outsiders: 99, categoryHint: 'yes', category: '../../etc', extra: 1 });
     expect(s).toMatchObject({ rounds: 1, outsiders: 3, categoryHint: true, category: 'any' });
+    // several categories: kept, deduplicated, junk dropped, 'any' alone stays 'any'
+    expect(sanitizeSettings('outsider-word', { category: 'food, animals,food,../x,' }).category).toBe('food,animals');
+    expect(sanitizeSettings('outsider-word', { category: 'food,any' }).category).toBe('food');
+    expect(sanitizeSettings('outsider-word', { category: ',,' }).category).toBe('any');
+    expect(sanitizeSettings('outsider-word', { category: 5 }).category).toBe('any');
     expect(s).not.toHaveProperty('extra');
   });
 });

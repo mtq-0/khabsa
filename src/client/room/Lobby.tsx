@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Play, Settings2 } from 'lucide-react';
-import { GAME_IDS, GAMES, type GameId, type GameSettings, type SettingField } from '../../shared/games.ts';
+import { Check, Play, Settings2 } from 'lucide-react';
+import { GAME_IDS, GAMES, categoryList, type GameId, type GameSettings, type SettingField } from '../../shared/games.ts';
 import type { RoomView } from '../../shared/protocol.ts';
 import { api } from '../lib/api.ts';
 import { useRoomContext } from '../lib/room.ts';
@@ -72,20 +72,60 @@ function SettingInput({ f, value, onChange, disabled, cats }: { f: SettingField;
         </label>
       );
     case 'category':
-      return (
-        <label className="block">
-          <span className="label">{f.label}</span>
-          <select className="field py-2.5" value={String(value)} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-            <option value="any">🎲 كل التصنيفات</option>
-            {cats.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.emoji} {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-      );
+      return <CategoryPicker label={f.label} value={String(value)} cats={cats} disabled={disabled} onChange={onChange} />;
   }
+}
+
+/** Pick one or more categories (or "all"). The value is 'any' or slugs joined by commas. */
+function CategoryPicker({ label, value, cats, disabled, onChange }: { label: string; value: string; cats: { slug: string; name: string; emoji: string; items?: number }[]; disabled: boolean; onChange: (v: unknown) => void }) {
+  const chosen = categoryList(value).filter((s) => cats.some((c) => c.slug === s) || !cats.length);
+  const all = chosen.length === 0;
+  const toggle = (slug: string) => {
+    const next = chosen.includes(slug) ? chosen.filter((s) => s !== slug) : [...chosen, slug];
+    // nothing left, or everything chosen = all categories
+    onChange(next.length === 0 || (cats.length > 0 && next.length >= cats.length) ? 'any' : next.join(','));
+  };
+  if (disabled)
+    return (
+      <p className="text-sm text-ink-300" data-testid="category-summary">
+        {label}:{' '}
+        <b>
+          {all
+            ? '🎲 كل التصنيفات'
+            : chosen
+                .map((s) => cats.find((c) => c.slug === s))
+                .filter(Boolean)
+                .map((c) => `${c!.emoji} ${c!.name}`)
+                .join('، ')}
+        </b>
+      </p>
+    );
+  const chip = 'rounded-full border px-3 py-1.5 text-sm font-semibold transition';
+  return (
+    <div data-testid="category-picker">
+      <span className="label flex justify-between">
+        {label}
+        <b className="text-volt-300" data-testid="category-count">
+          {all ? 'الكل' : `${chosen.length} مختارة`}
+        </b>
+      </span>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={label}>
+        <button type="button" onClick={() => onChange('any')} aria-pressed={all} data-testid="cat-any" className={cx(chip, all ? 'border-volt-400 bg-volt-400/20 text-ink-100' : 'border-white/10 bg-white/5 text-ink-300 hover:bg-white/10')}>
+          🎲 الكل
+        </button>
+        {cats.map((c) => {
+          const on = chosen.includes(c.slug);
+          return (
+            <button key={c.slug} type="button" onClick={() => toggle(c.slug)} aria-pressed={on} data-testid={`cat-${c.slug}`} className={cx(chip, on ? 'border-brand-400 bg-brand-500/25 text-ink-100' : 'border-white/10 bg-white/5 text-ink-300 hover:bg-white/10')}>
+              {on && <Check className="me-1 inline size-3.5" aria-hidden />}
+              {c.emoji} {c.name}
+            </button>
+          );
+        })}
+      </div>
+      {!all && <p className="mt-1.5 text-xs text-ink-400">بنخلط بين الفئات اللي اخترتها بالتساوي.</p>}
+    </div>
+  );
 }
 
 export function Lobby({ view }: { view: RoomView }) {

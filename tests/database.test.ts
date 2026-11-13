@@ -144,6 +144,13 @@ describe('content system', () => {
     const a = await repo.pick({ kind: 'word', count: 5, category: 'food' });
     expect(a).toHaveLength(5);
     for (const x of a) expect(x.category).toBe('food');
+    // several categories: only those, and an equal share of each (a small category is not drowned by a big one)
+    const multi = await repo.pick({ kind: 'word', count: 20, category: 'food,jordan,cartoons' });
+    expect(multi).toHaveLength(20);
+    const byCat = multi.reduce<Record<string, number>>((m, x) => ((m[x.category] = (m[x.category] ?? 0) + 1), m), {});
+    expect(Object.keys(byCat).sort()).toEqual(['cartoons', 'food', 'jordan']);
+    for (const n of Object.values(byCat)) expect(n).toBeGreaterThanOrEqual(6);
+    expect(new Set(multi.map((x) => x.id)).size).toBe(20);
     const b = await repo.pick({ kind: 'word', count: 5, category: 'food', exclude: a.map((x) => x.id) });
     for (const x of b) expect(a.map((y) => y.id)).not.toContain(x.id);
   });
