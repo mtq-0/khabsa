@@ -1,6 +1,7 @@
 import type { DrawSegment, RoomView } from '../../shared/protocol.ts';
 import { Button, cx } from '../components/ui.tsx';
 import { useRoomContext } from '../lib/room.ts';
+import { OutsiderRoulette } from './OutsiderRoulette.tsx';
 import { PhaseHeader, PlayerTag, SecretCard, VoteGrid, useGameAction, useMembers } from '../room/common.tsx';
 import { SharedCanvas, colorOf, type StrokeView } from './Sketch.tsx';
 
@@ -181,6 +182,9 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
       return (
         <div>
           <PhaseHeader game={g} title={g.phase === 'guess' ? 'فرصة أخيرة 🎯' : r.caught.length ? 'انكشف! 😱' : 'هرب! 😎'} total={g.phase === 'guess' ? 25 : 10} />
+          {g.phase === 'verdict' ? (
+            <OutsiderRoulette view={view} players={g.players} outsiders={outsiders} caught={r.caught} label="برا الرسمة" seed={`${g.phaseKey}`} />
+          ) : (
           <div className="card mb-5 p-5 text-center">
             <p className="text-sm text-ink-300">اللي كان برا الرسمة</p>
             <div className="mt-2 flex flex-wrap justify-center gap-4">
@@ -192,6 +196,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
               ))}
             </div>
           </div>
+          )}
           {g.phase === 'guess' &&
             (iAmOutsider && me.guessOptions ? (
               <div className="card mb-5 p-5">

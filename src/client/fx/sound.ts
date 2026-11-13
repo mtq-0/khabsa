@@ -127,6 +127,23 @@ export const sfx = {
     noise(0.55, 0.3, 0.5, 400);
     play([{ f: 110, t: 0.55, d: 0.3, type: 'sine', v: 0.6 }]);
   },
+  /** roulette jump: a wooden tick whose pitch climbs as the spotlight slows down (progress 0..1) */
+  spinTick: (progress: number) => {
+    const f = 520 + 620 * progress;
+    play([{ f, to: f * 0.62, d: 0.05, type: 'triangle', v: 0.28 }, { f: f * 2, d: 0.02, type: 'sine', v: 0.06 }]);
+    if (progress > 0.82) play([{ f: f * 1.5, t: 0.02, d: 0.12, type: 'sine', v: 0.1 }]);
+  },
+  /** roulette landed: a heavy hit and a rising sting */
+  spinLand: () => {
+    noise(0, 0.35, 0.5, 500);
+    play([
+      { f: 130, to: 55, d: 0.55, type: 'sine', v: 0.7 },
+      { f: 392, t: 0.04, d: 0.5, type: 'sawtooth', v: 0.14 },
+      { f: 494, t: 0.04, d: 0.5, type: 'sawtooth', v: 0.12 },
+      { f: 587, t: 0.04, d: 0.5, type: 'sawtooth', v: 0.12 },
+      { f: 784, t: 0.2, d: 0.45, type: 'triangle', v: 0.2 },
+    ]);
+  },
   sneaky: () => play([{ f: 392, d: 0.12, type: 'triangle', v: 0.3 }, { f: 370, t: 0.14, d: 0.12, type: 'triangle', v: 0.3 }, { f: 349, t: 0.28, d: 0.12, type: 'triangle', v: 0.3 }, { f: 330, t: 0.42, d: 0.3, type: 'triangle', v: 0.3 }]),
   win: () => {
     const m = [523, 659, 784, 1046, 784, 1046];

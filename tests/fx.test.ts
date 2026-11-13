@@ -77,9 +77,9 @@ describe('effects decisions', () => {
   it('outsider reveal is good for the group when caught and for the outsider when they escape', () => {
     const vote = view({ game: { gameId: 'outsider-word', phase: 'vote', phaseKey: 'v', scores: {} } });
     const verdict = (outsiders: string[], caught: string[]) => view({ game: { gameId: 'outsider-word', phase: 'verdict', phaseKey: 'x', scores: {}, reveal: { outsiders, caught } } });
-    expect(deriveFx(vote, verdict(['a'], ['a']), 0, 0, false)).toContainEqual({ type: 'reveal', good: true });
-    expect(deriveFx(vote, verdict(['a'], []), 0, 0, false)).toContainEqual({ type: 'reveal', good: false });
-    expect(deriveFx(vote, verdict(['me'], []), 0, 0, false)).toContainEqual({ type: 'reveal', good: true });
+    expect(deriveFx(vote, verdict(['a'], ['a']), 0, 0, false)).toContainEqual({ type: 'reveal', good: true, roulette: true });
+    expect(deriveFx(vote, verdict(['a'], []), 0, 0, false)).toContainEqual({ type: 'reveal', good: false, roulette: true });
+    expect(deriveFx(vote, verdict(['me'], []), 0, 0, false)).toContainEqual({ type: 'reveal', good: true, roulette: true });
   });
 
   it('draw & guess and taboo live moments', () => {
