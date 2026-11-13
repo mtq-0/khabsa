@@ -469,7 +469,7 @@ test('مين برا السالفة: movie words show their TMDB poster to the pl
     await guest(p.page, names[i]);
     await p.page.getByTestId('ready-btn').click();
   }
-  await all[0].page.locator('select:has(option[value="movies"])').selectOption('movies');
+  await all[0].page.getByTestId('cat-movies').click();
   await all[0].page.locator('input[type=range]').first().fill('1');
   await all[0].page.getByTestId('start-game').click();
   for (const p of all) await expect(p.page.getByTestId('role-card')).toBeVisible();

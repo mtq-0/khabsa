@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Db, Queryable } from '../db/db.ts';
 import type { ContentItem, ContentKind } from '../games/types.ts';
 import { AppError } from '../../shared/errors.ts';
+import { categoryList } from '../../shared/games.ts';
 import { cleanText } from '../security/text.ts';
 
 export const CONTENT_KINDS: ContentKind[] = ['word', 'question-pair', 'picture-pair', 'most-likely', 'taboo-card', 'trivia', 'draw-word'];
@@ -100,15 +101,42 @@ export class ContentRepo {
    * given, only that pack's items. Recently used ids are excluded where possible.
    */
   async pick(opts: { kind: ContentKind; count: number; category?: string; difficulty?: string; packId?: string | null; exclude?: string[]; extraWhere?: string }): Promise<ContentItem[]> {
+    const cats = categoryList(opts.category);
+    if (cats.length < 2) return this.pickRaw({ ...opts, categories: cats });
+    // several categories: take an equal share from each so a small category is not drowned by a big one
+    const share = Math.ceil(opts.count / cats.length);
+    const parts: ContentItem[][] = [];
+    for (const c of cats) parts.push(await this.pickRaw({ ...opts, categories: [c], count: share }));
+    const picked: ContentItem[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; picked.length < opts.count && parts.some((p) => i < p.length); i++)
+      for (const p of parts) if (i < p.length && picked.length < opts.count && !seen.has(p[i].id)) {
+        seen.add(p[i].id);
+        picked.push(p[i]);
+      }
+    if (picked.length < opts.count) {
+      // some categories ran dry: fill from all selected ones
+      const more = await this.pickRaw({ ...opts, categories: cats, count: opts.count - picked.length, exclude: [...(opts.exclude ?? []), ...seen] });
+      for (const m of more) if (!seen.has(m.id) && picked.length < opts.count) picked.push(m);
+    }
+    // mix the categories up
+    for (let i = picked.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [picked[i], picked[j]] = [picked[j], picked[i]];
+    }
+    return picked;
+  }
+
+  private async pickRaw(opts: { kind: ContentKind; count: number; categories: string[]; difficulty?: string; packId?: string | null; exclude?: string[]; extraWhere?: string }): Promise<ContentItem[]> {
     const params: unknown[] = [opts.kind];
     const where = [`kind = $1`, `status = 'active'`];
     if (opts.packId) {
       params.push(opts.packId);
       where.push(`pack_id = $${params.length}`);
     } else where.push('pack_id is null');
-    if (opts.category && opts.category !== 'any') {
-      params.push(opts.category);
-      where.push(`category = $${params.length}`);
+    if (opts.categories.length) {
+      params.push(opts.categories);
+      where.push(`category = any($${params.length}::text[])`);
     }
     if (opts.difficulty && opts.difficulty !== 'mixed') {
       params.push(opts.difficulty);

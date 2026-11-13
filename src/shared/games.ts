@@ -297,6 +297,20 @@ export const GAMES: Record<GameId, GameMeta> = {
 
 export type GameSettings = Record<string, number | string | boolean>;
 
+/**
+ * The category setting holds 'any' (everything) or one or more category slugs joined by commas
+ * ("food,animals"). One slug is just the old single-category value, so saved rooms keep working.
+ */
+export function categoryList(v: unknown): string[] {
+  if (typeof v !== 'string') return [];
+  const out: string[] = [];
+  for (const part of v.split(',')) {
+    const slug = part.trim();
+    if (slug !== 'any' && /^[a-z0-9-]{1,40}$/.test(slug) && !out.includes(slug)) out.push(slug);
+  }
+  return out.slice(0, 40);
+}
+
 /** Fill defaults and clamp values to the schema; unknown keys are dropped. */
 export function sanitizeSettings(gameId: GameId, raw: unknown): GameSettings {
   const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
@@ -315,9 +329,11 @@ export function sanitizeSettings(gameId: GameId, raw: unknown): GameSettings {
       case 'boolean':
         out[f.key] = typeof v === 'boolean' ? v : f.default;
         break;
-      case 'category':
-        out[f.key] = typeof v === 'string' && /^[a-z0-9-]{1,40}$/.test(v) ? v : f.default;
+      case 'category': {
+        const list = categoryList(v);
+        out[f.key] = list.length ? list.join(',') : f.default;
         break;
+      }
     }
   }
   return out;
