@@ -51,20 +51,42 @@ interface OutsiderView {
   reveal: null | { outsiders: string[]; caught: string[]; votes: Record<string, string>; counts: Record<string, number>; answer: string | null; word: string | null; wordImage?: string | null; imageA: string | null; imageB: string | null; labelB: string | null; credits?: { a: PhotoCredit; b: PhotoCredit | null } | null; guesses: Record<string, string>; roundPoints: Record<string, number> };
 }
 
-function PictureCard({ src, label }: { src: string; label?: string }) {
+/**
+ * A picture shown IN FULL (never cropped): portrait posters, landscape photos and the drawn
+ * cards all keep their own proportions; very tall pictures are scaled down to fit the screen.
+ * Tap to zoom.
+ */
+function PictureCard({ src, label, maxH = 'max-h-[48vh]' }: { src: string; label?: string; maxH?: string }) {
   const [zoom, setZoom] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  if (failed)
+    return (
+      <div className="grid aspect-[4/3] w-full place-items-center rounded-2xl bg-black/25 p-3 text-center text-sm text-white/80" data-testid="picture-failed">
+        ما قدرنا نحمّل الصورة {label ? `(${label})` : ''}
+      </div>
+    );
   return (
     <>
-      <button onClick={() => setZoom(true)} className="group relative block w-full overflow-hidden rounded-2xl bg-ink-900" aria-label="كبّر الصورة">
+      <button onClick={() => setZoom(true)} className="group block w-full" aria-label="كبّر الصورة">
         {!loaded && <div className="skeleton aspect-[4/3] w-full" />}
-        <img src={src} alt={label ?? 'صورتك السرية'} className={cx('aspect-[4/3] w-full object-cover transition', !loaded && 'hidden')} onLoad={() => setLoaded(true)} draggable={false} />
-        <span className="absolute bottom-2 end-2 rounded-lg bg-black/50 p-1.5 opacity-80 group-hover:opacity-100">
-          <ZoomIn className="size-4" />
+        <span className={cx('relative mx-auto w-fit max-w-full', loaded ? 'block' : 'hidden')}>
+          <img
+            src={src}
+            alt={label ?? 'صورتك السرية'}
+            className={cx('block h-auto w-auto max-w-full rounded-2xl object-contain shadow-lg', maxH)}
+            onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
+            draggable={false}
+            data-testid="picture-img"
+          />
+          <span className="absolute bottom-2 end-2 rounded-lg bg-black/50 p-1.5 text-white opacity-80 group-hover:opacity-100">
+            <ZoomIn className="size-4" />
+          </span>
         </span>
       </button>
       <Modal open={zoom} onClose={() => setZoom(false)} title={label ?? 'صورتك'} wide>
-        <img src={src} alt={label ?? ''} className="w-full rounded-2xl" />
+        <img src={src} alt={label ?? ''} className="mx-auto block h-auto max-h-[78vh] w-full rounded-2xl object-contain" />
       </Modal>
     </>
   );
@@ -92,15 +114,15 @@ function RoleCard({ g }: { g: OutsiderView }) {
           </SecretCard>
         ) : (
           <SecretCard testId="role-card">
-            {me.wordImage && (
-              <div className="mx-auto mb-3 max-w-52" data-testid="word-image">
-                <PictureCard src={me.wordImage} label={me.word} />
-              </div>
-            )}
             <p className="text-sm text-white/80">الكلمة السرية</p>
             <p className="mt-1 font-display text-5xl" data-testid="secret-word">
               {me.word}
             </p>
+            {me.wordImage && (
+              <div className="mx-auto mt-3 max-w-64" data-testid="word-image">
+                <PictureCard src={me.wordImage} label={me.word} maxH="max-h-[38vh]" />
+              </div>
+            )}
             {me.category && <p className="mt-3 inline-block rounded-full bg-black/25 px-3 py-1 text-sm">{me.category}</p>}
             <p className="mt-3 text-xs text-white/70">في {g.outsiderCount > 1 ? `${g.outsiderCount} لاعبين` : 'لاعب واحد'} برا السالفة. لا تفضح الكلمة!</p>
           </SecretCard>

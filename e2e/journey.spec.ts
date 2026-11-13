@@ -483,6 +483,13 @@ test('مين برا السالفة: movie words show their TMDB poster to the pl
     }
     await expect(img.first()).toBeVisible();
     await expect.poll(() => img.first().evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth), { timeout: 20_000 }).toBeGreaterThan(100);
+    // the picture is shown IN FULL: same proportions as the file (no cropping), and the secret word sits above it
+    const fit = await img.first().evaluate((el: HTMLImageElement) => ({ natural: el.naturalWidth / el.naturalHeight, shown: el.clientWidth / el.clientHeight, objectFit: getComputedStyle(el).objectFit }));
+    expect(Math.abs(fit.shown - fit.natural) / fit.natural).toBeLessThan(0.03);
+    expect(fit.objectFit).toBe('contain');
+    const word = await p.page.getByTestId('secret-word').boundingBox();
+    const pic = await img.first().boundingBox();
+    expect(word!.y).toBeLessThan(pic!.y);
     const src = (await img.first().getAttribute('src'))!;
     expect(src).toMatch(/^\/api\/game-image\//);
     // the signed link only works for its owner, and serves the TMDB poster (a JPEG)
