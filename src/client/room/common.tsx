@@ -105,7 +105,7 @@ export function Scoreboard({ view, scores, teams }: { view: RoomView; scores: Re
 export function SecretCard({ children, tone = 'brand', testId }: { children: ReactNode; tone?: 'brand' | 'zing' | 'volt'; testId?: string }) {
   const tones = { brand: 'from-brand-600 to-brand-700 border-brand-400/40', zing: 'from-zing-500 to-brand-700 border-zing-400/40', volt: 'from-volt-500/80 to-brand-600 border-volt-400/40' };
   return (
-    <div data-testid={testId} className={cx('relative mx-auto max-w-md animate-flip overflow-hidden rounded-3xl border bg-gradient-to-br p-6 text-center shadow-glow', tones[tone])}>
+    <div data-testid={testId} className={cx('theme-dark relative mx-auto max-w-md animate-flip overflow-hidden rounded-3xl border bg-gradient-to-br p-6 text-center text-[#fff] shadow-glow', tones[tone])}>
       <div className="absolute -end-8 -top-8 size-28 rounded-full bg-white/15 blur-xl" />
       <div className="relative">{children}</div>
     </div>

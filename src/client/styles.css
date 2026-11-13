@@ -164,3 +164,83 @@
 @utility fx-flash {
   animation: fx-flash 0.45s ease-out both;
 }
+
+
+/* ---------------------------------------------------------------------------
+   Day theme (html[data-theme='light']). Night stays the default.
+   The ink scale is inverted, --color-white becomes a dark tint so every "bg-white/5",
+   "border-white/10" overlay turns into a soft dark overlay, and the neon accents are
+   darkened where they are used as text. Surfaces that are always dark / colourful
+   (secret cards, game art, podium, team cards) opt out with the .theme-dark scope.
+   --------------------------------------------------------------------------- */
+@layer base {
+html[data-theme='light'] {
+  color-scheme: light;
+  --color-ink-950: #f5f2ff;
+  --color-ink-900: #ffffff;
+  --color-ink-850: #ffffff;
+  --color-ink-800: #f0ecff;
+  --color-ink-700: #e4def9;
+  --color-ink-600: #d3caf1;
+  --color-ink-500: #7d72b4;
+  --color-ink-400: #66599f;
+  --color-ink-300: #4d4280;
+  --color-ink-200: #382d66;
+  --color-ink-100: #170f33;
+  --color-white: #1b1240;
+  --color-brand-300: #6a3fe0;
+  --color-brand-400: #7c4dff;
+  --color-volt-200: #006f8a;
+  --color-volt-300: #00748f;
+  --color-volt-400: #05a3c4;
+  --color-zing-400: #d92b78;
+  --color-sun-400: #b87400;
+  --color-lime-400: #2f8f00;
+}
+html[data-theme='light'] body {
+  background-image:
+    radial-gradient(60rem 40rem at 85% -10%, rgb(139 77 255 / 0.12), transparent 60%),
+    radial-gradient(50rem 30rem at -10% 10%, rgb(0 209 240 / 0.1), transparent 60%),
+    radial-gradient(40rem 30rem at 50% 120%, rgb(255 61 154 / 0.07), transparent 60%);
+}
+html[data-theme='light'] ::selection {
+  background: rgb(139 77 255 / 0.3);
+}
+}
+html[data-theme='light'] .card {
+  box-shadow: 0 8px 30px -14px rgb(60 40 130 / 0.28);
+}
+html[data-theme='light'] .skeleton {
+  background: linear-gradient(90deg, rgb(27 18 64 / 0.05) 25%, rgb(27 18 64 / 0.1) 37%, rgb(27 18 64 / 0.05) 63%);
+  background-size: 400% 100%;
+}
+html[data-theme='light'] .scrollbar-thin {
+  scrollbar-color: rgb(27 18 64 / 0.25) transparent;
+}
+/* always-dark surfaces inside the day theme (a layer below utilities, so text-[#fff] etc. on the same element still win) */
+@layer components {
+html[data-theme='light'] .theme-dark {
+  color-scheme: dark;
+  --color-ink-950: #07050f;
+  --color-ink-900: #0c0819;
+  --color-ink-850: #120c24;
+  --color-ink-800: #18112f;
+  --color-ink-700: #22193f;
+  --color-ink-600: #2f2456;
+  --color-ink-500: #45387a;
+  --color-ink-400: #6b5fa3;
+  --color-ink-300: #9d93cc;
+  --color-ink-200: #c9c2ea;
+  --color-ink-100: #ece8ff;
+  --color-white: #ffffff;
+  --color-brand-300: #c4a7ff;
+  --color-brand-400: #a879ff;
+  --color-volt-200: #b6f7ff;
+  --color-volt-300: #8af3ff;
+  --color-volt-400: #3ce7ff;
+  --color-zing-400: #ff6fb5;
+  --color-sun-400: #ffd84d;
+  --color-lime-400: #a6ff4d;
+  color: var(--color-ink-100);
+}
+}

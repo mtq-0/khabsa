@@ -22,11 +22,11 @@ export function Button({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: 'sm' | 'md' | 'lg'; loading?: boolean; icon?: ReactNode }) {
   const styles: Record<Variant, string> = {
-    primary: 'bg-gradient-to-l from-brand-500 to-brand-700 text-white shadow-glow hover:brightness-110',
-    volt: 'bg-gradient-to-l from-volt-400 to-brand-500 text-ink-950 shadow-glow-volt hover:brightness-110',
+    primary: 'bg-gradient-to-l from-brand-500 to-brand-700 text-[#fff] shadow-glow hover:brightness-110',
+    volt: 'theme-dark bg-gradient-to-l from-volt-400 to-brand-500 text-[#07050f] shadow-glow-volt hover:brightness-110',
     secondary: 'bg-white/8 text-ink-100 border border-white/12 hover:bg-white/12',
     ghost: 'text-ink-200 hover:bg-white/8',
-    danger: 'bg-zing-500/90 text-white hover:bg-zing-500',
+    danger: 'bg-zing-500/90 text-[#fff] hover:bg-zing-500',
   };
   const sizes = { sm: 'h-9 px-3 text-sm rounded-lg gap-1.5', md: 'h-11 px-5 rounded-xl gap-2', lg: 'h-14 px-7 text-lg rounded-2xl gap-2.5' };
   return (
@@ -199,7 +199,7 @@ export function Countdown({ deadline, offset, total, size = 'md' }: { deadline: 
 export function GameArt({ gameId, className, big }: { gameId: GameId; className?: string; big?: boolean }) {
   const g = GAMES[gameId];
   return (
-    <div className={cx('relative overflow-hidden', className)} style={{ background: `linear-gradient(135deg, ${g.gradient[0]}, ${g.gradient[1]})` }} aria-hidden>
+    <div className={cx('theme-dark relative overflow-hidden', className)} style={{ background: `linear-gradient(135deg, ${g.gradient[0]}, ${g.gradient[1]})` }} aria-hidden>
       <div className="absolute -start-6 -top-6 size-24 rounded-full bg-white/15 blur-xl" />
       <div className="absolute -bottom-8 -end-4 size-32 rounded-full bg-black/20 blur-2xl" />
       <svg className="absolute inset-0 size-full opacity-25" viewBox="0 0 100 60" preserveAspectRatio="none">
@@ -237,7 +237,7 @@ export function Toggle({ checked, onChange, label, id }: { checked: boolean; onC
         onClick={() => onChange(!checked)}
         className={cx('relative h-7 w-12 shrink-0 rounded-full transition', checked ? 'bg-brand-500' : 'bg-white/15')}
       >
-        <span className={cx('absolute top-1 size-5 rounded-full bg-white shadow transition-all', checked ? 'start-6' : 'start-1')} />
+        <span className={cx('absolute top-1 size-5 rounded-full bg-[#fff] shadow transition-all', checked ? 'start-6' : 'start-1')} />
       </button>
     </label>
   );
@@ -252,7 +252,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { valu
           role="tab"
           aria-selected={value === t.value}
           onClick={() => onChange(t.value)}
-          className={cx('shrink-0 rounded-xl px-4 py-2 text-sm font-semibold transition', value === t.value ? 'bg-brand-500 text-white shadow-glow' : 'text-ink-300 hover:text-ink-100')}
+          className={cx('shrink-0 rounded-xl px-4 py-2 text-sm font-semibold transition', value === t.value ? 'bg-brand-500 text-[#fff] shadow-glow' : 'text-ink-300 hover:text-ink-100')}
         >
           {t.label}
         </button>

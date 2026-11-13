@@ -66,7 +66,7 @@ export function Results({ view }: { view: RoomView }) {
             <div key={r.playerId} className="flex w-24 animate-rise flex-col items-center gap-2 sm:w-28" style={{ animationDelay: `${i * 120}ms` }}>
               {m ? <Avatar avatar={m.avatar} url={m.avatarUrl} size={i === 0 ? 64 : 52} ring={i === 0} /> : <span className="size-12 rounded-full bg-white/10" />}
               <p className="w-full truncate text-center text-sm font-bold">{name(r.playerId)}</p>
-              <div className={cx('flex w-full items-start justify-center rounded-t-2xl pt-2 font-display text-2xl', h, i === 0 ? 'bg-gradient-to-b from-sun-400 to-amber-600 text-ink-950' : i === 1 ? 'bg-gradient-to-b from-ink-200 to-ink-400 text-ink-950' : 'bg-gradient-to-b from-orange-400 to-orange-700')}>
+              <div className={cx('theme-dark flex w-full items-start justify-center rounded-t-2xl pt-2 font-display text-2xl', h, i === 0 ? 'bg-gradient-to-b from-sun-400 to-amber-600 text-[#07050f]' : i === 1 ? 'bg-gradient-to-b from-ink-200 to-ink-400 text-[#07050f]' : 'bg-gradient-to-b from-orange-400 to-orange-700')}>
                 {r.place}
               </div>
               <p className="-mt-1 text-sm font-bold text-volt-300">{r.score}</p>

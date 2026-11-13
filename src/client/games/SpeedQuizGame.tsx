@@ -50,9 +50,9 @@ export function SpeedQuizGame({ view }: { view: RoomView }) {
               onClick={() => void act('answer', { choice: i })}
               data-testid={`quiz-option-${i}`}
               className={cx(
-                'flex min-h-16 items-center gap-3 rounded-2xl bg-gradient-to-l p-4 text-start text-lg font-bold transition active:scale-[0.98]',
+                'theme-dark flex min-h-16 items-center gap-3 rounded-2xl bg-gradient-to-l p-4 text-start text-lg font-bold text-[#fff] transition active:scale-[0.98]',
                 COLORS[i],
-                mine && !revealed && 'ring-4 ring-white',
+                mine && !revealed && 'ring-4 ring-[#fff]',
                 right && 'ring-4 ring-lime-400',
                 wrong && 'opacity-60 ring-4 ring-zing-500',
                 revealed && !right && !mine && 'opacity-40',

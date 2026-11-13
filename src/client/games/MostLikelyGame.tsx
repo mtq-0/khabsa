@@ -58,7 +58,7 @@ export function MostLikelyGame({ view }: { view: RoomView }) {
                   <div key={p} className="flex items-center gap-3">
                     <span className="w-28 truncate text-sm">{name(p)}</span>
                     <span className="h-6 flex-1 overflow-hidden rounded-full bg-white/5">
-                      <span className={cx('flex h-full items-center justify-end rounded-full px-2 text-xs font-bold transition-[width] duration-700', g.result!.winners.includes(p) ? 'bg-gradient-to-l from-sun-400 to-zing-500 text-ink-950' : 'bg-brand-500/60')} style={{ width: `${((g.result!.counts[p] ?? 0) / max) * 100}%` }}>
+                      <span className={cx('theme-dark flex h-full items-center justify-end rounded-full px-2 text-xs font-bold transition-[width] duration-700', g.result!.winners.includes(p) ? 'bg-gradient-to-l from-sun-400 to-zing-500 text-[#07050f]' : 'bg-brand-500/60')} style={{ width: `${((g.result!.counts[p] ?? 0) / max) * 100}%` }}>
                         {g.result!.counts[p] || ''}
                       </span>
                     </span>
