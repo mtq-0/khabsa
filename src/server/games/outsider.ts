@@ -16,6 +16,8 @@ import {
   castVote,
   finish,
   pickN,
+  pickOther,
+  pickTurnPlayer,
   requirePhase,
   requirePlayer,
   setPhase,
@@ -81,8 +83,14 @@ export interface OutsiderState extends BaseState {
   decoyLabels: Record<string, string[]>;
   secret: RoundSecret | null;
   outsiders: string[];
+  /** players in a fixed (shuffled) order, only for listing them */
   order: string[];
-  turnIndex: number;
+  /** the current question turn: random asker / target, endless until everybody is ready to vote */
+  asker: string | null;
+  target: string | null;
+  /** finished turns this round, and how many times each player has asked */
+  turns: number;
+  asked: Record<string, number>;
   seen: string[];
   readyToVote: string[];
   votes: Record<string, string>;
@@ -93,6 +101,8 @@ export interface OutsiderState extends BaseState {
 }
 
 const REVEAL_SECONDS = 12;
+/** hard stop so a round cannot go on forever if somebody never presses "ready" */
+const MAX_TURNS_PER_PLAYER = 6;
 const VERDICT_SECONDS = 7;
 const GUESS_SECONDS = 25;
 const ROUND_END_SECONDS = 12;
@@ -123,7 +133,10 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     const n = variant === 'word' ? outsiderCountFor(s.settings.outsiders, s.players.length) : 1;
     s.outsiders = pickN(s.players, n, ctx.rng);
     s.order = shuffle(s.players, ctx.rng);
-    s.turnIndex = 0;
+    s.asker = null;
+    s.target = null;
+    s.turns = 0;
+    s.asked = Object.fromEntries(s.players.map((p) => [p, 0]));
     s.seen = [];
     s.readyToVote = [];
     s.votes = {};
@@ -133,15 +146,31 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     setPhase(s, 'reveal', ctx, REVEAL_SECONDS);
   }
 
-  function startTurns(s: OutsiderState, ctx: EngineCtx) {
-    s.turnIndex = 0;
+  const maxTurns = (s: OutsiderState) => s.players.length * MAX_TURNS_PER_PLAYER;
+  /** everybody has asked at least once: from now on "ready to vote" is allowed */
+  const canVote = (s: OutsiderState) => s.turns >= s.players.length;
+
+  /** random asker (fair: fewest turns first, never twice in a row) and a random target */
+  function beginTurn(s: OutsiderState, ctx: EngineCtx) {
+    const asker = pickTurnPlayer(s.players, s.asked, s.asker, ctx.rng);
+    s.target = pickOther(s.players, asker, s.target, ctx.rng);
+    s.asker = asker;
     setPhase(s, 'turns', ctx, s.settings.turnSeconds);
   }
 
+  function startTurns(s: OutsiderState, ctx: EngineCtx) {
+    s.turns = 0;
+    s.asker = null;
+    s.target = null;
+    s.asked = Object.fromEntries(s.players.map((p) => [p, 0]));
+    beginTurn(s, ctx);
+  }
+
   function nextTurn(s: OutsiderState, ctx: EngineCtx) {
-    s.turnIndex += 1;
-    if (s.turnIndex >= s.order.length) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
-    else setPhase(s, 'turns', ctx, s.settings.turnSeconds);
+    if (s.asker) s.asked[s.asker] = (s.asked[s.asker] ?? 0) + 1;
+    s.turns += 1;
+    if (s.turns >= maxTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
+    else beginTurn(s, ctx);
   }
 
   function award(s: OutsiderState, pid: string, pts: number) {
@@ -204,7 +233,10 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
         secret: null,
         outsiders: [],
         order: [],
-        turnIndex: 0,
+        asker: null,
+        target: null,
+        turns: 0,
+        asked: {},
         seen: [],
         readyToVote: [],
         votes: {},
@@ -237,14 +269,16 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
         }
         case 'turn:done': {
           requirePhase(s, 'turns');
-          if (s.order[s.turnIndex] !== pid) throw new AppError('INVALID_ACTION', 'مش دورك.');
+          if (s.asker !== pid) throw new AppError('INVALID_ACTION', 'مش دورك.');
           nextTurn(s, ctx);
           return;
         }
         case 'ready-vote': {
-          requirePhase(s, 'discuss');
+          // questions keep coming (randomly) until EVERYONE is ready to vote
+          requirePhase(s, 'turns', 'discuss');
+          if (s.phase === 'turns' && !canVote(s)) throw new AppError('INVALID_ACTION', 'لسا بدري! خلّي كل واحد يسأل مرة على الأقل.');
           if (!s.readyToVote.includes(pid)) s.readyToVote.push(pid);
-          if (s.readyToVote.length >= s.players.length) setPhase(s, 'vote', ctx, s.settings.voteSeconds);
+          if (s.players.every((p) => s.readyToVote.includes(p))) setPhase(s, 'vote', ctx, s.settings.voteSeconds);
           return;
         }
         case 'vote': {
@@ -290,10 +324,10 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       s.players = s.players.filter((p) => p !== pid);
       delete s.votes[pid];
       for (const [v, t] of Object.entries(s.votes)) if (t === pid && !s.outsiders.includes(pid)) delete s.votes[v];
-      const wasTurn = s.phase === 'turns' && s.order[s.turnIndex] === pid;
-      const idx = s.order.indexOf(pid);
+      const wasTurn = s.phase === 'turns' && (s.asker === pid || s.target === pid);
       s.order = s.order.filter((p) => p !== pid);
-      if (idx >= 0 && idx < s.turnIndex) s.turnIndex -= 1;
+      delete s.asked[pid];
+      s.readyToVote = s.readyToVote.filter((p) => p !== pid);
       if (s.players.length < 2) return finish(s, ctx);
       if (s.outsiders.includes(pid) && ['reveal', 'turns', 'discuss', 'vote'].includes(s.phase)) {
         // round cannot continue without its outsider: void it and move on
@@ -301,10 +335,12 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
         if (!s.outsiders.length) return advanceRound(s, ctx);
       }
       if (wasTurn) {
-        s.turnIndex -= 1;
-        nextTurn(s, ctx);
+        // the asker or the one being asked left: draw a new pair (without counting this turn)
+        if (s.asker === pid) s.asker = null;
+        if (s.target === pid) s.target = null;
+        beginTurn(s, ctx);
       } else if (s.phase === 'reveal' && s.players.every((p) => s.seen.includes(p))) startTurns(s, ctx);
-      else if (s.phase === 'discuss' && s.players.every((p) => s.readyToVote.includes(p))) setPhase(s, 'vote', ctx, s.settings.voteSeconds);
+      else if ((s.phase === 'discuss' || s.phase === 'turns') && s.players.every((p) => s.readyToVote.includes(p)) && (s.phase === 'discuss' || canVote(s))) setPhase(s, 'vote', ctx, s.settings.voteSeconds);
       else if (s.phase === 'vote' && s.players.every((p) => s.votes[p])) closeVoting(s, ctx);
       else if (s.phase === 'guess' && s.outsiders.every((o) => s.guesses[o] || !s.players.includes(o))) closeGuess(s, ctx);
     },
@@ -349,9 +385,12 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
         variant,
         mode: s.mode,
         order: s.order,
-        turnIndex: s.turnIndex,
-        asker: s.phase === 'turns' ? s.order[s.turnIndex] : null,
-        target: s.phase === 'turns' ? s.order[(s.turnIndex + 1) % s.order.length] : null,
+        asker: s.phase === 'turns' ? s.asker : null,
+        target: s.phase === 'turns' ? s.target : null,
+        turns: s.turns,
+        asked: s.asked,
+        canVote: canVote(s),
+        maxTurns: maxTurns(s),
         seenCount: s.seen.length,
         readyToVote: s.readyToVote,
         votedCount: Object.keys(s.votes).length,

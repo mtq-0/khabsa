@@ -47,9 +47,26 @@ export interface TabooState extends BaseState {
 const READY_SECONDS = 15;
 const TURN_END_SECONDS = 8;
 
+/** Keeps the first card of every word (case/space-insensitive). */
+export function uniqueByWord<T extends { word: string }>(cards: T[]): T[] {
+  const seen = new Set<string>();
+  return cards.filter((c) => {
+    const k = c.word.trim().toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 export function createTabooEngine(): GameEngine<TabooState> {
-  function drawCard(s: TabooState) {
-    if (s.deckIndex >= s.deck.length) s.deckIndex = 0; // recycle when the deck runs out
+  function drawCard(s: TabooState, rng?: () => number) {
+    if (s.deckIndex >= s.deck.length) {
+      // the deck ran out (a very long game): shuffle it again, but never start with the card just played
+      const last = s.card?.word;
+      s.deck = shuffle(s.deck, rng ?? Math.random);
+      if (last && s.deck.length > 1 && s.deck[0].word === last) [s.deck[0], s.deck[1]] = [s.deck[1], s.deck[0]];
+      s.deckIndex = 0;
+    }
     s.card = s.deck[s.deckIndex++];
     s.cardIndex += 1;
   }
@@ -67,7 +84,7 @@ export function createTabooEngine(): GameEngine<TabooState> {
     setPhase(s, 'ready', ctx, READY_SECONDS);
   }
   function startTurn(s: TabooState, ctx: EngineCtx) {
-    drawCard(s);
+    drawCard(s, ctx.rng);
     setPhase(s, 'turn', ctx, s.settings.turnSeconds);
   }
   function endTurn(s: TabooState, ctx: EngineCtx) {
@@ -89,8 +106,7 @@ export function createTabooEngine(): GameEngine<TabooState> {
     if (s.explainer) addScore(s, s.explainer, 1);
     if (guesser) addScore(s, guesser, 1);
     s.played.push({ word: s.card!.word, forbidden: s.card!.forbidden, result: 'correct', by: guesser });
-    drawCard(s);
-    void ctx;
+    drawCard(s, ctx.rng);
   }
   function checkCard(s: TabooState, payload: unknown) {
     const card = asObject(payload).card;
@@ -117,7 +133,8 @@ export function createTabooEngine(): GameEngine<TabooState> {
         settings: { turnSeconds: Number(st.turnSeconds), maxSkips: Number(st.maxSkips) },
         teams,
         teamScores: [0, 0],
-        deck: shuffle(input.content as unknown as ContentItem<TabooCard>[], ctx.rng).map((c) => c.data),
+        // one card per word: the same word never comes up twice in a game
+        deck: uniqueByWord(shuffle(input.content as unknown as ContentItem<TabooCard>[], ctx.rng).map((c) => c.data)),
         deckIndex: 0,
         rotation,
         rotationIndex: [0, 0],
@@ -159,7 +176,7 @@ export function createTabooEngine(): GameEngine<TabooState> {
           if (s.skipsLeft <= 0) throw new AppError('INVALID_ACTION', 'خلصت التخطيات.');
           s.skipsLeft -= 1;
           s.played.push({ word: s.card!.word, forbidden: s.card!.forbidden, result: 'skip' });
-          return drawCard(s);
+          return drawCard(s, ctx.rng);
         }
         case 'buzz': {
           requirePhase(s, 'turn');
@@ -169,7 +186,7 @@ export function createTabooEngine(): GameEngine<TabooState> {
           s.buzzedCard = s.cardIndex;
           s.teamScores[s.turnTeam] -= 1;
           s.played.push({ word: s.card!.word, forbidden: s.card!.forbidden, result: 'buzz', by: pid });
-          return drawCard(s);
+          return drawCard(s, ctx.rng);
         }
         case 'guess': {
           requirePhase(s, 'turn');

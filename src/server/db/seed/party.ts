@@ -174,3 +174,21 @@ export const TABOO_CARDS: [string, 'e' | 'm' | 'h', string, string[]][] = [
   ['general', 'e', 'ساعة', ['وقت', 'عقارب', 'إيد', 'دقيقة', 'منبه']],
   ['general', 'h', 'نظارة', ['عيون', 'نظر', 'عدسات', 'شمسية', 'قراءة']],
 ];
+
+/**
+ * Every ممنوع تحكي! card, ONE per word (the first card for a word wins), so the same word can
+ * never come up twice in a game. Both seeders (database and GitHub Pages) use this list.
+ */
+import { MORE_TABOO_CARDS } from './more/party.ts';
+import { MORE_TABOO_2 } from './more/taboo2.ts';
+export const TABOO_ALL: [string, 'e' | 'm' | 'h', string, string[]][] = (() => {
+  const seen = new Set<string>();
+  const out: [string, 'e' | 'm' | 'h', string, string[]][] = [];
+  for (const c of [...TABOO_CARDS, ...MORE_TABOO_CARDS, ...MORE_TABOO_2]) {
+    const key = c[2].trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(c);
+  }
+  return out;
+})();

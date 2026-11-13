@@ -39,8 +39,11 @@ interface OutsiderView {
   variant: 'word' | 'picture';
   mode: 'easy' | 'normal' | 'hard';
   order: string[];
-  turnIndex: number;
   asker: string | null;
+  turns: number;
+  asked: Record<string, number>;
+  canVote: boolean;
+  maxTurns: number;
   target: string | null;
   seenCount: number;
   readyToVote: string[];
@@ -195,13 +198,24 @@ export function OutsiderGame({ view }: { view: RoomView }) {
               </Button>
             )}
           </div>
-          <ol className="mb-5 flex flex-wrap justify-center gap-2">
-            {g.order.map((id, i) => (
-              <li key={id} className={cx('chip', i === g.turnIndex && 'border-volt-400 bg-volt-400/15 text-white', i < g.turnIndex && 'opacity-50')}>
-                {i + 1}. {name(id)}
+          <ol className="mb-4 flex flex-wrap justify-center gap-2" data-testid="turn-list">
+            {g.order.map((id) => (
+              <li key={id} className={cx('chip', g.asker === id && 'border-volt-400 bg-volt-400/15 text-ink-100', g.readyToVote.includes(id) && 'border-lime-400/60')}>
+                {name(id)} · {g.asked[id] ?? 0}
+                {g.readyToVote.includes(id) && ' ✅'}
               </li>
             ))}
           </ol>
+          {me.isPlayer && (
+            <div className="mb-5 text-center">
+              <Button variant={g.readyToVote.includes(view.you) ? 'secondary' : 'primary'} onClick={() => void act('ready-vote')} disabled={!g.canVote || g.readyToVote.includes(view.you)} data-testid="ready-vote">
+                {g.readyToVote.includes(view.you) ? 'بانتظار الباقي...' : 'جاهز للتصويت 🗳'}
+              </Button>
+              <p className="mt-2 text-sm text-ink-400" data-testid="ready-count">
+                {g.canVote ? `${g.readyToVote.length}/${g.players.length} جاهزين للتصويت · الأسئلة عشوائية وبتضل لحد ما الكل يكبس` : 'خلّوا كل واحد يسأل مرة على الأقل، بعدها بتقدروا تصوّتوا'}
+              </p>
+            </div>
+          )}
           <RoleCard g={g} />
         </div>
       );

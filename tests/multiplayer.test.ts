@@ -151,9 +151,14 @@ describe('مين برا السالفة over the network', () => {
 
     for (const p of ps) await p.act(code, 'game:seen');
     await waitFor(() => host.last.game!.phase === 'turns', 2000, 'turns');
+    // too early: nobody has asked yet
+    expect((await host.act(code, 'game:ready-vote')).ok).toBe(false);
     for (let i = 0; i < 4; i++) await host.act(code, 'game:host:skip');
-    await waitFor(() => host.last.game!.phase === 'discuss', 2000, 'discuss');
-    await host.act(code, 'game:host:skip');
+    // the questions keep going (random) until everybody is ready to vote
+    await waitFor(() => host.last.game!.phase === 'turns' && (host.last.game as any).canVote === true, 2000, 'can vote');
+    for (const p of ps.slice(0, -1)) expect((await p.act(code, 'game:ready-vote')).ok).toBe(true);
+    expect(host.last.game!.phase).toBe('turns');
+    expect((await ps[ps.length - 1].act(code, 'game:ready-vote')).ok).toBe(true);
     await waitFor(() => ps.every((p) => p.last.game!.phase === 'vote'), 2000, 'vote');
     const votePhase = host.last.game!.phaseKey;
 
