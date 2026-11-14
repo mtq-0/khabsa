@@ -55,7 +55,7 @@ jobs:
   voice-browsers:
     # voice chat between Chrome, Firefox and Safari's engine (WebKit) in one room
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -75,7 +75,7 @@ jobs:
           pulseaudio --start --exit-idle-time=-1 || true
           pactl load-module module-null-sink sink_name=virtual || true
       - name: Cross-browser voice tests
-        run: CROSS_BROWSER=1 npx playwright test voice-browsers
+        run: CROSS_BROWSER=1 npx playwright test voice-browsers --repeat-each=3
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

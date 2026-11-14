@@ -86,7 +86,7 @@ if (typeof window !== 'undefined')
     ctx: (fallbackCtx ?? audioContext())?.state,
     present: [...present],
     error: useVoice.getState().error,
-    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames, txBytes: p.txBytes, transceivers: p.pc?.getTransceivers().length ?? 0 })),
+    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames, txBytes: p.txBytes, transceivers: p.pc?.getTransceivers().map((t) => `${t.direction}/${t.currentDirection}/${t.sender.track?.readyState ?? 'none'}/${t.receiver.track?.readyState ?? 'none'}`), localSdp: (p.pc?.localDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14), remoteSdp: (p.pc?.remoteDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14) })),
   });
 
 // ---------------------------------------------------------------- audio helpers
@@ -250,7 +250,11 @@ function createPc(p: Peer) {
     pc.addTransceiver(track, { direction: 'sendrecv', streams: [new MediaStream([track])] });
   }
 
-  pc.onnegotiationneeded = () => void negotiate(p);
+  // ONLY the calling (impolite) side ever makes offers: the answering side just answers (and asks for a
+  // restart through the room link). Offers from both sides at once are what made some pairs silent.
+  pc.onnegotiationneeded = () => {
+    if (!p.polite) void negotiate(p);
+  };
   pc.onicecandidate = (e) => {
     const c = e.candidate;
     send(p.id, { k: 'ice', c: c ? { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex, usernameFragment: c.usernameFragment } : null });
@@ -301,11 +305,6 @@ async function attachMic(pc: RTCPeerConnection) {
   const track = outTrack();
   if (t.direction !== 'sendrecv') t.direction = 'sendrecv';
   if (t.sender.track !== track) await t.sender.replaceTrack(track).catch(() => {});
-  try {
-    t.sender.setStreams?.(new MediaStream([track]));
-  } catch {
-    /* optional */
-  }
 }
 
 /** make (or remake) our offer; also called by the watchdog when an offer got lost or failed */
