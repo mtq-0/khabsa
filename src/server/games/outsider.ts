@@ -105,6 +105,8 @@ const REVEAL_SECONDS = 12;
 const MAX_TURNS_PER_PLAYER = 6;
 const VERDICT_SECONDS = 7;
 const GUESS_SECONDS = 25;
+/** points for an outsider who guesses the secret correctly */
+const GUESS_POINTS = 1;
 const ROUND_END_SECONDS = 12;
 
 export function outsiderCountFor(requested: number, players: number): number {
@@ -189,7 +191,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
   }
 
   function closeGuess(s: OutsiderState, ctx: EngineCtx) {
-    for (const o of s.outsiders) if (s.guesses[o] === s.secret!.answer) award(s, o, 2);
+    for (const o of s.outsiders) if (s.guesses[o] === s.secret!.answer) award(s, o, GUESS_POINTS);
     s.history.push({ round: s.round, outsiders: s.outsiders, caught: s.caught, answer: s.secret!.answer, guesses: s.guesses });
     setPhase(s, 'roundEnd', ctx, ROUND_END_SECONDS);
   }

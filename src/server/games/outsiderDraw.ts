@@ -60,6 +60,8 @@ export interface OutsiderDrawState extends BaseState {
 const REVEAL_SECONDS = 12;
 const VERDICT_SECONDS = 7;
 const GUESS_SECONDS = 25;
+/** points for an outsider who guesses the secret correctly */
+const GUESS_POINTS = 1;
 const ROUND_END_SECONDS = 15;
 /** hard stop (lines per player) so the canvas cannot grow forever */
 const MAX_LINES_PER_PLAYER = 8;
@@ -158,7 +160,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
   }
 
   function closeGuess(s: OutsiderDrawState, ctx: EngineCtx) {
-    for (const o of s.outsiders) if (s.guesses[o] === s.secret!.word) award(s, o, 2);
+    for (const o of s.outsiders) if (s.guesses[o] === s.secret!.word) award(s, o, GUESS_POINTS);
     s.history.push({ round: s.round, outsiders: s.outsiders, caught: s.caught, answer: s.secret!.word });
     setPhase(s, 'roundEnd', ctx, ROUND_END_SECONDS);
   }

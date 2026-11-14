@@ -145,7 +145,7 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
     h.act(out, 'guess', { choice: h.state.secret!.word });
     expect(h.state.phase).toBe('roundEnd');
     for (const p of insiders) expect(h.state.scores[p]).toBe(1);
-    expect(h.state.scores[out]).toBe(2); // caught (0) + correct guess (+2)
+    expect(h.state.scores[out]).toBe(1); // caught (0) + correct guess (+1)
     h.expire();
     expect(h.state.finished).toBe(true);
     expect(h.state.results!.ranking).toHaveLength(4);
@@ -260,7 +260,7 @@ describe('مين برا الرسمة؟ (outsider-picture)', () => {
     const v = h.view(h.players.find((p) => p !== out)!);
     expect(v.reveal.imageA).toContain(h.state.secret!.imageA);
     expect(v.reveal.imageB).toContain(h.state.secret!.imageB);
-    expect(h.state.scores[out]).toBe(4); // undetected +2 and correct guess +2
+    expect(h.state.scores[out]).toBe(3); // undetected +2 and correct guess +1
   });
 });
 

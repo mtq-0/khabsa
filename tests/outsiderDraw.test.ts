@@ -153,7 +153,7 @@ describe('مين برا الرسمة؟ (outsider-draw, one shared canvas, one li
     h.act(out, 'guess', { choice: h.state.secret!.word });
     expect(h.state.phase).toBe('roundEnd');
     for (const p of insiders) expect(h.state.scores[p]).toBe(1);
-    expect(h.state.scores[out]).toBe(2);
+    expect(h.state.scores[out]).toBe(1);
     expect(h.view(out).reveal.answer).toBe(h.state.secret!.word);
     h.act(h.players[0], 'host:next');
     expect(h.state.finished).toBe(true);
