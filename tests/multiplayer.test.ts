@@ -310,7 +310,9 @@ describe('مين برا الرسمة image privacy', () => {
     for (const u of urls) expect(u).toMatch(/^\/api\/game-image\//);
     const own = await ps[0].http('GET', urls[0]);
     expect(own.status).toBe(200);
-    expect(String(own.data)).toMatch(/<svg|^RIFF....WEBP/s); // illustration or real photo
+    // illustration (svg text) or real photo (WebP). The body is decoded as text by the test helper, which turns the 4
+    // binary size bytes after "RIFF" into a varying number of characters, so only the ends of the header are checked.
+    expect(String(own.data)).toMatch(/<svg|^RIFF[\s\S]{2,8}WEBP/);
     const stolen = await ps[1].http('GET', urls[0]);
     expect(stolen.status).toBe(403);
     const anon = await fetch(srv.url + urls[0]);
