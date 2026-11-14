@@ -265,15 +265,12 @@ function HostControls() {
 function InviteModal({ open, onClose, view, link }: { open: boolean; onClose: () => void; view: RoomView; link: string }) {
   const user = useSession((s) => s.user);
   const [friends, setFriends] = useState<(PublicUser & { online: boolean })[] | null>(null);
-  const [recent, setRecent] = useState<(PublicUser & { online: boolean })[]>([]);
   const [sent, setSent] = useState<Record<string, boolean>>({});
   useEffect(() => {
     if (!open || !user || PAGES) return;
-    api<{ friends: (PublicUser & { online: boolean })[]; recent: (PublicUser & { online: boolean })[] }>('/api/friends')
-      .then((r) => {
-        setFriends(r.friends);
-        setRecent(r.recent.filter((x) => !r.friends.some((f) => f.id === x.id)));
-      })
+    // only people you added as friends can be invited; everybody else joins with the link or the code
+    api<{ friends: (PublicUser & { online: boolean })[] }>('/api/friends')
+      .then((r) => setFriends(r.friends))
       .catch(() => setFriends([]));
   }, [open, user]);
   const inRoom = new Set(view.members.map((m) => m.id));
@@ -286,7 +283,7 @@ function InviteModal({ open, onClose, view, link }: { open: boolean; onClose: ()
       toast.error(errorText(e));
     }
   };
-  const list = [...(friends ?? []), ...recent].filter((f) => !inRoom.has(f.id));
+  const list = (friends ?? []).filter((f) => !inRoom.has(f.id));
   return (
     <Modal open={open} onClose={onClose} title="اعزم الشلة">
       <div className="space-y-4">
@@ -308,11 +305,15 @@ function InviteModal({ open, onClose, view, link }: { open: boolean; onClose: ()
         ) : friends == null ? (
           <Spinner />
         ) : list.length === 0 ? (
-          <p className="text-center text-sm text-ink-400">ما في أصحاب تعزمهم. ضيف أصحاب من صفحة الأصحاب.</p>
+          <p className="text-center text-sm text-ink-400" data-testid="no-friends-to-invite">
+            {friends.length ? 'كل أصحابك بالغرفة.' : 'ما عندك أصحاب تعزمهم.'} ضيف أصحاب بالـID تبعهم من <Link to="/friends" className="text-volt-300 underline">صفحة الأصحاب</Link>.
+          </p>
         ) : (
-          <ul className="space-y-2">
+          <div className="space-y-2" data-testid="invite-list">
+            <p className="text-xs text-ink-400">أصحابك بس. اللي مش صديقك بيدخل بالرابط أو الرمز.</p>
+            <ul className="space-y-2">
             {list.map((f) => (
-              <li key={f.id} className="flex items-center gap-3 rounded-xl bg-white/5 p-2">
+              <li key={f.id} className="flex items-center gap-3 rounded-xl bg-white/5 p-2" data-testid={`invite-row-${f.username}`}>
                 <Avatar avatar={f.avatar} url={f.avatarUrl} size={36} offline={!f.online} />
                 <span className="flex-1 truncate text-sm font-semibold">{f.displayName}</span>
                 <span className={cx('text-xs', f.online ? 'text-lime-400' : 'text-ink-500')}>{f.online ? 'أونلاين' : 'أوفلاين'}</span>
@@ -321,7 +322,8 @@ function InviteModal({ open, onClose, view, link }: { open: boolean; onClose: ()
                 </Button>
               </li>
             ))}
-          </ul>
+            </ul>
+          </div>
         )}
       </div>
     </Modal>

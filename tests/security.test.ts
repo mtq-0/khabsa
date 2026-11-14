@@ -133,6 +133,53 @@ describe('authorization', () => {
 });
 
 describe('social', () => {
+  it('invitations only go to accepted friends; friends are added by their ID (@username)', async () => {
+    const a = await registered('ia@example.com', 'inv_host');
+    const b = await registered('ib@example.com', 'inv_pal');
+    const c = await registered('ic@example.com', 'inv_stranger');
+    const g = new Player(srv.url);
+    await g.guest('ضيف_دعوة');
+    for (const p of [a, b, c, g]) await p.connect();
+    const room = await a.http('POST', '/api/rooms', {});
+    await a.join(room.data.code);
+    // somebody who played in the same room is NOT a friend: no invitation
+    await b.join(room.data.code);
+    await c.join(room.data.code);
+    await g.join(room.data.code);
+    for (const who of [b, c, g]) {
+      const r = await a.http('POST', '/api/invites', { code: room.data.code, userId: who.user!.id });
+      expect(r.status, who.user!.displayName).toBe(403);
+      expect(r.data.message).toMatch(/أصحابك/);
+    }
+    // /api/friends lists people you played with ("recent"), but they are not friends
+    expect((await a.http('GET', '/api/friends')).data.friends).toHaveLength(0);
+    // add by ID: tolerant of @, spaces and capitals; clear errors for wrong IDs
+    expect((await a.http('POST', '/api/friends/request', { username: '  @INV_pal ' })).data).toMatchObject({ status: 'outgoing', user: { username: 'inv_pal' } });
+    expect((await a.http('POST', '/api/friends/request', { username: 'no_such_id' })).data.code).toBe('NOT_FOUND');
+    expect((await a.http('POST', '/api/friends/request', { username: 'سارة' })).data.code).toBe('VALIDATION');
+    expect((await a.http('POST', '/api/friends/request', { username: 'inv_host' })).data.code).toBe('VALIDATION');
+    // still pending = still no invitation
+    expect((await a.http('POST', '/api/invites', { code: room.data.code, userId: b.user!.id })).status).toBe(403);
+    const got = new Promise((resolve) => b.socket!.once('invite:new', resolve));
+    expect((await b.http('POST', '/api/friends/respond', { userId: a.user!.id, accept: true })).status).toBe(200);
+    expect((await a.http('POST', '/api/invites', { code: room.data.code, userId: b.user!.id })).status).toBe(200);
+    expect(((await got) as { roomCode: string }).roomCode).toBe(room.data.code);
+    // the stranger still cannot be invited, and an old invitation from a non-friend is not shown / usable
+    expect((await a.http('POST', '/api/invites', { code: room.data.code, userId: c.user!.id })).status).toBe(403);
+    await srv.built.ctx.db.query(`insert into room_invites (room_code, from_user, to_user) values ($1, $2, $3)`, [room.data.code, a.user!.id, c.user!.id]);
+    expect((await c.http('GET', '/api/invites')).data.invites).toHaveLength(0);
+    // a friend who closed invitations ("nobody") is not invited either
+    await b.http('PATCH', '/api/me', { settings: { allowInvites: 'none' } });
+    expect((await a.http('POST', '/api/invites', { code: room.data.code, userId: b.user!.id })).status).toBe(403);
+    // unfriending takes the invitation right away
+    await b.http('PATCH', '/api/me', { settings: { allowInvites: 'friends' } });
+    expect((await a.http('POST', '/api/invites', { code: room.data.code, userId: b.user!.id })).status).toBe(200);
+    expect((await b.http('DELETE', `/api/friends/${a.user!.id}`)).status).toBe(200);
+    expect((await a.http('POST', '/api/invites', { code: room.data.code, userId: b.user!.id })).status).toBe(403);
+    expect((await b.http('GET', '/api/invites')).data.invites).toHaveLength(0);
+    for (const p of [a, b, c, g]) p.disconnect();
+  });
+
   it('friend requests, acceptance, invites and blocking', async () => {
     const a = await registered('fa@example.com', 'friend_a');
     const b = await registered('fb@example.com', 'friend_b');

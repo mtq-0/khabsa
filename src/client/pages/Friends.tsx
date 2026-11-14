@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Search, UserPlus } from 'lucide-react';
+import { AtSign, Copy, Search, UserPlus } from 'lucide-react';
 import { GAMES, isGameId } from '../../shared/games.ts';
 import type { InviteView, PublicUser } from '../../shared/protocol.ts';
 import { api, errorText } from '../lib/api.ts';
 import { getSocket } from '../lib/socket.ts';
 import { useSession } from '../lib/session.ts';
 import { RequireSession } from '../components/GuestGate.tsx';
-import { Avatar, Button, EmptyState, PageTitle, Skeleton, Tabs, cx, toast } from '../components/ui.tsx';
+import { Avatar, Button, EmptyState, PageTitle, Skeleton, Tabs, copyText, cx, toast } from '../components/ui.tsx';
 
 type U = PublicUser & { online: boolean; lastPlayedAt?: string; gameId?: string };
 interface FriendsData {
@@ -51,6 +51,8 @@ function Friends() {
   const [tab, setTab] = useState<'friends' | 'requests' | 'invites' | 'recent' | 'blocked'>('friends');
   const [q, setQ] = useState('');
   const [results, setResults] = useState<U[]>([]);
+  const [idText, setIdText] = useState('');
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -102,6 +104,23 @@ function Friends() {
     }
   };
 
+  /** add a friend by the other player's ID (their username), e.g. @sara_j */
+  const addById = async () => {
+    const id = idText.trim().replace(/^@+/, '').trim();
+    if (!id) return;
+    setAdding(true);
+    try {
+      const r = await api<{ status: 'friends' | 'outgoing'; user: PublicUser }>('/api/friends/request', { body: { username: id } });
+      toast.success(r.status === 'friends' ? `صرتوا أصحاب مع ${r.user.displayName}!` : `انبعت طلب الصداقة لـ ${r.user.displayName}`);
+      setIdText('');
+      void load();
+    } catch (e) {
+      toast.error(errorText(e));
+    } finally {
+      setAdding(false);
+    }
+  };
+
   if (user.isGuest)
     return (
       <div className="mx-auto max-w-lg">
@@ -125,7 +144,44 @@ function Friends() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageTitle title="الأصحاب" emoji="👯" subtitle="ضيف أصحابك، شوف مين أونلاين، واعزمهم على غرفتك" />
-      <div className="card mb-5 p-4">
+      <div className="card mb-5 space-y-4 p-4">
+        <div>
+          <p className="label">ضيف صديق بالـID تبعه</p>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void addById();
+            }}
+          >
+            <label className="relative block flex-1">
+              <AtSign className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ink-400" />
+              <input
+                className="field ps-10"
+                dir="ltr"
+                placeholder="sara_j"
+                value={idText}
+                onChange={(e) => setIdText(e.target.value)}
+                maxLength={30}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-label="ID صديقك"
+                data-testid="friend-id-input"
+              />
+            </label>
+            <Button type="submit" icon={<UserPlus className="size-4" />} disabled={adding || idText.trim().replace(/^@+/, '').length < 3} data-testid="friend-id-add">
+              أضف
+            </Button>
+          </form>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-400">
+            الـID تبعك:
+            <button type="button" className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1 font-mono text-ink-100 hover:bg-white/10" dir="ltr" onClick={() => void copyText(user.username)} data-testid="my-id" aria-label="انسخ الـID تبعي">
+              @{user.username} <Copy className="size-3.5" />
+            </button>
+            <span>ابعته لأصحابك عشان يضيفوك. بتقدر تعزم أصحابك بس على الغرف.</span>
+          </p>
+        </div>
         <label className="relative block">
           <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-ink-400" />
           <input className="field ps-10" placeholder="دوّر على لاعب بالاسم أو اسم المستخدم" value={q} onChange={(e) => setQ(e.target.value)} />
