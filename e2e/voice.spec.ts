@@ -37,7 +37,7 @@ test('two players connect to voice through the SFU, hear each other, mute and le
   await expect.poll(async () => (await remoteTracks(b)).filter((t) => t.state === 'live').length, { timeout: 20_000 }).toBe(1);
 
   // the fake mic emits a tone: the other side sees a speaking indicator
-  await expect.poll(() => a.locator('[data-testid="players-list"] .animate-pulse-ring').count(), { timeout: 20_000, intervals: [100] }).toBeGreaterThan(0);
+  await expect.poll(() => a.locator('[data-testid="players-list"] [data-speaking="1"]').count(), { timeout: 20_000, intervals: [100] }).toBeGreaterThan(0);
 
   // mute toggles
   await b.getByRole('button', { name: 'مايك' }).first().click();

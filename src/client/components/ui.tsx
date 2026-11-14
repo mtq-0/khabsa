@@ -5,6 +5,7 @@ import { parseAvatar } from '../../shared/avatars.ts';
 import { characterUrl } from '../../shared/characters.ts';
 import { GAMES, type GameId } from '../../shared/games.ts';
 import { asset } from '../lib/mode.ts';
+import { SPEAK_MIN, useVoice } from '../voice/voiceStore.ts';
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(' ');
@@ -64,12 +65,21 @@ export function Logo({ compact }: { compact?: boolean }) {
 }
 
 // --------------------------------------------------------------------- Avatar
-export function Avatar({ avatar, url, size = 40, name, ring, speaking, offline, className }: { avatar: string; url?: string | null; size?: number; name?: string; ring?: boolean; speaking?: boolean; offline?: boolean; className?: string }) {
+/**
+ * Player picture. Give it `voiceId` (the player's id) and a GREEN ring appears around it while that
+ * player is talking in voice chat; the ring and its glow grow and shrink with their volume.
+ */
+export function Avatar({ avatar, url, size = 40, name, ring, voiceId, offline, className }: { avatar: string; url?: string | null; size?: number; name?: string; ring?: boolean; voiceId?: string; offline?: boolean; className?: string }) {
   const a = parseAvatar(avatar);
+  const level = useVoice((s) => (voiceId ? (s.levels[voiceId] ?? 0) : 0));
+  const talking = level >= SPEAK_MIN;
+  const boxShadow = talking ? `0 0 0 ${2 + level * 4}px rgb(34 197 94), 0 0 ${6 + level * 20}px ${level * 8}px rgb(34 197 94 / ${0.35 + level * 0.45})` : undefined;
   return (
     <span
-      className={cx('relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full', ring && 'ring-2 ring-volt-400 ring-offset-2 ring-offset-ink-900', speaking && 'animate-pulse-ring', offline && 'opacity-45 grayscale', className)}
-      style={{ width: size, height: size, background: `linear-gradient(135deg, ${a.from}, ${a.to})` }}
+      className={cx('relative inline-grid shrink-0 place-items-center overflow-hidden rounded-full transition-shadow duration-100', ring && !talking && 'ring-2 ring-volt-400 ring-offset-2 ring-offset-ink-900', offline && 'opacity-45 grayscale', className)}
+      style={{ width: size, height: size, background: `linear-gradient(135deg, ${a.from}, ${a.to})`, boxShadow }}
+      data-speaking={talking ? '1' : undefined}
+      data-voice-level={talking ? level.toFixed(1) : undefined}
       title={name ?? a.name}
       role="img"
       aria-label={name ?? 'avatar'}
