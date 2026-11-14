@@ -71,6 +71,19 @@ let meter: ReturnType<typeof setInterval> | null = null;
 let fallbackCtx: AudioContext | null = null;
 const smooth = new Map<string, number>();
 
+/** small live snapshot for support / tests: window.__khabsaVoice() */
+const dbg = { step: 'idle' };
+if (typeof window !== 'undefined')
+  (window as unknown as { __khabsaVoice: () => unknown }).__khabsaVoice = () => ({
+    step: dbg.step,
+    code,
+    me: myId,
+    mic: local ? local.getAudioTracks()[0]?.readyState : null,
+    ctx: (fallbackCtx ?? audioContext())?.state,
+    present: [...present],
+    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState })),
+  });
+
 // ---------------------------------------------------------------- audio helpers
 /**
  * The app's shared AudioContext: created and unlocked by the very first tap anywhere in the app
@@ -476,17 +489,21 @@ export async function joinVoice(roomCode: string, memberIds: string[] = [], meId
   members = memberIds;
   present = new Set();
   useVoice.setState({ status: 'connecting', error: null });
+  dbg.step = 'starting';
   try {
     blockDirect = localStorage.getItem('khabsa:voice:test-block-direct') === '1';
   } catch {
     blockDirect = false;
   }
-  // the microphone prompt must come straight from the tap, before anything slow
+  // the microphone prompt must come straight from the tap. We do NOT wait for it: you connect and
+  // hear the others right away, and your microphone is put on every call the moment it is ready
+  // (a permission prompt can stay open for a long time, some browsers only answer once the tab has focus)
   const micPromise = openMic();
-  await ctx().resume().catch(() => {});
-  const [stream, ice] = await Promise.all([micPromise, loadIceServers()]);
+  // resume() can stay pending in some browsers until they allow audio: never wait on it for long
+  await Promise.race([ctx().resume().catch(() => {}), new Promise((r) => setTimeout(r, 800))]);
+  const ice = await loadIceServers();
   if (code !== roomCode) {
-    stream?.getTracks().forEach((t) => t.stop());
+    void micPromise.then((st) => st?.getTracks().forEach((t) => t.stop()));
     return; // left while we were setting up
   }
   iceServers = ice;
@@ -495,9 +512,21 @@ export async function joinVoice(roomCode: string, memberIds: string[] = [], meId
     if (to.length && code) roomSock().emit('voice:audio', { code, to, d: frame });
   });
   player = new RelayPlayer(ctx());
-  await useMic(stream);
-  if (!stream) useVoice.setState({ muted: true });
-  sender.enabled = !!stream && !useVoice.getState().muted;
+  sender.enabled = false;
+  dbg.step = 'waiting-mic';
+  void micPromise.then(async (stream) => {
+    if (code !== roomCode) {
+      stream?.getTracks().forEach((t) => t.stop());
+      return;
+    }
+    dbg.step = stream ? 'mic' : 'no-mic';
+    if (!stream) {
+      useVoice.setState({ muted: true });
+      return;
+    }
+    await useMic(stream);
+    if (sender) sender.enabled = !useVoice.getState().muted;
+  });
   const sock = roomSock();
   sock.on('voice:presence', onPresence as never);
   sock.on('voice:signal', onSignal as never);
@@ -506,6 +535,7 @@ export async function joinVoice(roomCode: string, memberIds: string[] = [], meId
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('pointerdown', onAnyTap, { passive: true });
   useVoice.setState({ status: 'connected', needsAudioUnlock: false });
+  dbg.step = dbg.step === 'waiting-mic' ? 'connected-waiting-mic' : 'connected';
   refreshInVoice();
   announce();
   ticker = setInterval(tick, 1000);
@@ -514,6 +544,7 @@ export async function joinVoice(roomCode: string, memberIds: string[] = [], meId
 
 function cleanup(status: 'off' | 'error', error: string | null = null) {
   const leaving = code;
+  dbg.step = 'idle';
   try {
     const sock = roomSock();
     if (leaving) sock.emit('voice:presence', { code: leaving, on: false });

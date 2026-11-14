@@ -42,6 +42,7 @@ async function play(browser: Browser, baseURL: string, blocked: 'none' | 'firefo
   const wk = await webkit.launch({ args: [] });
   const players: { name: string; page: Page }[] = [];
   const errors: string[] = [];
+  const logs: string[] = [];
   try {
     const engines: [string, Browser, boolean][] = [
       ['كروم', browser, false],
@@ -51,6 +52,9 @@ async function play(browser: Browser, baseURL: string, blocked: 'none' | 'firefo
     for (const [name, b, block] of engines) {
       const page = await (await context(b, block)).newPage();
       page.on('pageerror', (e) => errors.push(`${name}: ${e}`));
+      page.on('console', (m) => {
+        if (m.type() === 'error' || m.type() === 'warning') logs.push(`${name} ${m.type()}: ${m.text().slice(0, 200)}`);
+      });
       players.push({ name, page });
     }
     const [host, ...rest] = players;
@@ -82,6 +86,11 @@ async function play(browser: Browser, baseURL: string, blocked: 'none' | 'firefo
       await expect(p.page.getByTestId('voice-relay').locator('visible=true').first()).toBeVisible();
     }
     expect(errors).toEqual([]);
+  } catch (e) {
+    // print what each browser's voice engine was doing (CI log)
+    for (const p of players) console.log(`[voice-debug] ${p.name}`, JSON.stringify(await p.page.evaluate(() => (window as unknown as { __khabsaVoice?: () => unknown }).__khabsaVoice?.()).catch((x) => String(x))));
+    for (const l of logs.slice(0, 30)) console.log('[voice-log]', l);
+    throw e;
   } finally {
     for (const p of players) await p.page.context().close().catch(() => {});
     await ff.close();
