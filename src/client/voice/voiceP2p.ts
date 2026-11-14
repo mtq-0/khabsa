@@ -55,6 +55,7 @@ interface Peer {
   lastOffer: number;
   /** what we received from this player: RTP bytes / audio energy (direct) and relay frames */
   rx: { bytes: number; energy: number; level: number; at: number; relayFrames: number };
+  txBytes: number;
 }
 
 let code: string | null = null;
@@ -85,7 +86,7 @@ if (typeof window !== 'undefined')
     ctx: (fallbackCtx ?? audioContext())?.state,
     present: [...present],
     error: useVoice.getState().error,
-    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames })),
+    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames, txBytes: p.txBytes, transceivers: p.pc?.getTransceivers().length ?? 0 })),
   });
 
 // ---------------------------------------------------------------- audio helpers
@@ -176,8 +177,8 @@ async function useMic(stream: MediaStream | null) {
   const track = outTrack();
   track.enabled = stream ? !useVoice.getState().muted : true;
   for (const p of peers.values()) {
-    const s = p.pc?.getSenders().find((x) => x.track?.kind === 'audio' || x.track === null);
-    await s?.replaceTrack(track).catch(() => {});
+    const snd = p.pc ? audioSender(p.pc) : null;
+    await snd?.replaceTrack(track).catch(() => {});
   }
   selfAnalyser = stream ? analyse(stream) : null;
   sender?.setStream(stream);
@@ -231,7 +232,7 @@ function applyVolume(p: Peer) {
 const send = (to: string, data: VoiceSignal) => code && roomSock().emit('voice:signal', { code, to, data });
 
 function newPeer(id: string): Peer {
-  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0, lastOffer: 0, rx: { bytes: 0, energy: 0, level: 0, at: 0, relayFrames: 0 } };
+  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0, lastOffer: 0, rx: { bytes: 0, energy: 0, level: 0, at: 0, relayFrames: 0 }, txBytes: 0 };
   peers.set(id, p);
   setPeerState(id, 'connecting');
   return p;
@@ -241,8 +242,13 @@ function createPc(p: Peer) {
   const pc = new RTCPeerConnection(blockDirect ? { iceServers: [], iceTransportPolicy: 'relay' } : { iceServers, bundlePolicy: 'max-bundle' });
   p.pc = pc;
   p.startedAt = Date.now();
-  const track = outTrack();
-  pc.addTrack(track, new MediaStream([track]));
+  // ONE audio slot per call. The caller (impolite side) creates it; the answering side reuses the
+  // slot that arrives with the offer (see attachMic). Adding a track on both sides could leave the
+  // answerer's microphone on a second, never-negotiated slot: connected, but silent one way.
+  if (!p.polite) {
+    const track = outTrack();
+    pc.addTransceiver(track, { direction: 'sendrecv', streams: [new MediaStream([track])] });
+  }
 
   pc.onnegotiationneeded = () => void negotiate(p);
   pc.onicecandidate = (e) => {
@@ -283,6 +289,23 @@ function createPc(p: Peer) {
   pc.onconnectionstatechange = onState;
   pc.oniceconnectionstatechange = onState;
   return pc;
+}
+
+/** the sender of the call's single audio slot */
+const audioSender = (pc: RTCPeerConnection) => pc.getTransceivers().find((t) => t.currentDirection !== 'stopped' && (t.receiver.track?.kind ?? 'audio') === 'audio')?.sender ?? null;
+
+/** answering side: put our microphone on the slot the caller offered, and make it two-way */
+async function attachMic(pc: RTCPeerConnection) {
+  const t = pc.getTransceivers().find((x) => x.currentDirection !== 'stopped' && (x.receiver.track?.kind ?? 'audio') === 'audio');
+  if (!t) return;
+  const track = outTrack();
+  if (t.direction !== 'sendrecv') t.direction = 'sendrecv';
+  if (t.sender.track !== track) await t.sender.replaceTrack(track).catch(() => {});
+  try {
+    t.sender.setStreams?.(new MediaStream([track]));
+  } catch {
+    /* optional */
+  }
 }
 
 /** make (or remake) our offer; also called by the watchdog when an offer got lost or failed */
@@ -357,8 +380,14 @@ async function onSignal(msg: Sig) {
     return;
   }
   if (d.k === 'restart') {
+    // only the calling side (impolite) starts or restarts a call; the other side asked for it
+    if (p.polite) return;
     if (!p.pc) createPc(p);
-    else if (!p.polite) p.pc.restartIce?.();
+    else p.pc.restartIce?.();
+    return;
+  }
+  if (!p.pc && d.k !== 'offer') {
+    if (d.k === 'ice' && d.c) p.pendingIce.push(d.c); // candidates may overtake the offer
     return;
   }
   const pc = p.pc ?? createPc(p);
@@ -372,6 +401,7 @@ async function onSignal(msg: Sig) {
       await pc.setRemoteDescription({ type: d.k, sdp: d.sdp });
       for (const c of p.pendingIce.splice(0)) await pc.addIceCandidate(c).catch(() => {});
       if (d.k === 'offer') {
+        await attachMic(pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         send(p.id, { k: 'answer', sdp: pc.localDescription!.sdp });
@@ -452,7 +482,8 @@ async function pollStats() {
     for (const p of peers.values()) {
       if (!p.pc || !p.connected) continue;
       const report = await p.pc.getStats().catch(() => null);
-      report?.forEach((r: RTCStats & { kind?: string; mediaType?: string; bytesReceived?: number; totalAudioEnergy?: number; audioLevel?: number }) => {
+      report?.forEach((r: RTCStats & { kind?: string; mediaType?: string; bytesReceived?: number; bytesSent?: number; totalAudioEnergy?: number; audioLevel?: number }) => {
+        if (r.type === 'outbound-rtp' && (r.kind ?? r.mediaType) === 'audio') p.txBytes = r.bytesSent ?? 0;
         if (r.type !== 'inbound-rtp' || (r.kind ?? r.mediaType) !== 'audio') return;
         const energy = r.totalAudioEnergy ?? 0;
         const bytes = r.bytesReceived ?? 0;

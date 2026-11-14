@@ -88,8 +88,8 @@ export async function checkP2pVoice(browser: Browser, opts: { createUrl: string;
   // the green ring: everybody who talks (the fake microphone plays a tone) gets a green circle around their picture
   const ringOf = (page: Page, who: string) => page.getByTestId('players-list').locator('li', { hasText: who }).locator('[role="img"]').first();
   for (const who of names) await expect(ringOf(a, who)).toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
-  // (green, possibly caught in the middle of the 100 ms transition)
-  expect(await ringOf(a, names[1]).evaluate((el) => getComputedStyle(el).boxShadow)).toMatch(/rgba?\(34, 197, 94/);
+  // green while lit (read in one go: the fake microphone's tone pulses, so the ring comes and goes)
+  await expect.poll(() => ringOf(a, names[1]).evaluate((el) => el.getAttribute('data-speaking') === '1' && /rgba?\(34, 197, 94/.test(getComputedStyle(el).boxShadow)), { timeout: 10_000 }).toBe(true);
   // and it follows the volume: a muted player's ring goes out on everybody's screen, and comes back when unmuted
   await b.getByRole('button', { name: 'مايك' }).locator('visible=true').first().click();
   await expect(ringOf(a, names[1])).not.toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
