@@ -74,6 +74,6 @@ export async function playDrawRound(players: { page: Page; name: string }[], lap
   await expect(outsider.page.getByTestId('guess-option').first()).toBeVisible({ timeout: 15_000 });
   await outsider.page.getByTestId('guess-option').filter({ hasText: new RegExp(`^${word}$`) }).click();
   for (const p of players) await expect(p.page.getByTestId('answer-word')).toHaveText(word, { timeout: 15_000 });
-  await expect(insiders[0].page.getByText(`${outsider.name} خمّن: ${word} ✅ +2`)).toBeVisible();
+  await expect(insiders[0].page.getByText(`${outsider.name} خمّن: ${word} ✅ +1`)).toBeVisible();
   return { word, outsider, order };
 }

@@ -257,7 +257,7 @@ describe('مين برا السالفة over the network', () => {
     await waitFor(() => host.last.game!.phase === 'roundEnd', 2000, 'roundEnd');
     const scores = host.last.game!.scores;
     for (const p of insiders) expect(scores[p.user!.id]).toBe(1);
-    expect(scores[outsider.user!.id]).toBe(2);
+    expect(scores[outsider.user!.id]).toBe(1); // caught (0) + correct guess (+1)
 
     await host.act(code, 'game:host:next');
     await waitFor(() => host.last.status === 'results', 3000, 'results');

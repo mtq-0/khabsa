@@ -234,7 +234,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
               </p>
               {outsiders.map((o) => (
                 <p key={o} className="mt-2 text-sm">
-                  {name(o)} خمّن: <b>{r.guesses[o] ?? '—'}</b> {r.guesses[o] === r.answer ? '✅ +2' : r.guesses[o] ? '❌' : ''}
+                  {name(o)} خمّن: <b>{r.guesses[o] ?? '—'}</b> {r.guesses[o] === r.answer ? '✅ +1' : r.guesses[o] ? '❌' : ''}
                 </p>
               ))}
             </div>
