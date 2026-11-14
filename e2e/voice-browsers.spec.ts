@@ -26,6 +26,7 @@ async function guest(page: Page, name: string) {
   await page.getByRole('button', { name: 'يلا نلعب!' }).click();
 }
 const inVoice = (page: Page, n: number) => page.getByText(`بالصوت (${n})`).locator('visible=true').first();
+const snap = (page: Page) => page.evaluate(() => (window as unknown as { __khabsaVoice: () => Record<string, unknown> }).__khabsaVoice());
 const ringOf = (page: Page, who: string) => page.getByTestId('players-list').locator('li', { hasText: who }).locator('[role="img"]').first();
 
 async function context(b: Browser, blockDirect: boolean): Promise<BrowserContext> {
@@ -33,6 +34,30 @@ async function context(b: Browser, blockDirect: boolean): Promise<BrowserContext
   const chromium = b.browserType().name() === 'chromium';
   const ctx = await b.newContext({ viewport: { width: 1366, height: 900 }, locale: 'ar', permissions: chromium ? ['microphone'] : [] });
   if (blockDirect) await ctx.addInitScript(() => localStorage.setItem('khabsa:voice:test-block-direct', '1'));
+  // headless WebKit on Linux has no (mock) microphone: if the real request fails, hand out a tone
+  // generator instead, so WebKit's own WebRTC stack still has to send real audio
+  if (b.browserType().name() === 'webkit')
+    await ctx.addInitScript(() => {
+      const md = navigator.mediaDevices;
+      if (!md) return;
+      const real = md.getUserMedia.bind(md);
+      md.getUserMedia = async (c?: MediaStreamConstraints) => {
+        try {
+          return await real(c);
+        } catch {
+          const ac = new AudioContext();
+          await ac.resume().catch(() => {});
+          const o = ac.createOscillator();
+          o.frequency.value = 440;
+          const g = ac.createGain();
+          g.gain.value = 0.5;
+          const dest = ac.createMediaStreamDestination();
+          o.connect(g).connect(dest);
+          o.start();
+          return dest.stream;
+        }
+      };
+    });
   return ctx;
 }
 
@@ -73,14 +98,30 @@ async function play(browser: Browser, baseURL: string, blocked: 'none' | 'firefo
       await p.page.mouse.click(5, 300);
     }
     for (const p of players) await expect(inVoice(p.page, 3), `${p.name} sees 3 in voice`).toBeVisible({ timeout: 30_000 });
+    await host.page.waitForTimeout(2500);
     for (const p of players) {
-      const unlock = p.page.getByRole('button', { name: /اكبس لتسمع/ });
+      const unlock = p.page.getByRole('button', { name: /اكبس لتسمع/ }).locator('visible=true').first();
       if (await unlock.isVisible().catch(() => false)) await unlock.click();
     }
-    // every browser receives the sound of the two others (the ring is measured on received audio)
+    // every browser RECEIVES the sound of the two others: audio energy in the WebRTC statistics of a
+    // direct call, or relay frames that arrived through the server
+    const ids: Record<string, string> = {};
+    for (const p of players) ids[p.name] = (await snap(p.page)).me as string;
     for (const me of players)
-      for (const other of players)
-        if (me !== other) await expect(ringOf(me.page, other.name), `${me.name} hears ${other.name}`).toHaveAttribute('data-speaking', '1', { timeout: 40_000 });
+      for (const other of players) {
+        if (me === other) continue;
+        await expect
+          .poll(
+            async () => {
+              const peer = ((await snap(me.page)).peers as { id: string; rxEnergy: number; relayFrames: number }[]).find((x) => x.id === ids[other.name]);
+              return !!peer && (peer.rxEnergy > 0.005 || peer.relayFrames > 15);
+            },
+            { message: `${me.name} hears ${other.name}`, timeout: 40_000 },
+          )
+          .toBe(true);
+      }
+    // and the green ring of both others lights up on Chrome's screen
+    for (const other of rest) await expect(ringOf(host.page, other.name), `ring of ${other.name}`).toHaveAttribute('data-speaking', '1', { timeout: 20_000 });
     if (blocked !== 'none') {
       const p = players.find((x) => x.name === (blocked === 'firefox' ? 'فايرفوكس' : 'سفاري'))!;
       await expect(p.page.getByTestId('voice-relay').locator('visible=true').first()).toBeVisible();

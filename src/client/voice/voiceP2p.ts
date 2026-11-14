@@ -52,6 +52,9 @@ interface Peer {
   disconnectedAt: number;
   restarts: number;
   lastNudge: number;
+  lastOffer: number;
+  /** what we received from this player: RTP bytes / audio energy (direct) and relay frames */
+  rx: { bytes: number; energy: number; level: number; at: number; relayFrames: number };
 }
 
 let code: string | null = null;
@@ -81,7 +84,8 @@ if (typeof window !== 'undefined')
     mic: local ? local.getAudioTracks()[0]?.readyState : null,
     ctx: (fallbackCtx ?? audioContext())?.state,
     present: [...present],
-    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState })),
+    error: useVoice.getState().error,
+    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames })),
   });
 
 // ---------------------------------------------------------------- audio helpers
@@ -227,7 +231,7 @@ function applyVolume(p: Peer) {
 const send = (to: string, data: VoiceSignal) => code && roomSock().emit('voice:signal', { code, to, data });
 
 function newPeer(id: string): Peer {
-  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0 };
+  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0, lastOffer: 0, rx: { bytes: 0, energy: 0, level: 0, at: 0, relayFrames: 0 } };
   peers.set(id, p);
   setPeerState(id, 'connecting');
   return p;
@@ -240,19 +244,7 @@ function createPc(p: Peer) {
   const track = outTrack();
   pc.addTrack(track, new MediaStream([track]));
 
-  pc.onnegotiationneeded = async () => {
-    try {
-      p.makingOffer = true;
-      const offer = await pc.createOffer();
-      if (pc.signalingState !== 'stable') return; // something arrived meanwhile; it will renegotiate
-      await pc.setLocalDescription(offer);
-      send(p.id, { k: 'offer', sdp: pc.localDescription!.sdp });
-    } catch {
-      /* retried by the watchdog */
-    } finally {
-      p.makingOffer = false;
-    }
-  };
+  pc.onnegotiationneeded = () => void negotiate(p);
   pc.onicecandidate = (e) => {
     const c = e.candidate;
     send(p.id, { k: 'ice', c: c ? { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex, usernameFragment: c.usernameFragment } : null });
@@ -291,6 +283,24 @@ function createPc(p: Peer) {
   pc.onconnectionstatechange = onState;
   pc.oniceconnectionstatechange = onState;
   return pc;
+}
+
+/** make (or remake) our offer; also called by the watchdog when an offer got lost or failed */
+async function negotiate(p: Peer) {
+  const pc = p.pc;
+  if (!pc || p.makingOffer) return;
+  try {
+    p.makingOffer = true;
+    p.lastOffer = Date.now();
+    const offer = await pc.createOffer();
+    if (pc.signalingState !== 'stable' || p.pc !== pc) return; // something arrived meanwhile; it will renegotiate
+    await pc.setLocalDescription(offer);
+    send(p.id, { k: 'offer', sdp: pc.localDescription!.sdp });
+  } catch {
+    /* retried by the watchdog */
+  } finally {
+    p.makingOffer = false;
+  }
 }
 
 function closePc(p: Peer) {
@@ -394,7 +404,10 @@ function onAudio(msg: { from?: unknown; code?: unknown; d?: unknown }) {
   // a pair with a working direct connection ignores stray relay frames (no double voice)
   if (p?.connected && p.mode === 'direct') return;
   player?.push(msg.from, msg.d);
+  if (p) p.rx.relayFrames += 1;
   if (p && !p.connected) setPeerState(p.id, 'relay');
+  // relay playback needs a running audio context (blocked until a tap in some browsers)
+  if (ctx().state !== 'running') useVoice.setState({ needsAudioUnlock: true });
 }
 
 const announce = () => code && roomSock().emit('voice:presence', { code, on: true });
@@ -405,6 +418,8 @@ function tick() {
   for (const p of peers.values()) {
     if (!present.has(p.id)) continue;
     if (!p.pc && !p.polite) createPc(p);
+    // the call never got going (offer lost or rejected): offer again
+    if (p.pc && !p.polite && !p.connected && !p.pc.remoteDescription && p.pc.signalingState === 'stable' && now - p.lastOffer > 4000) void negotiate(p);
     if (!p.pc && p.polite && now - p.lastNudge > 3000) {
       // the other side starts the call; remind it if nothing came
       p.lastNudge = now;
@@ -427,8 +442,36 @@ function relayTargets(): string[] {
   return out;
 }
 
+/** inbound audio statistics of every direct call: proof that sound arrives, and a level meter that
+ *  works even when the page's AudioContext cannot run (no audio device, Firefox autoplay rules) */
+let statsBusy = false;
+async function pollStats() {
+  if (statsBusy) return;
+  statsBusy = true;
+  try {
+    for (const p of peers.values()) {
+      if (!p.pc || !p.connected) continue;
+      const report = await p.pc.getStats().catch(() => null);
+      report?.forEach((r: RTCStats & { kind?: string; mediaType?: string; bytesReceived?: number; totalAudioEnergy?: number; audioLevel?: number }) => {
+        if (r.type !== 'inbound-rtp' || (r.kind ?? r.mediaType) !== 'audio') return;
+        const energy = r.totalAudioEnergy ?? 0;
+        const bytes = r.bytesReceived ?? 0;
+        // audioLevel is instant (0..1); from energy we can also derive the level over the last poll
+        const dt = (performance.now() - p.rx.at) / 1000;
+        const fromEnergy = dt > 0 && energy > p.rx.energy ? Math.sqrt((energy - p.rx.energy) / dt) : 0;
+        p.rx = { ...p.rx, bytes, energy, level: Math.max(r.audioLevel ?? 0, fromEnergy), at: performance.now() };
+      });
+    }
+  } finally {
+    statsBusy = false;
+  }
+}
+
 function startMeter() {
+  let n = 0;
   meter ??= setInterval(() => {
+    if (++n % 4 === 0) void pollStats();
+    const running = ctx().state === 'running';
     const raw: Record<string, number> = {};
     const feed = (id: string, v: number) => {
       // rises at once, falls slowly: a ring that follows the voice without flickering
@@ -436,11 +479,14 @@ function startMeter() {
       smooth.set(id, l);
       raw[id] = l;
     };
-    if (selfAnalyser && local && !useVoice.getState().muted) feed(myId, loud(selfAnalyser));
-    else smooth.delete(myId);
+    if (selfAnalyser && local && running && !useVoice.getState().muted) feed(myId, loud(selfAnalyser));
+    else if (local && !useVoice.getState().muted && !running) {
+      /* no meter for ourselves without audio context */
+    } else smooth.delete(myId);
     for (const p of peers.values()) {
       const a = p.connected ? p.analyser : (player?.analyser(p.id) ?? null);
-      if (a) feed(p.id, loud(a));
+      if (a && running) feed(p.id, loud(a));
+      else if (p.connected && performance.now() - p.rx.at < 1500) feed(p.id, Math.min(1, p.rx.level * 2.5));
       else smooth.delete(p.id);
     }
     publishLevels(raw);
@@ -540,6 +586,9 @@ export async function joinVoice(roomCode: string, memberIds: string[] = [], meId
   announce();
   ticker = setInterval(tick, 1000);
   startMeter();
+  setTimeout(() => {
+    if (code === roomCode && ctx().state !== 'running') useVoice.setState({ needsAudioUnlock: true });
+  }, 1500);
 }
 
 function cleanup(status: 'off' | 'error', error: string | null = null) {
