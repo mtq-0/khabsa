@@ -104,7 +104,9 @@ const REVEAL_SECONDS = 12;
 /** hard stop so a round cannot go on forever if somebody never presses "ready" */
 const MAX_TURNS_PER_PLAYER = 6;
 const VERDICT_SECONDS = 7;
-const GUESS_SECONDS = 25;
+const GUESS_SECONDS = 30;
+/** how many choices the outsider gets in مين برا السالفة (the answer + same-category decoys) */
+const WORD_GUESS_OPTIONS = 12;
 /** points for an outsider who guesses the secret correctly */
 const GUESS_POINTS = 1;
 const ROUND_END_SECONDS = 12;
@@ -123,8 +125,14 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     let secret: RoundSecret;
     if (s.variant === 'word') {
       const { word, image, poster } = item.data as unknown as WordData;
-      const decoys = (s.decoyLabels[item.category] ?? []).filter((w) => w !== word);
-      secret = { itemId: item.id, category: item.category, categoryName, word, wordImage: poster?.path ? `tmdb:${poster.path}` : typeof image === 'string' && image ? image : undefined, answer: word, guessOptions: shuffle([word, ...pickN(decoys, 5, ctx.rng)], ctx.rng) };
+      // options from the same category first (close to the answer); only top up from others if that category is short
+      const same = Array.from(new Set(s.decoyLabels[item.category] ?? [])).filter((w) => w !== word);
+      const decoys = pickN(same, WORD_GUESS_OPTIONS - 1, ctx.rng);
+      if (decoys.length < WORD_GUESS_OPTIONS - 1) {
+        const others = Array.from(new Set(Object.values(s.decoyLabels).flat())).filter((w) => w !== word && !same.includes(w));
+        decoys.push(...pickN(others, WORD_GUESS_OPTIONS - 1 - decoys.length, ctx.rng));
+      }
+      secret = { itemId: item.id, category: item.category, categoryName, word, wordImage: poster?.path ? `tmdb:${poster.path}` : typeof image === 'string' && image ? image : undefined, answer: word, guessOptions: shuffle([word, ...decoys], ctx.rng) };
     } else {
       const d = item.data as unknown as PicturePairData;
       const decoys = Object.values(s.decoyLabels).flat().filter((l) => l !== d.labelA && l !== d.labelB);

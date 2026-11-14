@@ -252,6 +252,12 @@ describe('مين برا السالفة over the network', () => {
     await waitFor(() => outsider.last.game!.phase === 'guess', 2000, 'guess');
     const opts = (outsider.last.game!.me as any).guessOptions as string[];
     expect(opts).toContain(word);
+    // 12 choices, all from the same category as the secret word (seeded content)
+    expect(opts).toHaveLength(12);
+    expect(new Set(opts).size).toBe(12);
+    const cat = (await srv.built.ctx.db.query<{ category: string }>(`select category from content_items where kind = 'word' and data->>'word' = $1 limit 1`, [word])).rows[0].category;
+    const inCat = new Set((await srv.built.ctx.db.query<{ w: string }>(`select data->>'word' as w from content_items where kind = 'word' and category = $1`, [cat])).rows.map((r) => r.w));
+    for (const o of opts) expect(inCat.has(o)).toBe(true);
     expect((insiders[0].last.game!.me as any).guessOptions).toBeUndefined();
     await outsider.act(code, 'game:guess', { choice: word });
     await waitFor(() => host.last.game!.phase === 'roundEnd', 2000, 'roundEnd');

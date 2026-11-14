@@ -559,7 +559,16 @@ export class RoomManager {
       // fall back to any category/difficulty rather than failing the start
       content = await this.deps.content.pick({ kind: req.kind, count: req.count, packId, exclude: used, difficulty: gameId === 'outsider-picture' ? difficulty : undefined });
     }
-    const decoys = req.decoys ? await this.deps.content.pick({ kind: req.kind, count: req.decoys, packId: null }) : [];
+    // decoys come from the same categories as the picked rounds, so guess options are close to the answer
+    const decoyCats = Array.from(new Set(content.map((c) => c.category))).filter((c) => /^[a-z0-9-]{1,40}$/.test(c));
+    const decoys = req.decoys
+      ? await this.deps.content.pick({ kind: req.kind, count: Math.min(500, req.decoys * Math.max(1, decoyCats.length)), category: decoyCats.join(',') || 'any', packId: null })
+      : [];
+    if (req.decoys && decoys.length < req.decoys) {
+      // e.g. a custom pack whose categories have no official words: top up from anywhere
+      const have = new Set(decoys.map((d) => d.id));
+      for (const d of await this.deps.content.pick({ kind: req.kind, count: req.decoys, packId: null })) if (!have.has(d.id)) decoys.push(d);
+    }
     const ctx = this.ctx();
     const state = engine.init({ players: players.map((p) => ({ id: p.id, name: p.name, team: p.team })), settings, content, decoys, categoryNames: await this.deps.content.categoryNames() }, ctx);
     room.usedContent[req.kind] = [...used, ...content.map((c) => c.id)].slice(-300);
