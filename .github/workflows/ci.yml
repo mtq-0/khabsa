@@ -69,6 +69,11 @@ jobs:
         run: |
           npx playwright install --with-deps firefox webkit
           npx playwright install --only-shell chromium
+      - name: Virtual sound card (CI machines have no audio device; real phones and PCs do)
+        run: |
+          sudo apt-get install -y -q pulseaudio >/dev/null || true
+          pulseaudio --start --exit-idle-time=-1 || true
+          pactl load-module module-null-sink sink_name=virtual || true
       - name: Cross-browser voice tests
         run: CROSS_BROWSER=1 npx playwright test voice-browsers
       - uses: actions/upload-artifact@v4

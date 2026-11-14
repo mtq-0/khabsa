@@ -38,12 +38,12 @@ async function context(b: Browser, blockDirect: boolean): Promise<BrowserContext
   // generator instead, so WebKit's own WebRTC stack still has to send real audio
   if (b.browserType().name() === 'webkit')
     await ctx.addInitScript(() => {
-      const md = navigator.mediaDevices;
-      if (!md) return;
-      const real = md.getUserMedia.bind(md);
-      md.getUserMedia = async (c?: MediaStreamConstraints) => {
+      const proto = (window as unknown as { MediaDevices?: { prototype: MediaDevices } }).MediaDevices?.prototype;
+      if (!proto?.getUserMedia) return;
+      const real = proto.getUserMedia;
+      proto.getUserMedia = async function (this: MediaDevices, c?: MediaStreamConstraints) {
         try {
-          return await real(c);
+          return await real.call(this, c);
         } catch {
           const ac = new AudioContext();
           await ac.resume().catch(() => {});
