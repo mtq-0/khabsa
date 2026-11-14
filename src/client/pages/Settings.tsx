@@ -126,8 +126,7 @@ function Settings() {
         <Toggle label="خلّي الأصحاب يشوفوني أونلاين" checked={u.settings.showOnline} onChange={(v) => setSetting('showOnline', v)} />
         <label className="flex items-center justify-between gap-4 py-2">
           <span className="text-sm text-ink-200">مين بيقدر يعزمني على غرف</span>
-          <select className="field w-auto py-2" value={u.settings.allowInvites} onChange={(e) => setSetting('allowInvites', e.target.value)}>
-            <option value="everyone">أي حدا</option>
+          <select className="field w-auto py-2" value={u.settings.allowInvites === 'none' ? 'none' : 'friends'} onChange={(e) => setSetting('allowInvites', e.target.value)}>
             <option value="friends">الأصحاب بس</option>
             <option value="none">ولا حدا</option>
           </select>

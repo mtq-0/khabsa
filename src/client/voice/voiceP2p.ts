@@ -26,6 +26,8 @@ import { publishLevels, useVoice } from './voiceStore.ts';
 const DIRECT_TIMEOUT_MS = 9000;
 /** a direct connection that drops ("disconnected") is given this long to recover before an ICE restart */
 const DISCONNECT_GRACE_MS = 3500;
+/** a direct call with no inbound audio for this long is treated as dead (the relay takes over) */
+const STALL_MS = 6000;
 const STUN: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }, { urls: 'stun:stun.cloudflare.com:3478' }];
 
 type Sig = { from: string; code: string; data: VoiceSignal };
@@ -56,6 +58,14 @@ interface Peer {
   /** what we received from this player: RTP bytes / audio energy (direct) and relay frames */
   rx: { bytes: number; energy: number; level: number; at: number; relayFrames: number };
   txBytes: number;
+  /** every inbound/outbound audio stats entry of the last poll (diagnostics) */
+  statsDump: string[];
+  /** when the direct call connected, and when inbound audio last grew (to notice a connected but silent path) */
+  connectedAt: number;
+  lastRxGrowth: number;
+  /** until when the other side asked for relay frames (its direct path from us is dead) */
+  relayUntil: number;
+  lastRelayNudge: number;
 }
 
 let code: string | null = null;
@@ -86,7 +96,7 @@ if (typeof window !== 'undefined')
     ctx: (fallbackCtx ?? audioContext())?.state,
     present: [...present],
     error: useVoice.getState().error,
-    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames, txBytes: p.txBytes, transceivers: p.pc?.getTransceivers().length ?? 0 })),
+    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames, txBytes: p.txBytes, stats: p.statsDump, transceivers: p.pc?.getTransceivers().map((t) => `${t.direction}/${t.currentDirection}/${t.sender.track?.readyState ?? 'none'}/${t.receiver.track?.readyState ?? 'none'}`), localSdp: (p.pc?.localDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14), remoteSdp: (p.pc?.remoteDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14) })),
   });
 
 // ---------------------------------------------------------------- audio helpers
@@ -232,7 +242,7 @@ function applyVolume(p: Peer) {
 const send = (to: string, data: VoiceSignal) => code && roomSock().emit('voice:signal', { code, to, data });
 
 function newPeer(id: string): Peer {
-  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0, lastOffer: 0, rx: { bytes: 0, energy: 0, level: 0, at: 0, relayFrames: 0 }, txBytes: 0 };
+  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0, lastOffer: 0, rx: { bytes: 0, energy: 0, level: 0, at: 0, relayFrames: 0 }, txBytes: 0, statsDump: [], connectedAt: 0, lastRxGrowth: 0, relayUntil: 0, lastRelayNudge: 0 };
   peers.set(id, p);
   setPeerState(id, 'connecting');
   return p;
@@ -250,7 +260,11 @@ function createPc(p: Peer) {
     pc.addTransceiver(track, { direction: 'sendrecv', streams: [new MediaStream([track])] });
   }
 
-  pc.onnegotiationneeded = () => void negotiate(p);
+  // ONLY the calling (impolite) side ever makes offers: the answering side just answers (and asks for a
+  // restart through the room link). Offers from both sides at once are what made some pairs silent.
+  pc.onnegotiationneeded = () => {
+    if (!p.polite) void negotiate(p);
+  };
   pc.onicecandidate = (e) => {
     const c = e.candidate;
     send(p.id, { k: 'ice', c: c ? { candidate: c.candidate, sdpMid: c.sdpMid, sdpMLineIndex: c.sdpMLineIndex, usernameFragment: c.usernameFragment } : null });
@@ -275,6 +289,10 @@ function createPc(p: Peer) {
     const st = pc.connectionState ?? pc.iceConnectionState;
     const ok = st === 'connected' || pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed';
     if (ok) {
+      if (!p.connected) {
+        p.connectedAt = Date.now();
+        p.lastRxGrowth = Date.now();
+      }
       p.connected = true;
       p.disconnectedAt = 0;
       if (p.mode === 'relay') p.mode = 'direct'; // a late direct connection wins over the relay
@@ -301,11 +319,6 @@ async function attachMic(pc: RTCPeerConnection) {
   const track = outTrack();
   if (t.direction !== 'sendrecv') t.direction = 'sendrecv';
   if (t.sender.track !== track) await t.sender.replaceTrack(track).catch(() => {});
-  try {
-    t.sender.setStreams?.(new MediaStream([track]));
-  } catch {
-    /* optional */
-  }
 }
 
 /** make (or remake) our offer; also called by the watchdog when an offer got lost or failed */
@@ -375,8 +388,12 @@ async function onSignal(msg: Sig) {
   }
   p ??= newPeer(msg.from);
   if (d.k === 'relay') {
-    p.mode = 'relay';
-    if (!p.connected) setPeerState(p.id, 'relay');
+    // the other side does not receive our direct audio (path dead or not connected): also send it through the server
+    p.relayUntil = Date.now() + 8000;
+    if (!p.connected) {
+      p.mode = 'relay';
+      setPeerState(p.id, 'relay');
+    }
     return;
   }
   if (d.k === 'restart') {
@@ -461,6 +478,18 @@ function tick() {
       onDirectFailed(p);
     }
     if (!p.connected && p.mode === 'direct' && now - p.startedAt > DIRECT_TIMEOUT_MS) onDirectFailed(p);
+    // "connected" but no audio arrives (a path that was nominated and then black-holed, common on mobile networks):
+    // use the relay for this pair and try an ICE restart
+    if (p.connected && p.pc && now - Math.max(p.connectedAt, p.lastRxGrowth) > STALL_MS) {
+      p.connected = false;
+      p.restarts = 0;
+      onDirectFailed(p);
+    }
+    // while we depend on the relay, keep telling the other side (it stops after 8 s without the reminder)
+    if (p.mode === 'relay' && !p.connected && now - p.lastRelayNudge > 3000) {
+      p.lastRelayNudge = now;
+      send(p.id, { k: 'relay' });
+    }
     if (p.mode === 'relay' && !p.connected && !player?.receiving(p.id) && useVoice.getState().peerState[p.id] !== 'relay') setPeerState(p.id, 'relay');
   }
 }
@@ -468,7 +497,8 @@ function tick() {
 /** relay frames go to every partner without a working direct connection */
 function relayTargets(): string[] {
   const out: string[] = [];
-  for (const p of peers.values()) if (present.has(p.id) && p.mode === 'relay' && !p.connected) out.push(p.id);
+  const now = Date.now();
+  for (const p of peers.values()) if (present.has(p.id) && ((p.mode === 'relay' && !p.connected) || p.relayUntil > now)) out.push(p.id);
   return out;
 }
 
@@ -480,18 +510,43 @@ async function pollStats() {
   statsBusy = true;
   try {
     for (const p of peers.values()) {
-      if (!p.pc || !p.connected) continue;
+      if (!p.pc || !(p.pc.connectionState === 'connected' || p.pc.iceConnectionState === 'connected' || p.pc.iceConnectionState === 'completed')) continue;
       const report = await p.pc.getStats().catch(() => null);
-      report?.forEach((r: RTCStats & { kind?: string; mediaType?: string; bytesReceived?: number; bytesSent?: number; totalAudioEnergy?: number; audioLevel?: number }) => {
-        if (r.type === 'outbound-rtp' && (r.kind ?? r.mediaType) === 'audio') p.txBytes = r.bytesSent ?? 0;
-        if (r.type !== 'inbound-rtp' || (r.kind ?? r.mediaType) !== 'audio') return;
-        const energy = r.totalAudioEnergy ?? 0;
-        const bytes = r.bytesReceived ?? 0;
-        // audioLevel is instant (0..1); from energy we can also derive the level over the last poll
-        const dt = (performance.now() - p.rx.at) / 1000;
-        const fromEnergy = dt > 0 && energy > p.rx.energy ? Math.sqrt((energy - p.rx.energy) / dt) : 0;
-        p.rx = { ...p.rx, bytes, energy, level: Math.max(r.audioLevel ?? 0, fromEnergy), at: performance.now() };
+      if (!report) continue;
+      // a call can have several inbound-rtp entries (a stale one from an earlier negotiation, a probe
+      // stream...): add them up instead of trusting whichever one comes last
+      let bytes = 0;
+      let energy = 0;
+      let instant = 0;
+      let sent = 0;
+      const dump: string[] = [];
+      report.forEach((r: RTCStats & { kind?: string; mediaType?: string; bytesReceived?: number; bytesSent?: number; totalAudioEnergy?: number; audioLevel?: number; ssrc?: number; packetsReceived?: number; packetsLost?: number }) => {
+        if ((r.kind ?? r.mediaType) !== 'audio') return;
+        if (r.type === 'inbound-rtp' || r.type === 'outbound-rtp') dump.push(`${r.type} ssrc=${r.ssrc} bytes=${r.bytesReceived ?? r.bytesSent} pk=${r.packetsReceived ?? ''} lost=${r.packetsLost ?? ''} energy=${(r.totalAudioEnergy ?? 0).toFixed(3)}`);
+        if (r.type === 'outbound-rtp') sent += r.bytesSent ?? 0;
+        if (r.type === 'inbound-rtp') {
+          bytes += r.bytesReceived ?? 0;
+          energy += r.totalAudioEnergy ?? 0;
+          instant = Math.max(instant, r.audioLevel ?? 0);
+        }
       });
+      p.txBytes = sent;
+      p.statsDump = dump;
+      // loudness over the last poll, from the energy counter (works without Web Audio) or the instant level
+      const dt = (performance.now() - p.rx.at) / 1000;
+      const fromEnergy = dt > 0 && dt < 5 && energy > p.rx.energy ? Math.sqrt((energy - p.rx.energy) / dt) : 0;
+      const grew = bytes > p.rx.bytes + 40;
+      p.rx = { ...p.rx, bytes, energy: Math.max(energy, p.rx.energy), level: Math.max(instant, fromEnergy), at: performance.now() };
+      if (grew) {
+        p.lastRxGrowth = Date.now();
+        if (!p.connected) {
+          // the direct path works (again): use it, the relay frames are ignored from now on
+          p.connected = true;
+          p.mode = 'direct';
+          p.connectedAt = Date.now();
+          setPeerState(p.id, 'connected');
+        }
+      }
     }
   } finally {
     statsBusy = false;

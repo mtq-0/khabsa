@@ -33,7 +33,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   sound: true,
   music: true,
   reducedMotion: false,
-  allowInvites: 'everyone',
+  allowInvites: 'friends',
   showOnline: true,
 };
 

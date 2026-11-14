@@ -61,11 +61,14 @@ export function socialRoutes(app: FastifyInstance, ctx: AppContext, presence: Pr
   app.post('/api/friends/request', async (req) => {
     const me = requireRegistered(req);
     rateLimit(ctx, 'social', me.id);
-    const body = parse(z.object({ userId: uuid.optional(), username: z.string().max(24).optional() }), req.body);
+    const body = parse(z.object({ userId: uuid.optional(), username: z.string().max(40).optional() }), req.body);
+    // the ID is the username: "@sara_j", " Sara_J " and "sara_j" are the same
+    const uname = (body.username ?? '').trim().replace(/^@+/, '').trim();
+    if (!body.userId && !/^[A-Za-z0-9_]{3,24}$/.test(uname)) throw new AppError('VALIDATION', 'اكتب الـID بالإنجليزي (حروف وأرقام و _ بس)، مثل sara_j');
     const target = (
-      await ctx.db.query<UserRow>(`select ${USER_COLUMNS} from users where ${body.userId ? 'id = $1' : 'lower(username) = lower($1)'} and not banned`, [body.userId ?? body.username ?? ''])
+      await ctx.db.query<UserRow>(`select ${USER_COLUMNS} from users where ${body.userId ? 'id = $1' : 'lower(username) = lower($1)'} and not banned`, [body.userId ?? uname])
     ).rows[0];
-    if (!target) throw new AppError('NOT_FOUND', 'اللاعب مش موجود.');
+    if (!target) throw new AppError('NOT_FOUND', 'ما لقينا لاعب بهالـID. تأكد من الاسم (بين @ وبدون مسافات).');
     if (target.id === me.id) throw new AppError('VALIDATION', 'ما بتقدر تضيف حالك 😄');
     if (target.is_guest) throw new AppError('VALIDATION', 'الضيوف ما بينضافوا كأصحاب. خلّيه يسجّل حساب.');
     if (await isBlocked(me.id, target.id)) throw new AppError('FORBIDDEN');
@@ -75,18 +78,18 @@ export function socialRoutes(app: FastifyInstance, ctx: AppContext, presence: Pr
         [me.id, target.id],
       )
     ).rows[0];
-    if (existing?.status === 'accepted') return { status: 'friends' };
+    if (existing?.status === 'accepted') return { status: 'friends', user: pub(target) };
     if (existing && existing.requester_id === target.id) {
       // they already asked me: accept
       await ctx.db.query(`update friendships set status = 'accepted', responded_at = now() where requester_id = $1 and addressee_id = $2`, [target.id, me.id]);
       await ctx.stats.checkAchievements(ctx.db, me.id);
       await ctx.stats.checkAchievements(ctx.db, target.id);
       notify(target.id);
-      return { status: 'friends' };
+      return { status: 'friends', user: pub(target) };
     }
     if (!existing) await ctx.db.query('insert into friendships (requester_id, addressee_id) values ($1, $2) on conflict do nothing', [me.id, target.id]);
     notify(target.id);
-    return { status: 'outgoing' };
+    return { status: 'outgoing', user: pub(target) };
   });
 
   app.post('/api/friends/respond', async (req) => {
@@ -141,12 +144,10 @@ export function socialRoutes(app: FastifyInstance, ctx: AppContext, presence: Pr
     const target = (await ctx.db.query<UserRow>(`select ${USER_COLUMNS} from users where id = $1 and not banned`, [body.userId])).rows[0];
     if (!target || target.id === me.id) throw new AppError('NOT_FOUND');
     if (await isBlocked(me.id, target.id)) throw new AppError('FORBIDDEN');
-    const pref = target.settings?.allowInvites ?? 'everyone';
-    if (pref === 'none') throw new AppError('FORBIDDEN', 'هاللاعب مسكّر الدعوات.');
-    if (pref === 'friends') {
-      const f = await ctx.db.query(`select 1 from friendships where status = 'accepted' and ((requester_id = $1 and addressee_id = $2) or (requester_id = $2 and addressee_id = $1))`, [me.id, target.id]);
-      if (!f.rowCount) throw new AppError('FORBIDDEN', 'هاللاعب بيستقبل دعوات من أصحابه بس.');
-    }
+    // invitations only go to ACCEPTED friends (everybody else can still join with the room link/code)
+    const f = await ctx.db.query(`select 1 from friendships where status = 'accepted' and ((requester_id = $1 and addressee_id = $2) or (requester_id = $2 and addressee_id = $1))`, [me.id, target.id]);
+    if (!f.rowCount) throw new AppError('FORBIDDEN', 'بتقدر تعزم أصحابك بس. ضيفه كصديق أول (من صفحة الأصحاب).');
+    if ((target.settings?.allowInvites ?? 'friends') === 'none') throw new AppError('FORBIDDEN', 'هاللاعب مسكّر الدعوات.');
     const r = await ctx.db.query<{ id: string; created_at: string }>(
       `insert into room_invites (room_code, from_user, to_user) values ($1, $2, $3)
        on conflict (room_code, from_user, to_user) where status = 'pending' do update set created_at = now() returning id, created_at`,
@@ -163,7 +164,9 @@ export function socialRoutes(app: FastifyInstance, ctx: AppContext, presence: Pr
     await ctx.db.query(`update room_invites set status = 'expired' where to_user = $1 and status = 'pending' and created_at < now() - interval '2 hours'`, [me.id]);
     const r = await ctx.db.query<UserRow & { invite_id: string; room_code: string; invite_created: string }>(
       `select i.id as invite_id, i.room_code, i.created_at as invite_created, ${userCols} from room_invites i join users u on u.id = i.from_user
-       where i.to_user = $1 and i.status = 'pending' order by i.created_at desc limit 30`,
+       where i.to_user = $1 and i.status = 'pending'
+         and exists (select 1 from friendships f where f.status = 'accepted' and ((f.requester_id = i.from_user and f.addressee_id = i.to_user) or (f.requester_id = i.to_user and f.addressee_id = i.from_user)))
+       order by i.created_at desc limit 30`,
       [me.id],
     );
     const invites: InviteView[] = [];
@@ -182,7 +185,12 @@ export function socialRoutes(app: FastifyInstance, ctx: AppContext, presence: Pr
     const me = requireUser(req);
     const id = parse(uuid, (req.params as { id: string }).id);
     const body = parse(z.object({ accept: z.boolean() }), req.body);
-    const r = await ctx.db.query<{ room_code: string }>(`update room_invites set status = $3 where id = $1 and to_user = $2 and status = 'pending' returning room_code`, [id, me.id, body.accept ? 'accepted' : 'declined']);
+    const r = await ctx.db.query<{ room_code: string }>(
+      `update room_invites i set status = $3 where i.id = $1 and i.to_user = $2 and i.status = 'pending'
+         and exists (select 1 from friendships f where f.status = 'accepted' and ((f.requester_id = i.from_user and f.addressee_id = i.to_user) or (f.requester_id = i.to_user and f.addressee_id = i.from_user)))
+       returning i.room_code`,
+      [id, me.id, body.accept ? 'accepted' : 'declined'],
+    );
     if (!r.rowCount) throw new AppError('NOT_FOUND', 'الدعوة انتهت.');
     return { code: r.rows[0].room_code };
   });
