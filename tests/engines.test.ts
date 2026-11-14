@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Harness, item } from './helpers/engine.ts';
+import { sanitizeSettings } from '../src/shared/games.ts';
 import { accused, tally } from '../src/server/games/common.ts';
 import { outsiderCountFor, type OutsiderState } from '../src/server/games/outsider.ts';
 import type { OddQuestionState } from '../src/server/games/oddQuestion.ts';
@@ -215,6 +216,35 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
   it('masks the secret word in chat while hidden', () => {
     const h = new Harness<OutsiderState>('outsider-word', 3);
     expect(h.engine.chatSecrets!(h.state)).toEqual([h.state.secret!.word]);
+  });
+
+  it('the outsider guesses from 12 options, all from the round word category', () => {
+    const food = Array.from({ length: 30 }, (_, i) => item('word', i, { word: `أكلة${i}` }, 'food'));
+    const animals = Array.from({ length: 30 }, (_, i) => item('word', 100 + i, { word: `حيوان${i}` }, 'animals'));
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 2 }, [food[0], animals[0]]);
+    h.state = h.engine.init(
+      { players: h.players.map((id, i) => ({ id, name: `لاعب ${i}` })), settings: sanitizeSettings('outsider-word', { rounds: 2 }), content: [food[0], animals[0]], decoys: [...food, ...animals, food[3]], categoryNames: {} },
+      h.ctx(),
+    );
+    const opts = h.state.secret!.guessOptions;
+    expect(opts).toHaveLength(12);
+    expect(new Set(opts).size).toBe(12);
+    expect(opts).toContain(h.state.secret!.word);
+    const prefix = h.state.secret!.category === 'food' ? 'أكلة' : 'حيوان';
+    for (const o of opts) expect(o.startsWith(prefix)).toBe(true);
+  });
+
+  it('tops up guess options from other categories when the round category is short', () => {
+    const food = Array.from({ length: 3 }, (_, i) => item('word', i, { word: `أكلة${i}` }, 'food'));
+    const animals = Array.from({ length: 30 }, (_, i) => item('word', 100 + i, { word: `حيوان${i}` }, 'animals'));
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 }, [food[0]]);
+    h.state = h.engine.init(
+      { players: h.players.map((id, i) => ({ id, name: `لاعب ${i}` })), settings: sanitizeSettings('outsider-word', { rounds: 1 }), content: [food[0]], decoys: [...food, ...animals], categoryNames: {} },
+      h.ctx(),
+    );
+    const opts = h.state.secret!.guessOptions;
+    expect(opts).toHaveLength(12);
+    expect(opts.filter((o) => o.startsWith('أكلة'))).toHaveLength(3);
   });
 });
 

@@ -277,7 +277,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
             (iAmOutsider && me.guessOptions ? (
               <div className="card p-5">
                 <p className="mb-3 text-center font-bold">{isWord ? 'شو الكلمة السرية؟' : 'شو كانت صورة الأغلبية؟'}</p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className={`grid gap-2 ${me.guessOptions.length > 6 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
                   {me.guessOptions.map((o) => (
                     <Button key={o} variant={me.guess === o ? 'volt' : 'secondary'} disabled={!!me.guess} onClick={() => void act('guess', { choice: o })} data-testid="guess-option">
                       {o}

@@ -14,7 +14,7 @@ export interface ContentItem<D = Record<string, unknown>> {
 export interface ContentRequest {
   kind: ContentKind;
   count: number;
-  /** extra items from the same categories, used e.g. as guess decoys */
+  /** extra items, used e.g. as guess decoys: this many from EACH category of the picked content */
   decoys?: number;
 }
 
