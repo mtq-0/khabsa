@@ -15,7 +15,7 @@ export function PlayerTag({ m, size = 28, sub, highlight }: { m: MemberView | un
   if (!m) return <span className="text-ink-400">لاعب طلع</span>;
   return (
     <span className={cx('inline-flex min-w-0 items-center gap-2', highlight && 'font-bold text-volt-300')}>
-      <Avatar avatar={m.avatar} url={m.avatarUrl} size={size} offline={!m.connected} />
+      <Avatar avatar={m.avatar} url={m.avatarUrl} size={size} offline={!m.connected} voiceId={m.id} />
       <span className="min-w-0">
         <span className="flex items-center gap-1 truncate">
           {m.name}
@@ -75,7 +75,7 @@ export function VoteGrid({ candidates, view, voted, onVote, disabledIds = [], co
               disabled && voted !== id && 'opacity-60',
             )}
           >
-            {m ? <Avatar avatar={m.avatar} url={m.avatarUrl} size={36} /> : <span className="size-9 rounded-full bg-white/10" />}
+            {m ? <Avatar avatar={m.avatar} url={m.avatarUrl} size={36} voiceId={m.id} /> : <span className="size-9 rounded-full bg-white/10" />}
             <span className="min-w-0 flex-1 truncate text-sm font-semibold">{name(id)}</span>
             {counts && <span className="rounded-lg bg-white/10 px-2 py-0.5 text-sm font-bold tabular-nums">{counts[id] ?? 0}</span>}
           </button>

@@ -85,6 +85,19 @@ export async function checkP2pVoice(browser: Browser, opts: { createUrl: string;
     for (const pk of peaks) expect(pk).toBeGreaterThan(20);
   }
 
+  // the green ring: everybody who talks (the fake microphone plays a tone) gets a green circle around their picture
+  const ringOf = (page: Page, who: string) => page.getByTestId('players-list').locator('li', { hasText: who }).locator('[role="img"]').first();
+  for (const who of names) await expect(ringOf(a, who)).toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
+  // (green, possibly caught in the middle of the 100 ms transition)
+  expect(await ringOf(a, names[1]).evaluate((el) => getComputedStyle(el).boxShadow)).toMatch(/rgba?\(34, 197, 94/);
+  // and it follows the volume: a muted player's ring goes out on everybody's screen, and comes back when unmuted
+  await b.getByRole('button', { name: 'مايك' }).locator('visible=true').first().click();
+  await expect(ringOf(a, names[1])).not.toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
+  await expect(ringOf(c, names[1])).not.toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
+  await expect(ringOf(a, names[2])).toHaveAttribute('data-speaking', '1'); // the others keep their ring
+  await b.getByRole('button', { name: 'مسكّر' }).locator('visible=true').first().click();
+  await expect(ringOf(a, names[1])).toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
+
   // switching tabs on a phone-sized screen must not drop the voice
   // (the three players above use a desktop layout; check the narrow layout with the same page)
   await b.setViewportSize({ width: 390, height: 844 });

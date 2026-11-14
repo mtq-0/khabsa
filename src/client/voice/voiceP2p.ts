@@ -10,7 +10,7 @@ import { audioContext } from '../fx/sound.ts';
 import { getSocket } from '../lib/socket.ts';
 import { asset } from '../lib/mode.ts';
 import { PEER_OPTIONS, Peer } from '../p2p/link.ts';
-import { useVoice } from './voiceStore.ts';
+import { publishLevels, useVoice } from './voiceStore.ts';
 
 const voicePeerId = (code: string, userId: string) => `khabsa-v1-voice-${code}-${userId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
@@ -136,15 +136,25 @@ function level(a: AnalyserNode) {
   return peak;
 }
 
+/** loudness 0..1 from the analyser peak (0..128); speech is roughly 20-90 */
+const loud = (a: AnalyserNode) => Math.max(0, Math.min(1, (level(a) - 3) / 55));
+const smooth = new Map<string, number>();
+
 function startMeter() {
   meter ??= setInterval(() => {
-    const speaking: Record<string, boolean> = {};
-    if (selfAnalyser && !useVoice.getState().muted && level(selfAnalyser) > 6) speaking[myId] = true;
-    for (const [id, r] of remotes) if (r.analyser && level(r.analyser) > 6) speaking[id] = true;
-    const prev = useVoice.getState().speaking;
-    const same = Object.keys(speaking).length === Object.keys(prev).length && Object.keys(speaking).every((k) => prev[k]);
-    if (!same) useVoice.setState({ speaking });
-  }, 150);
+    const raw: Record<string, number> = {};
+    const feed = (id: string, v: number) => {
+      // rises at once, falls slowly: a ring that follows the voice without flickering
+      const l = Math.max(v, (smooth.get(id) ?? 0) * 0.7);
+      smooth.set(id, l);
+      raw[id] = l;
+    };
+    if (selfAnalyser && !useVoice.getState().muted) feed(myId, loud(selfAnalyser));
+    else smooth.delete(myId);
+    for (const [id, r] of remotes) if (r.analyser) feed(id, loud(r.analyser));
+    for (const id of [...smooth.keys()]) if (!(id in raw)) smooth.delete(id);
+    publishLevels(raw);
+  }, 90);
 }
 
 function applyVolume(id: string) {
@@ -359,7 +369,8 @@ function cleanup(status: 'off' | 'error', error: string | null = null) {
   peer = null;
   currentCode = null;
   dialedAt.clear();
-  useVoice.setState({ status, error, speaking: {}, inVoice: {}, quality: {}, peerState: {}, needsAudioUnlock: false });
+  smooth.clear();
+  useVoice.setState({ status, error, speaking: {}, levels: {}, inVoice: {}, quality: {}, peerState: {}, needsAudioUnlock: false });
 }
 
 export async function leaveVoice() {

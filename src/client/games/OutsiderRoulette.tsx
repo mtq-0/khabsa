@@ -120,7 +120,7 @@ export function OutsiderRoulette({
                 landed && !isOut && 'opacity-35',
               )}
             >
-              {m ? <Avatar avatar={m.avatar} url={m.avatarUrl} size={landed && isOut ? 64 : 48} /> : <span className="size-12 rounded-full bg-white/10" />}
+              {m ? <Avatar avatar={m.avatar} url={m.avatarUrl} size={landed && isOut ? 64 : 48} voiceId={id} /> : <span className="size-12 rounded-full bg-white/10" />}
               <span className="max-w-full truncate text-sm font-semibold">{m?.name ?? 'لاعب'}</span>
               {winner && (
                 <>

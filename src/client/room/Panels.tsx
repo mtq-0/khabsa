@@ -27,7 +27,7 @@ export function PlayersPanel({ view }: { view: RoomView }) {
       <ul className="space-y-1.5" data-testid="players-list">
         {view.members.map((m) => (
           <li key={m.id} className="relative flex items-center gap-2 rounded-xl bg-white/5 p-2">
-            <Avatar avatar={m.avatar} url={m.avatarUrl} size={34} offline={!m.connected} speaking={!!voice.speaking[m.id]} />
+            <Avatar avatar={m.avatar} url={m.avatarUrl} size={34} offline={!m.connected} voiceId={m.id} />
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1 truncate text-sm font-semibold">
                 {m.name}

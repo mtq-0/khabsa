@@ -4,12 +4,14 @@
  * own microphone track; leaving disconnects only this client (other players'
  * tracks are unaffected). All listeners are removed and tracks stopped on leave.
  */
-import { ConnectionQuality, Room, RoomEvent, Track, type Participant, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication } from 'livekit-client';
+import { ConnectionQuality, Room, RoomEvent, Track, type RemoteParticipant, type RemoteTrack, type RemoteTrackPublication } from 'livekit-client';
 import { api, errorText } from '../lib/api.ts';
-import { useVoice } from './voiceStore.ts';
+import { publishLevels, useVoice } from './voiceStore.ts';
 
 let room: Room | null = null;
 let currentCode: string | null = null;
+let meter: ReturnType<typeof setInterval> | null = null;
+const smooth = new Map<string, number>();
 /** our own audio elements, keyed by remote track sid */
 const audioEls = new Map<string, HTMLMediaElement>();
 
@@ -72,9 +74,6 @@ export async function joinVoice(code: string) {
       track.detach();
       removeAudio(track.sid);
     })
-    .on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
-      useVoice.setState({ speaking: Object.fromEntries(speakers.map((s) => [s.identity, true])) });
-    })
     .on(RoomEvent.ConnectionQualityChanged, refreshParticipants)
     .on(RoomEvent.Reconnecting, () => useVoice.setState({ status: 'reconnecting' }))
     .on(RoomEvent.Reconnected, () => useVoice.setState({ status: 'connected' }))
@@ -87,6 +86,7 @@ export async function joinVoice(code: string) {
     await r.connect(creds.url, creds.token, { autoSubscribe: true });
     useVoice.setState({ status: 'connected', needsAudioUnlock: !r.canPlaybackAudio });
     refreshParticipants();
+    startMeter(r);
     try {
       await r.localParticipant.setMicrophoneEnabled(!useVoice.getState().muted);
     } catch (e) {
@@ -98,6 +98,21 @@ export async function joinVoice(code: string) {
   }
 }
 
+/** volume ring: poll every participant's audio level (0..1) and publish it */
+function startMeter(r: Room) {
+  if (meter) clearInterval(meter);
+  meter = setInterval(() => {
+    const raw: Record<string, number> = {};
+    for (const p of [r.localParticipant, ...r.remoteParticipants.values()]) {
+      const v = Math.min(1, p.audioLevel * 2.5);
+      const l = Math.max(v, (smooth.get(p.identity) ?? 0) * 0.7);
+      smooth.set(p.identity, l);
+      raw[p.identity] = l;
+    }
+    publishLevels(raw);
+  }, 90);
+}
+
 function micError(e: Error) {
   if (e.name === 'NotAllowedError') return 'المايك مرفوض. اسمح للمتصفح يستخدم المايك من إعدادات الموقع.';
   if (e.name === 'NotFoundError') return 'ما لقينا مايك على هالجهاز.';
@@ -105,12 +120,15 @@ function micError(e: Error) {
 }
 
 function cleanup(status: 'off' | 'error', error: string | null = null) {
+  if (meter) clearInterval(meter);
+  meter = null;
+  smooth.clear();
   for (const el of audioEls.values()) el.remove();
   audioEls.clear();
   room?.removeAllListeners();
   room = null;
   currentCode = null;
-  useVoice.setState({ status, error, speaking: {}, inVoice: {}, quality: {} });
+  useVoice.setState({ status, error, speaking: {}, levels: {}, inVoice: {}, quality: {} });
 }
 
 export async function leaveVoice() {
