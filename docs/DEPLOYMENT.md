@@ -46,7 +46,17 @@ Required production variables (see `.env.example`): `NODE_ENV=production`, `PUBL
 
 ## 4. Voice (LiveKit) and TURN
 
-**No LiveKit? Voice still works.** Without the `LIVEKIT_*` variables the room falls back to peer-to-peer voice (the same mesh the GitHub Pages edition uses, `src/client/voice/voiceP2p.ts`): the server only relays who is in voice (`voice:presence`), the audio goes browser to browser. That is fine for friends' rooms of up to about 6–8 people in voice. Configure LiveKit below for bigger rooms and strict networks.
+**No LiveKit? Voice still works.** Without the `LIVEKIT_*` variables the room uses its own voice mesh (`src/client/voice/voiceP2p.ts`):
+- browsers talk to each other directly (WebRTC). The offers, answers and ICE candidates go over the room's Socket.IO link (`voice:signal`), and the server only relays who is in voice (`voice:presence`);
+- if two browsers cannot reach each other (strict mobile networks / carrier-grade NAT, with no TURN relay), that pair switches to **audio through the server** (`voice:audio`: 60 ms frames of 16 kHz μ-law, only while the player is talking, about 16 KB/s per listener);
+- optional TURN relay for better quality on those networks. **Cloudflare Realtime TURN** (free tier: 1000 GB/month):
+  1. Cloudflare dashboard → Realtime → TURN Server → Create.
+  2. Copy the Turn Token ID and API token into Render's Environment as `CLOUDFLARE_TURN_KEY_ID` and `CLOUDFLARE_TURN_KEY_API_TOKEN`.
+  3. The server turns these into short-lived credentials (`GET /api/voice/ice`); the key never reaches the browser.
+
+  Metered (`METERED_DOMAIN`, `METERED_API_KEY`) or any TURN server (`TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL`) work too.
+
+This is fine for rooms of up to about 8 people in voice. Configure LiveKit below for bigger rooms.
 
 ### LiveKit Cloud (recommended)
 1. Create a project at cloud.livekit.io → Settings → Keys.

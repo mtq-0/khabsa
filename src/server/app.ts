@@ -19,6 +19,7 @@ import { RoomManager } from './rooms/RoomManager.ts';
 import { attachSockets, PresenceTracker } from './rooms/sockets.ts';
 import { ImageSigner, Storage } from './storage/storage.ts';
 import { VoiceService } from './voice/voice.ts';
+import { IceService, iceConfigFromEnv } from './voice/ice.ts';
 import { TmdbService } from './content/tmdb.ts';
 import { limits } from './security/rateLimit.ts';
 import { createEngines } from './games/registry.ts';
@@ -78,7 +79,7 @@ export async function buildApp(config: Config, opts: { db?: Db; log?: boolean } 
     idleMinutes: config.roomIdleMinutes,
     onKick: (room, userId) => void voice.removeParticipant(room.id, userId),
   });
-  const ctx: AppContext = { config, db, sessions: new SessionStore(db, config.sessionDays), content, stats, platform, rooms, storage, signer, voice, tmdb: new TmdbService(config.tmdb), limits: limits(config.ipRateLimitScale), io };
+  const ctx: AppContext = { config, db, sessions: new SessionStore(db, config.sessionDays), content, stats, platform, rooms, storage, signer, voice, tmdb: new TmdbService(config.tmdb), ice: new IceService(iceConfigFromEnv()), limits: limits(config.ipRateLimitScale), io };
 
   // ------------------------------------------------------------ security
   app.decorateRequest('user', null);

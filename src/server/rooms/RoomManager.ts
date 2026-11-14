@@ -19,6 +19,7 @@ import {
   type ClientToServerEvents,
   type DrawEvent,
   type DrawSegment,
+  type VoiceSignal,
   type MemberView,
   type PublicRoomSummary,
   type RoomView,
@@ -350,6 +351,33 @@ export class RoomManager {
     } else set?.delete(user.id);
     this.broadcastVoice(room);
     void socket;
+  }
+
+  /** sends an event to every live connection of one room member */
+  private toMember(room: Room, userId: string, ev: 'voice:signal' | 'voice:audio', payload: unknown) {
+    const m = room.members.get(userId);
+    if (!m) return false;
+    for (const sid of m.sockets) (this.deps.io.to(sid) as unknown as { emit: (e: string, p: unknown) => void }).emit(ev, payload);
+    return m.sockets.size > 0;
+  }
+
+  /** WebRTC signalling between two members of the same room (validated, size-capped, never stored) */
+  voiceSignal(user: UserRow, p: { code?: unknown; to?: unknown; data?: unknown }) {
+    const room = this.getRoom(p.code);
+    if (!room.members.has(user.id)) throw new AppError('FORBIDDEN');
+    if (typeof p.to !== 'string' || p.to === user.id || !room.members.has(p.to)) throw new AppError('VALIDATION');
+    const data = validateVoiceSignal(p.data);
+    this.toMember(room, p.to, 'voice:signal', { code: room.code, from: user.id, data });
+  }
+
+  /** fallback audio frame for players we have no direct connection with */
+  voiceAudio(user: UserRow, p: { code?: unknown; to?: unknown; d?: unknown }) {
+    const room = this.getRoom(p.code);
+    if (!room.members.has(user.id)) throw new AppError('FORBIDDEN');
+    if (!Array.isArray(p.to) || p.to.length < 1 || p.to.length > 15) throw new AppError('VALIDATION');
+    if (typeof p.d !== 'string' || p.d.length < 4 || p.d.length > 2400 || !/^[A-Za-z0-9+/=]+$/.test(p.d)) throw new AppError('VALIDATION');
+    const payload = { code: room.code, from: user.id, d: p.d };
+    for (const to of new Set(p.to)) if (typeof to === 'string' && to !== user.id) this.toMember(room, to, 'voice:audio', payload);
   }
 
   /** a player's last connection dropped, or they left: they are no longer in voice */
@@ -954,6 +982,32 @@ export class RoomManager {
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
+function validateVoiceSignal(raw: unknown): VoiceSignal {
+  const d = raw as Record<string, unknown>;
+  if (!d || typeof d !== 'object') throw new AppError('VALIDATION');
+  switch (d.k) {
+    case 'offer':
+    case 'answer':
+      if (typeof d.sdp !== 'string' || d.sdp.length < 10 || d.sdp.length > 20_000) throw new AppError('VALIDATION');
+      return { k: d.k, sdp: d.sdp };
+    case 'ice': {
+      if (d.c === null) return { k: 'ice', c: null };
+      const c = d.c as Record<string, unknown>;
+      if (!c || typeof c.candidate !== 'string' || c.candidate.length > 1000) throw new AppError('VALIDATION');
+      const mid = typeof c.sdpMid === 'string' && c.sdpMid.length <= 64 ? c.sdpMid : null;
+      const idx = Number.isInteger(c.sdpMLineIndex) && (c.sdpMLineIndex as number) >= 0 && (c.sdpMLineIndex as number) < 16 ? (c.sdpMLineIndex as number) : null;
+      const uf = typeof c.usernameFragment === 'string' && c.usernameFragment.length <= 256 ? c.usernameFragment : null;
+      return { k: 'ice', c: { candidate: c.candidate, sdpMid: mid, sdpMLineIndex: idx, usernameFragment: uf } };
+    }
+    case 'restart':
+    case 'relay':
+    case 'bye':
+      return { k: d.k };
+    default:
+      throw new AppError('VALIDATION');
+  }
+}
+
 function validateSegment(raw: unknown): DrawSegment {
   const s = raw as DrawSegment;
   if (!s || typeof s !== 'object') throw new AppError('VALIDATION');

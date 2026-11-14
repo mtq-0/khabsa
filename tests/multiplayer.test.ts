@@ -126,6 +126,44 @@ describe('rooms', () => {
     for (const p of [a, c, late, outsider]) p.disconnect();
   });
 
+  it('relays voice signalling and fallback audio only between members of the same room, validated', async () => {
+    const { ps, code } = await roomWith(3);
+    const [a, b, c] = ps;
+    const other = await roomWith(1);
+    const stranger = other.ps[0];
+    const raw = (p: Player, ev: string, payload: unknown) => (p.socket as any).emit(ev, payload);
+    // offer from A to B: only B gets it, with A as sender
+    raw(a, 'voice:signal', { code, to: b.user!.id, data: { k: 'offer', sdp: 'v=0 o=- 1 1 IN IP4 0.0.0.0 s=-' } });
+    await waitFor(() => b.signals.length === 1, 2000, 'b got the offer');
+    expect(b.signals[0]).toMatchObject({ code, from: a.user!.id, data: { k: 'offer' } });
+    expect(c.signals).toHaveLength(0);
+    raw(b, 'voice:signal', { code, to: a.user!.id, data: { k: 'ice', c: { candidate: 'candidate:1 1 udp 1 1.2.3.4 5 typ host', sdpMid: '0', sdpMLineIndex: 0, evil: '<x>' } } });
+    await waitFor(() => a.signals.length === 1, 2000, 'a got the candidate');
+    expect(a.signals[0].data).toEqual({ k: 'ice', c: { candidate: 'candidate:1 1 udp 1 1.2.3.4 5 typ host', sdpMid: '0', sdpMLineIndex: 0, usernameFragment: null } });
+    // junk, oversized and cross-room messages are dropped
+    raw(a, 'voice:signal', { code, to: b.user!.id, data: { k: 'offer', sdp: 'x'.repeat(30_000) } });
+    raw(a, 'voice:signal', { code, to: b.user!.id, data: { k: 'hack' } });
+    raw(a, 'voice:signal', { code, to: a.user!.id, data: { k: 'bye' } });
+    raw(stranger, 'voice:signal', { code, to: b.user!.id, data: { k: 'bye' } });
+    raw(a, 'voice:signal', { code, to: stranger.user!.id, data: { k: 'bye' } });
+    // fallback audio frames go to the listed members only
+    const frame = Buffer.alloc(960, 7).toString('base64');
+    raw(c, 'voice:audio', { code, to: [a.user!.id, b.user!.id, stranger.user!.id], d: frame });
+    await waitFor(() => a.audio.length === 1 && b.audio.length === 1, 2000, 'audio relayed');
+    expect(a.audio[0]).toEqual({ code, from: c.user!.id, d: frame });
+    raw(c, 'voice:audio', { code, to: [a.user!.id], d: 'not base64!' });
+    raw(c, 'voice:audio', { code, to: [a.user!.id], d: 'A'.repeat(5000) });
+    raw(stranger, 'voice:audio', { code, to: [a.user!.id], d: frame });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(a.audio).toHaveLength(1);
+    expect(b.signals).toHaveLength(1);
+    expect(stranger.signals.length + stranger.audio.length).toBe(0);
+    // TURN list for the browser (none configured here: empty, STUN is added by the client)
+    expect((await a.http('GET', '/api/voice/ice')).data).toEqual({ iceServers: [] });
+    expect((await fetch(srv.url + '/api/voice/ice')).status).toBe(401);
+    for (const p of [...ps, stranger]) p.disconnect();
+  });
+
   it('enforces host permissions and supports host transfer and leave with host migration', async () => {
     const { ps, code, host } = await roomWith(3);
     expect((await ps[1].act(code, 'select-game', { gameId: 'taboo' })).code).toBe('NOT_HOST');

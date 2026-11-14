@@ -59,5 +59,8 @@ export const limits = (ipScale = 1) => ({
   draw: new RateLimiter(120, 2),
   upload: new RateLimiter(20, 60),
   social: new RateLimiter(30, 60),
+  // voice: signalling bursts while connecting; audio frames are ~17/s while talking
+  voiceSignal: new RateLimiter(300, 10),
+  voiceAudio: new RateLimiter(80, 2),
 });
 export type Limits = ReturnType<typeof limits>;

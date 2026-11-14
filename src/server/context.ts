@@ -10,6 +10,7 @@ import type { Platform } from './platform.ts';
 import type { RoomManager } from './rooms/RoomManager.ts';
 import type { Storage, ImageSigner } from './storage/storage.ts';
 import type { VoiceService } from './voice/voice.ts';
+import type { IceService } from './voice/ice.ts';
 import type { TmdbService } from './content/tmdb.ts';
 import type { Limits } from './security/rateLimit.ts';
 import { AppError } from '../shared/errors.ts';
@@ -28,6 +29,8 @@ export interface AppContext {
   storage: Storage;
   signer: ImageSigner;
   voice: VoiceService;
+  /** optional TURN relays for the peer-to-peer voice mesh */
+  ice: IceService;
   tmdb: TmdbService;
   limits: Limits;
   io: Server<ClientToServerEvents, ServerToClientEvents>;

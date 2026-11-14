@@ -51,3 +51,36 @@ jobs:
             playwright-report
             test-results
           retention-days: 7
+
+  voice-browsers:
+    # voice chat between Chrome, Firefox and Safari's engine (WebKit) in one room
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: Install Chromium, Firefox and WebKit
+        run: |
+          npx playwright install --with-deps firefox webkit
+          npx playwright install --only-shell chromium
+      - name: Virtual sound card (CI machines have no audio device; real phones and PCs do)
+        run: |
+          sudo apt-get install -y -q pulseaudio >/dev/null || true
+          pulseaudio --start --exit-idle-time=-1 || true
+          pactl load-module module-null-sink sink_name=virtual || true
+      - name: Cross-browser voice tests
+        run: CROSS_BROWSER=1 npx playwright test voice-browsers
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: voice-browsers-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

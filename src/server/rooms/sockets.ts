@@ -146,6 +146,24 @@ export function attachSockets(io: Server<ClientToServerEvents, ServerToClientEve
       }),
     );
     socket.on(
+      'voice:signal',
+      handle(async (p) => {
+        limit('voiceSignal');
+        const u = await user();
+        ctx.rooms.voiceSignal(u, p ?? {});
+        return null;
+      }),
+    );
+    socket.on(
+      'voice:audio',
+      handle(async (p) => {
+        // audio frames are frequent: no session re-check per frame (the socket was authenticated, bans disconnect it)
+        if (!ctx.limits.voiceAudio.take(userId)) return null;
+        ctx.rooms.voiceAudio({ id: userId } as UserRow, p ?? {});
+        return null;
+      }),
+    );
+    socket.on(
       'draw:sync',
       handle(async (p: { code: string }) => ctx.rooms.drawSync(userId, p?.code)),
     );
