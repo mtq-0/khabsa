@@ -29,8 +29,9 @@ const inVoice = (page: Page, n: number) => page.getByText(`بالصوت (${n})`)
 const ringOf = (page: Page, who: string) => page.getByTestId('players-list').locator('li', { hasText: who }).locator('[role="img"]').first();
 
 async function context(b: Browser, blockDirect: boolean): Promise<BrowserContext> {
-  const ctx = await b.newContext({ viewport: { width: 1366, height: 900 }, locale: 'ar' });
-  await ctx.grantPermissions(['microphone']).catch(() => {}); // not every engine knows this permission
+  // the microphone permission only exists in Chromium; Firefox grants it via prefs, WebKit has a mock microphone
+  const chromium = b.browserType().name() === 'chromium';
+  const ctx = await b.newContext({ viewport: { width: 1366, height: 900 }, locale: 'ar', permissions: chromium ? ['microphone'] : [] });
   if (blockDirect) await ctx.addInitScript(() => localStorage.setItem('khabsa:voice:test-block-direct', '1'));
   return ctx;
 }
