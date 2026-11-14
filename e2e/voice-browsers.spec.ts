@@ -36,8 +36,9 @@ async function context(b: Browser, blockDirect: boolean): Promise<BrowserContext
 }
 
 async function play(browser: Browser, baseURL: string, blocked: 'none' | 'firefox' | 'webkit') {
-  const ff = await firefox.launch({ firefoxUserPrefs: FIREFOX_PREFS });
-  const wk = await webkit.launch();
+  // explicit args: the Chromium fake-mic flags from test.use() must not reach the other engines
+  const ff = await firefox.launch({ args: [], firefoxUserPrefs: FIREFOX_PREFS });
+  const wk = await webkit.launch({ args: [] });
   const players: { name: string; page: Page }[] = [];
   const errors: string[] = [];
   try {
