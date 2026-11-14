@@ -6,6 +6,7 @@ import { StatsService } from '../src/server/stats/stats.ts';
 import { csvToItems, parseCsv } from '../src/server/content/csv.ts';
 import { seed, seedPosters } from '../src/server/db/seed/seed.ts';
 import { loadPosters } from '../src/server/db/seed/posters.ts';
+import { OUTSIDER_WORDS, parseWord } from '../src/server/db/seed/words.ts';
 import { randomUUID } from 'node:crypto';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -166,7 +167,7 @@ describe('content system', () => {
        where c.kind = 'word' and c.category in ('cartoons','movies','tv')`,
     );
     expect(r.rows[0].n).toBeGreaterThan(200);
-    expect(r.rows[0].with_img).toBeGreaterThanOrEqual(89); // the original drawn cards
+    expect(r.rows[0].with_img).toBeGreaterThanOrEqual(79); // the drawn cards (89, minus 10 words removed in the word clean-up)
     // with the real poster list, every word has a drawn card or a poster, except a few generic ones
     const real = loadPosters(new URL('../src/server/db/seed/posters.json', import.meta.url).pathname);
     const words = await db.query<{ word: string; img: boolean; poster: boolean }>(
@@ -202,6 +203,36 @@ describe('content system', () => {
     const old = await db.query<{ status: string }>(`select status from content_items where dedupe_key = 'old-dialect-test'`);
     expect(old.rows[0].status).toBe('disabled');
     expect((await db.query<{ n: number }>(`select count(*)::int n from content_items where kind = 'draw-word' and status = 'active'`)).rows[0].n).toBe(n);
+  });
+
+  it('مين برا السالفة words: no word twice, and on upgrade removed words are switched off and moved words change category', async () => {
+    // the list itself: every word once across all categories (normalised: hamza, ال, ة, spaces)
+    const norm = (s: string) => s.replace(/[ًٌٍَُِّْ]/g, '').replace(/[أإآ]/g, 'ا').replace(/^ال/, '').replace(/ة$/, 'ه').replace(/\s+/g, '');
+    const seen = new Map<string, string>();
+    for (const [cat, ws] of Object.entries(OUTSIDER_WORDS))
+      for (const w of ws) {
+        const word = parseWord(w).word;
+        const k = norm(word);
+        if (seen.has(k) && !['عمان'].includes(k)) throw new Error(`${word} (${cat}) repeats ${seen.get(k)}`);
+        seen.set(k, `${word} (${cat})`);
+      }
+    for (const ws of Object.values(OUTSIDER_WORDS)) expect(ws.length).toBeGreaterThanOrEqual(40);
+    // an old database: a removed word, a renamed word, and a word in its old category
+    const ins = (word: string, cat: string, key: string) =>
+      db.query(`insert into content_items (kind, category, difficulty, data, dedupe_key) values ('word', $2, 'medium', jsonb_build_object('word', $1::text), $3)`, [word, cat, key]);
+    await db.query(`delete from content_items where kind = 'word' and data->>'word' in ('حلاق', 'سبونج بوب')`);
+    await ins('المتحري كونان', 'tv', 'old-word-1');
+    await ins('بارلبي', 'movies', 'old-word-2');
+    await ins('حلاق', 'places', 'old-word-3');
+    await ins('سبونج بوب', 'tv', 'old-word-4');
+    await seed(db, new Storage(db));
+    const row = async (key: string) => (await db.query<{ status: string; category: string }>(`select status, category from content_items where dedupe_key = $1`, [key])).rows[0];
+    expect((await row('old-word-1')).status).toBe('disabled');
+    expect((await row('old-word-2')).status).toBe('disabled');
+    expect(await row('old-word-3')).toEqual({ status: 'active', category: 'professions' });
+    expect(await row('old-word-4')).toEqual({ status: 'active', category: 'cartoons' });
+    // the renamed word is there under its new name
+    expect((await db.query(`select 1 from content_items where kind = 'word' and status = 'active' and data->>'word' = 'باربي'`)).rows).toHaveLength(1);
   });
 
   it('مين برا الصورة؟ is real photos only: every pair has WebP photos stored in the database and their credits', async () => {

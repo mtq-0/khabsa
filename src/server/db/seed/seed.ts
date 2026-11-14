@@ -6,7 +6,7 @@ import type { ContentKind } from '../../games/types.ts';
 import { GAME_IDS } from '../../../shared/games.ts';
 import { ACHIEVEMENTS } from '../../stats/stats.ts';
 import { CATEGORIES } from './categories.ts';
-import { DRAW_WORDS, DRAW_WORD_SET, OUTSIDER_WORDS, parseWord } from './words.ts';
+import { DRAW_WORDS, DRAW_WORD_SET, OUTSIDER_WORDS, REVISED_OUTSIDER_WORDS, parseWord } from './words.ts';
 import { QUESTION_PAIRS } from './questionPairs.ts';
 import { MORE_QUESTION_PAIRS } from './more/questions.ts';
 import { MORE_MOST_LIKELY } from './more/party.ts';
@@ -75,6 +75,25 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
     [[...DRAW_WORD_SET]],
   );
   if (oldDraw.rowCount) log(`switched off ${oldDraw.rowCount} old drawing words`);
+
+  // مين برا السالفة clean-up of the words in REVISED_OUTSIDER_WORDS only (admin edits to other words are kept):
+  // a word that is no longer in the list is switched off, one that is still there moves to its current category.
+  const currentCat = new Map(Object.entries(OUTSIDER_WORDS).flatMap(([cat, ws]) => ws.map((w) => [parseWord(w).word, { cat, difficulty: parseWord(w).difficulty }] as const)));
+  const gone = REVISED_OUTSIDER_WORDS.filter((w) => !currentCat.has(w));
+  const retired = await db.query(
+    `update content_items set status = 'disabled', updated_at = now()
+      where kind = 'word' and pack_id is null and created_by is null and status = 'active' and data->>'word' = any($1::text[])`,
+    [gone],
+  );
+  if (retired.rowCount) log(`switched off ${retired.rowCount} retired outsider words`);
+  const moves = REVISED_OUTSIDER_WORDS.filter((w) => currentCat.has(w)).map((w) => [w, currentCat.get(w)!] as const);
+  const moved = await db.query(
+    `update content_items c set category = n.cat, difficulty = n.difficulty, updated_at = now()
+      from unnest($1::text[], $2::text[], $3::text[]) as n(word, cat, difficulty)
+      where c.kind = 'word' and c.pack_id is null and c.created_by is null and c.data->>'word' = n.word and c.category <> n.cat`,
+    [moves.map(([w]) => w), moves.map(([, c]) => c.cat), moves.map(([, c]) => c.difficulty)],
+  );
+  if (moved.rowCount) log(`moved ${moved.rowCount} outsider words to their new category`);
 
   // one taboo card per word: switch off older built-in duplicates (same word, different forbidden list)
   const dupTaboo = await db.query(
