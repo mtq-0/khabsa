@@ -385,25 +385,32 @@ test('background music plays and can be switched off; every press makes a sound 
     };
   });
   const osc = () => p.page.evaluate(() => (window as unknown as { __osc: number }).__osc);
+  // the song: is it playing, how far, how loud
+  const song = () => p.page.evaluate(() => {
+    const m = (window as unknown as { __khabsaMusic?: () => { playing: boolean; time: number; volume: number } }).__khabsaMusic?.();
+    return m ?? { playing: false, time: 0, volume: 0 };
+  });
   await p.page.goto('/create');
   await guest(p.page, 'دي جي');
   await p.page.getByTestId('create-submit').click();
   await expect(p.page).toHaveURL(/\/r\//);
   await expect(p.page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'true');
 
-  // music: notes keep coming with nobody touching anything
-  await p.page.mouse.click(5, 300); // a gesture on empty space (browsers need one before audio)
-  const t0 = await osc();
+  // music: the song plays by itself after the first tap (browsers need one before audio)
+  await p.page.mouse.click(5, 300);
+  await expect.poll(async () => (await song()).playing, { timeout: 10_000 }).toBe(true);
+  const t0 = (await song()).time;
   await p.page.waitForTimeout(2500);
-  expect((await osc()) - t0).toBeGreaterThan(8);
+  const s1 = await song();
+  expect(s1.time).toBeGreaterThan(t0 + 1.5);
+  expect(s1.volume).toBeGreaterThan(0.05);
+  expect(s1.volume).toBeLessThanOrEqual(0.3);
 
   // music off: silence (after a short fade)
   await p.page.getByTestId('music-toggle').click();
   await expect(p.page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'false');
-  await p.page.waitForTimeout(600);
+  await expect.poll(async () => (await song()).playing, { timeout: 5000 }).toBe(false);
   const t1 = await osc();
-  await p.page.waitForTimeout(2000);
-  expect(await osc()).toBe(t1);
 
   // a press makes a sound
   await p.page.getByTestId('invite-btn').click();

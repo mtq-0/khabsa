@@ -7,7 +7,7 @@ import { extname, join, normalize, resolve } from 'node:path';
 const root = resolve('dist-pages');
 const base = process.env.PAGES_BASE ?? '/khabsa/';
 const port = Number(process.argv[2] ?? 4173);
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff', '.webmanifest': 'application/manifest+json', '.mp3': 'audio/mpeg' };
 
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', 'http://x');
