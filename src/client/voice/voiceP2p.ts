@@ -56,6 +56,8 @@ interface Peer {
   /** what we received from this player: RTP bytes / audio energy (direct) and relay frames */
   rx: { bytes: number; energy: number; level: number; at: number; relayFrames: number };
   txBytes: number;
+  /** every inbound/outbound audio stats entry of the last poll (diagnostics) */
+  statsDump: string[];
 }
 
 let code: string | null = null;
@@ -86,7 +88,7 @@ if (typeof window !== 'undefined')
     ctx: (fallbackCtx ?? audioContext())?.state,
     present: [...present],
     error: useVoice.getState().error,
-    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames, txBytes: p.txBytes, transceivers: p.pc?.getTransceivers().map((t) => `${t.direction}/${t.currentDirection}/${t.sender.track?.readyState ?? 'none'}/${t.receiver.track?.readyState ?? 'none'}`), localSdp: (p.pc?.localDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14), remoteSdp: (p.pc?.remoteDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14) })),
+    peers: [...peers.values()].map((p) => ({ id: p.id, polite: p.polite, mode: p.mode, connected: p.connected, pc: p.pc?.connectionState, ice: p.pc?.iceConnectionState, signaling: p.pc?.signalingState, rxBytes: p.rx.bytes, rxEnergy: p.rx.energy, rxLevel: p.rx.level, relayFrames: p.rx.relayFrames, txBytes: p.txBytes, stats: p.statsDump, transceivers: p.pc?.getTransceivers().map((t) => `${t.direction}/${t.currentDirection}/${t.sender.track?.readyState ?? 'none'}/${t.receiver.track?.readyState ?? 'none'}`), localSdp: (p.pc?.localDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14), remoteSdp: (p.pc?.remoteDescription?.sdp ?? '').split('\n').filter((l) => /^(m=|a=(sendrecv|recvonly|sendonly|inactive|mid|ssrc:|msid|setup|extmap))/.test(l)).map((l) => l.trim().slice(0, 70)).slice(0, 14) })),
   });
 
 // ---------------------------------------------------------------- audio helpers
@@ -232,7 +234,7 @@ function applyVolume(p: Peer) {
 const send = (to: string, data: VoiceSignal) => code && roomSock().emit('voice:signal', { code, to, data });
 
 function newPeer(id: string): Peer {
-  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0, lastOffer: 0, rx: { bytes: 0, energy: 0, level: 0, at: 0, relayFrames: 0 }, txBytes: 0 };
+  const p: Peer = { id, polite: myId > id, pc: null, makingOffer: false, ignoreOffer: false, pendingIce: [], el: null, analyser: null, mode: 'direct', connected: false, startedAt: Date.now(), disconnectedAt: 0, restarts: 0, lastNudge: 0, lastOffer: 0, rx: { bytes: 0, energy: 0, level: 0, at: 0, relayFrames: 0 }, txBytes: 0, statsDump: [] };
   peers.set(id, p);
   setPeerState(id, 'connecting');
   return p;
@@ -481,16 +483,30 @@ async function pollStats() {
     for (const p of peers.values()) {
       if (!p.pc || !p.connected) continue;
       const report = await p.pc.getStats().catch(() => null);
-      report?.forEach((r: RTCStats & { kind?: string; mediaType?: string; bytesReceived?: number; bytesSent?: number; totalAudioEnergy?: number; audioLevel?: number }) => {
-        if (r.type === 'outbound-rtp' && (r.kind ?? r.mediaType) === 'audio') p.txBytes = r.bytesSent ?? 0;
-        if (r.type !== 'inbound-rtp' || (r.kind ?? r.mediaType) !== 'audio') return;
-        const energy = r.totalAudioEnergy ?? 0;
-        const bytes = r.bytesReceived ?? 0;
-        // audioLevel is instant (0..1); from energy we can also derive the level over the last poll
-        const dt = (performance.now() - p.rx.at) / 1000;
-        const fromEnergy = dt > 0 && energy > p.rx.energy ? Math.sqrt((energy - p.rx.energy) / dt) : 0;
-        p.rx = { ...p.rx, bytes, energy, level: Math.max(r.audioLevel ?? 0, fromEnergy), at: performance.now() };
+      if (!report) continue;
+      // a call can have several inbound-rtp entries (a stale one from an earlier negotiation, a probe
+      // stream...): add them up instead of trusting whichever one comes last
+      let bytes = 0;
+      let energy = 0;
+      let instant = 0;
+      let sent = 0;
+      const dump: string[] = [];
+      report.forEach((r: RTCStats & { kind?: string; mediaType?: string; bytesReceived?: number; bytesSent?: number; totalAudioEnergy?: number; audioLevel?: number; ssrc?: number; packetsReceived?: number; packetsLost?: number }) => {
+        if ((r.kind ?? r.mediaType) !== 'audio') return;
+        if (r.type === 'inbound-rtp' || r.type === 'outbound-rtp') dump.push(`${r.type} ssrc=${r.ssrc} bytes=${r.bytesReceived ?? r.bytesSent} pk=${r.packetsReceived ?? ''} lost=${r.packetsLost ?? ''} energy=${(r.totalAudioEnergy ?? 0).toFixed(3)}`);
+        if (r.type === 'outbound-rtp') sent += r.bytesSent ?? 0;
+        if (r.type === 'inbound-rtp') {
+          bytes += r.bytesReceived ?? 0;
+          energy += r.totalAudioEnergy ?? 0;
+          instant = Math.max(instant, r.audioLevel ?? 0);
+        }
       });
+      p.txBytes = sent;
+      p.statsDump = dump;
+      // loudness over the last poll, from the energy counter (works without Web Audio) or the instant level
+      const dt = (performance.now() - p.rx.at) / 1000;
+      const fromEnergy = dt > 0 && dt < 5 && energy > p.rx.energy ? Math.sqrt((energy - p.rx.energy) / dt) : 0;
+      p.rx = { ...p.rx, bytes, energy: Math.max(energy, p.rx.energy), level: Math.max(instant, fromEnergy), at: performance.now() };
     }
   } finally {
     statsBusy = false;
