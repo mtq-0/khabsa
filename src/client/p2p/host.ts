@@ -235,7 +235,7 @@ export class Hub {
         reply(id, { ok: false, code: 'SERVER_ERROR', message: ERROR_MESSAGES_AR.SERVER_ERROR });
       }
     };
-    const limit = (bucket: 'roomJoin' | 'action' | 'chat' | 'draw') => {
+    const limit = (bucket: 'roomJoin' | 'action' | 'chat' | 'draw' | 'voiceSignal') => {
       if (!local && !this.limits[bucket].take(user!.id)) throw new AppError('RATE_LIMITED');
     };
 
@@ -261,6 +261,23 @@ export class Hub {
         }
         if (!user || !sock) return;
         if (m.t === 'emit') {
+          if (m.ev === 'voice:signal' || m.ev === 'voice:audio') {
+            // voice mesh: same checks as the server, then hand it to the addressed player(s)
+            try {
+              const room = this.rooms.roomByCode(this.code);
+              if (!room || !room.members.has(user.id)) return;
+              if (m.ev === 'voice:signal') {
+                limit('voiceSignal');
+                this.rooms.voiceSignal(user, (m.p ?? {}) as never);
+              } else {
+                if (!local && !this.limits.voiceAudio.take(user.id)) return;
+                this.rooms.voiceAudio(user, (m.p ?? {}) as never);
+              }
+            } catch {
+              /* invalid / rate limited: dropped */
+            }
+            return;
+          }
           if (m.ev === 'voice:presence') {
             const on = !!(m.p as { on?: unknown } | undefined)?.on;
             if (on) this.voice.add(user.id);

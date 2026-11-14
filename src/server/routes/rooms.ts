@@ -96,6 +96,13 @@ export function roomRoutes(app: FastifyInstance, ctx: AppContext) {
   });
 
   // ------------------------------------------------------------------ voice
+  /** TURN relays for the peer-to-peer voice mesh (empty when none is configured; STUN is added by the browser) */
+  app.get('/api/voice/ice', async (req, reply) => {
+    const u = requireUser(req);
+    rateLimit(ctx, 'roomJoin', `ice:${u.id}`);
+    reply.header('Cache-Control', 'private, no-store');
+    return { iceServers: await ctx.ice.servers() };
+  });
   app.post('/api/voice/token', async (req) => {
     const u = requireUser(req);
     rateLimit(ctx, 'roomJoin', `voice:${u.id}`);

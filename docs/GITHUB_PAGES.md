@@ -32,7 +32,8 @@
 
 ## Voice chat on the GitHub Pages edition
 
-Voice works peer to peer (WebRTC mesh over PeerJS, `src/client/voice/voiceP2p.ts`), no server needed.
-- Every browser announces "I am in voice" over the room link (the host relays it), and for every pair only the player with the smaller id dials the other, so two calls never collide.
-- Good for rooms of up to about 6–8 people in voice.
-- **Strict networks.** Direct connections can fail on some mobile-data / carrier networks and corporate Wi-Fi. The panel then says which players it could not reach. The fix is a TURN relay: create a free account (for example at metered.ca "Open Relay", 20 GB/month, or Cloudflare Calls TURN), then put the ICE servers next to the site as `turn.json` (a JSON array such as `[{"urls":"turn:…","username":"…","credential":"…"}]`). The file is optional, is loaded when somebody joins voice and is *not* kept in the repo: add it to the `gh-pages` branch only (its contents are public to everyone who opens the site, as with any browser-side TURN setup).
+Voice works peer to peer (WebRTC mesh, `src/client/voice/voiceP2p.ts`), and needs no server:
+- Offers, answers and ICE candidates travel over the room link. The hosting browser relays them, together with who is in voice.
+- If two browsers cannot connect directly (strict mobile networks), their audio goes through the host's link instead (`voice:audio`, compressed, only while talking). Everybody who can play can also hear everybody.
+- Good for rooms of up to about 8 people in voice.
+- Optional TURN relay for better quality on strict networks: put the ICE servers next to the site as `turn.json` (a JSON array such as `[{"urls":"turn:…","username":"…","credential":"…"}]`, for example from a free metered.ca account). The file is loaded when somebody joins voice. Keep it out of the repo and add it to the `gh-pages` branch only, because its contents are public to everyone who opens the site.

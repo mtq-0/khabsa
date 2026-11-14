@@ -81,21 +81,22 @@ export function VoicePanel({ view }: { view: RoomView }) {
       {v.error && <p className="text-xs text-zing-400">{v.error}</p>}
       {(() => {
         const names = (st: string) => view.members.filter((m) => v.peerState[m.id] === st).map((m) => m.name).join('، ');
-        const failed = names('failed');
         const connecting = names('connecting');
-        if (failed)
-          return (
-            <p className="text-xs text-sun-400" data-testid="voice-failed">
-              ما قدرنا نوصل الصوت مع {failed}. غالبًا شبكة الموبايل أو الواي فاي بتمنع الاتصال المباشر. جرّبوا واي فاي ثاني، أو اطلبوا منهم يطلعوا من الصوت وينضموا من جديد.
-            </p>
-          );
-        if (connecting)
-          return (
-            <p className="text-xs text-ink-400" data-testid="voice-connecting">
-              عم نوصل مع {connecting}...
-            </p>
-          );
-        return null;
+        const relay = names('relay');
+        return (
+          <>
+            {connecting && (
+              <p className="text-xs text-ink-400" data-testid="voice-connecting">
+                عم نوصل الصوت مع {connecting}...
+              </p>
+            )}
+            {relay && (
+              <p className="text-xs text-ink-400" data-testid="voice-relay">
+                الصوت مع {relay} ماشي عبر الخادم (الشبكة بتمنع الاتصال المباشر). شغّال، بس الجودة أقل شوي.
+              </p>
+            )}
+          </>
+        );
       })()}
       {showMixer && (
         <div className="space-y-2 pt-1">

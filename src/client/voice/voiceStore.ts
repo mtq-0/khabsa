@@ -15,7 +15,7 @@ export interface VoiceState {
   volumes: Record<string, number>;
   needsAudioUnlock: boolean;
   /** serverless edition: connection state per other player in voice (undefined = not in voice) */
-  peerState: Record<string, 'connecting' | 'connected' | 'failed'>;
+  peerState: Record<string, 'connecting' | 'connected' | 'relay' | 'failed'>;
 }
 
 export const useVoice = create<VoiceState>(() => ({

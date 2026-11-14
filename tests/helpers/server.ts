@@ -47,6 +47,8 @@ export class Player {
   draws: unknown[] = [];
   /** latest list of players in voice (voice:presence) */
   voiceIds: string[] = [];
+  signals: { from: string; data: any }[] = [];
+  audio: { from: string; d: string }[] = [];
   base: string;
   constructor(base: string) {
     this.base = base;
@@ -96,6 +98,8 @@ export class Player {
     s.on('room:chat', (m) => this.chats.push(m));
     s.on('draw:event', (e) => this.draws.push(e));
     s.on('voice:presence', (p) => (this.voiceIds = p.ids));
+    s.on('voice:signal', (p) => this.signals.push(p));
+    s.on('voice:audio', (p) => this.audio.push(p));
     await new Promise<void>((resolve, reject) => {
       s.once('connect', () => resolve());
       s.once('connect_error', (e) => reject(e));

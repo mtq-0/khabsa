@@ -166,8 +166,21 @@ export interface ClientToServerEvents {
   'draw:sync': (p: { code: string }, ack: Ack<{ turnKey: string; segments: DrawSegment[] }>) => void;
   /** I am in (on) / out of (off) the room's peer-to-peer voice chat */
   'voice:presence': (p: { code: string; on: boolean }, ack?: Ack<null>) => void;
+  /** WebRTC signalling for the voice mesh, relayed to one other player in the room */
+  'voice:signal': (p: { code: string; to: string; data: VoiceSignal }) => void;
+  /** fallback audio (one compressed frame) relayed to the listed players when no direct connection works */
+  'voice:audio': (p: { code: string; to: string[]; d: string }) => void;
   'presence:ping': (ack: Ack<{ now: number }>) => void;
 }
+
+/** Voice mesh signalling: SDP offer/answer, ICE candidates, "please restart ICE", "use the relay", "I hung up". */
+export type VoiceSignal =
+  | { k: 'offer' | 'answer'; sdp: string }
+  | { k: 'ice'; c: { candidate: string; sdpMid?: string | null; sdpMLineIndex?: number | null; usernameFragment?: string | null } | null }
+  | { k: 'restart' }
+  /** the direct connection did not work: switch this pair to audio through the room link */
+  | { k: 'relay' }
+  | { k: 'bye' };
 
 export interface ServerToClientEvents {
   'room:state': (room: RoomView) => void;
@@ -178,6 +191,8 @@ export interface ServerToClientEvents {
   'draw:event': (p: DrawEvent) => void;
   /** who is in the room's peer-to-peer voice chat right now */
   'voice:presence': (p: { ids: string[] }) => void;
+  'voice:signal': (p: { code: string; from: string; data: VoiceSignal }) => void;
+  'voice:audio': (p: { code: string; from: string; d: string }) => void;
   'invite:new': (p: InviteView) => void;
   'friends:update': () => void;
 }

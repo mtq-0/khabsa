@@ -3,7 +3,9 @@
 # - database: paste a free Neon Postgres connection string into DATABASE_URL
 #   (Render's own free Postgres expires after 30 days, Neon's free plan does not)
 # - files (avatars, game pictures) are stored in Postgres, so no disk is needed
-# Voice is optional: add LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET later.
+# Voice works out of the box (peer to peer, with a fallback through this server).
+# Optional: CLOUDFLARE_TURN_KEY_ID + CLOUDFLARE_TURN_KEY_API_TOKEN (free TURN relay, better
+# quality on strict mobile networks), or LIVEKIT_* for big rooms.
 # To upgrade later: change plan to "starter" (no sleeping).
 services:
   - type: web
@@ -36,4 +38,8 @@ services:
       - key: LIVEKIT_API_KEY
         sync: false
       - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: CLOUDFLARE_TURN_KEY_ID
+        sync: false
+      - key: CLOUDFLARE_TURN_KEY_API_TOKEN
         sync: false
