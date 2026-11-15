@@ -27,7 +27,7 @@ function JoinForm() {
   const submit = async () => {
     const c = normalizeRoomCode(code);
     if (!ROOM_CODE_RE.test(c)) {
-      setErr({ text: 'رمز الغرفة لازم يكون 6 أحرف أو أرقام إنجليزية (بدون O و I و 0 و 1).', retry: false });
+      setErr({ text: 'رمز الغرفة لازم يكون 6 أحرف أو أرقام إنجليزية (بدون O و I و L و 0 و 1).', retry: false });
       return;
     }
     if (PAGES) {

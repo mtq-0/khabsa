@@ -93,7 +93,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
     case 'reveal':
       return (
         <div>
-          <PhaseHeader game={g} title="شوف بطاقتك 🤫" subtitle="محدا غيرك شايفها" total={12} />
+          <PhaseHeader game={g} title="شوف بطاقتك 🤫" subtitle="ما حدا غيرك شايفها" total={12} />
           <RoleCard g={g} />
           <div className="mt-6 text-center">
             {me.isPlayer && (
@@ -254,7 +254,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
                     {name(v)} ← {name(t)} {outsiders.includes(t) && !outsiders.includes(v) ? '✅' : ''}
                   </li>
                 ))}
-                {!Object.keys(r.votes).length && <li className="text-ink-400">محدا صوّت 🤷</li>}
+                {!Object.keys(r.votes).length && <li className="text-ink-400">ما حدا صوّت 🤷</li>}
               </ul>
               <p className="mt-4 mb-2 font-bold">نقاط الجولة</p>
               <div className="flex flex-wrap gap-2">

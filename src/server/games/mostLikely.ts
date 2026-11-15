@@ -47,7 +47,7 @@ export function createMostLikelyEngine(): GameEngine<MostLikelyState> {
     if (s.round >= s.totalRounds) {
       const res = rankingFromScores(s);
       const byTitles = Object.entries(s.titles).sort((a, b) => b[1].length - a[1].length);
-      res.awards = byTitles.slice(0, 3).map(([pid, t]) => ({ playerId: pid, title: `${t.length} ألقاب — آخرها: ${t[t.length - 1]}`, emoji: '🏅' }));
+      res.awards = byTitles.slice(0, 3).map(([pid, t]) => ({ playerId: pid, title: `عدد الألقاب: ${t.length} — آخرها: ${t[t.length - 1]}`, emoji: '🏅' }));
       finish(s, ctx, res);
     } else startRound(s, ctx);
   }

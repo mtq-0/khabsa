@@ -39,7 +39,7 @@ export function PhaseHeader({ game, title, subtitle, total }: { game: GameViewBa
         <h2 className="font-display text-3xl leading-tight sm:text-4xl">{title}</h2>
         {subtitle && <p className="mt-1 text-sm text-ink-300">{subtitle}</p>}
       </div>
-      <Countdown deadline={game.deadline} offset={clockOffset} total={total} />
+      <Countdown deadline={game.deadline} offset={clockOffset} total={game.phaseSeconds || total} />
     </div>
   );
 }

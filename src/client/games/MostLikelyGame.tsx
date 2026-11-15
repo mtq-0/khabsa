@@ -48,7 +48,7 @@ export function MostLikelyGame({ view }: { view: RoomView }) {
                   <PlayerTag m={byId.get(w)} size={64} />
                 </div>
               ))}
-              {!g.result.winners.length && <p className="text-ink-300">محدا صوّت 😶</p>}
+              {!g.result.winners.length && <p className="text-ink-300">ما حدا صوّت 😶</p>}
             </div>
             <div className="card space-y-2 p-4">
               {g.players

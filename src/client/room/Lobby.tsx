@@ -123,7 +123,7 @@ function CategoryPicker({ label, value, cats, disabled, onChange }: { label: str
           );
         })}
       </div>
-      {!all && <p className="mt-1.5 text-xs text-ink-400">بنخلط بين الفئات اللي اخترتها بالتساوي.</p>}
+      {!all && <p className="mt-1.5 text-xs text-ink-400">بنخلط بين التصنيفات اللي اخترتها بالتساوي.</p>}
     </div>
   );
 }

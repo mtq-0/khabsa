@@ -30,7 +30,7 @@ export async function api<T = unknown>(path: string, opts: { method?: string; bo
     });
   } catch {
     if (ctrl.signal.reason === 'timeout') throw new ApiError('TIMEOUT');
-    if (ctrl.signal.reason === 'cancelled') throw new ApiError('NETWORK', 'أُلغي الطلب');
+    if (ctrl.signal.reason === 'cancelled') throw new ApiError('NETWORK', 'انلغى الطلب');
     throw new ApiError('NETWORK');
   } finally {
     clearTimeout(timer);

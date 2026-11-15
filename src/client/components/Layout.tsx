@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
-import { Gamepad2, Home, Trophy, Users, Settings, Shield, LogIn, WifiOff, RefreshCw } from 'lucide-react';
+import { Gamepad2, Home, Trophy, Users, Settings, Shield, LogIn, WifiOff, RefreshCw, PlusCircle } from 'lucide-react';
 import { GAMES } from '../../shared/games.ts';
 import type { InviteView } from '../../shared/protocol.ts';
 import { useSession } from '../lib/session.ts';
@@ -16,8 +16,8 @@ const NAV = PAGES
   ? [
       { to: '/', label: 'الرئيسية', icon: Home, end: true },
       { to: '/games', label: 'الألعاب', icon: Gamepad2 },
-      { to: '/create', label: 'غرفة جديدة', icon: Users },
-      { to: '/join', label: 'ادخل غرفة', icon: Trophy },
+      { to: '/create', label: 'غرفة جديدة', icon: PlusCircle },
+      { to: '/join', label: 'ادخل غرفة', icon: LogIn },
     ]
   : [
       { to: '/', label: 'الرئيسية', icon: Home, end: true },

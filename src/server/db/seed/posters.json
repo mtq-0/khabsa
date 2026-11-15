@@ -420,12 +420,6 @@
   "path": "/50k1iMqxCv5d2fM2wH7oCgU75f9.jpg",
   "title": "جوني برافو"
  },
- "بوب العمار": {
-  "tmdbId": 10938,
-  "type": "tv",
-  "path": "/jfIAxRMSLuMjczB0ezl8L9Ukzfi.jpg",
-  "title": "بوب البناء"
- },
  "كونغ فو باندا أساطير الروعة": {
   "tmdbId": 39898,
   "type": "tv",
@@ -581,18 +575,6 @@
   "type": "movie",
   "path": "/7IPphkYx3m8ZSko2rUqUaUIBrPj.jpg",
   "title": "السرعة والغضب"
- },
- "الكيف": {
-  "tmdbId": 157382,
-  "type": "tv",
-  "path": "/2jbNW09MW18Wfd46px5VAbMMUmQ.jpg",
-  "title": "الكيف"
- },
- "الإرهاب والكباب": {
-  "tmdbId": 63729,
-  "type": "movie",
-  "path": "/3ccETdkswnXd2kY10DBBie5pKNY.jpg",
-  "title": "الإرهاب والكباب‎‎"
  },
  "باربي": {
   "tmdbId": 346698,
@@ -972,12 +954,6 @@
   "path": "/15xIeh33jwjdsrR5sIybahnRjpm.jpg",
   "title": "الهيبة"
  },
- "جن": {
-  "tmdbId": 88589,
-  "type": "tv",
-  "path": "/lzM1DpyGJJ84JzBLZnS2zlVjPQ7.jpg",
-  "title": "جن"
- },
  "نجوم الأردن": null,
  "أبو عواد": {
   "tmdbId": 256704,
@@ -1113,12 +1089,6 @@
   "path": "/b192ygPjNQxd1ND24WxgXpSNury.jpg",
   "title": "ليالي الحلمية"
  },
- "رأفت الهجان": {
-  "tmdbId": 90674,
-  "type": "tv",
-  "path": "/cnToOn9QjqUlKa5EGhXPb38Be2g.jpg",
-  "title": "رأفت الهجان"
- },
  "الاختيار": {
   "tmdbId": 102045,
   "type": "tv",
@@ -1184,12 +1154,6 @@
   "type": "tv",
   "path": "/rrn1BT06DUkSnzqFBUTad5C10Lp.jpg",
   "title": "قيامة أرطغرل"
- },
- "العشق الممنوع": {
-  "tmdbId": 17635,
-  "type": "tv",
-  "path": "/qaa811KGlxqeYqbgS5vK0cXKG9L.jpg",
-  "title": "العشق الممنوع"
  },
  "نور": {
   "tmdbId": 70926,
@@ -1376,5 +1340,11 @@
   "type": "tv",
   "path": "/wztqq3SWfdzcuxvl9oA2HwOXasO.jpg",
   "title": "Shark Tank"
+ },
+ "بوب البناء": {
+  "tmdbId": 10938,
+  "type": "tv",
+  "path": "/jfIAxRMSLuMjczB0ezl8L9Ukzfi.jpg",
+  "title": "بوب البناء"
  }
 }

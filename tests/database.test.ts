@@ -4,7 +4,7 @@ import { ContentRepo, validateContent } from '../src/server/content/content.ts';
 import { photoPairs } from '../src/server/db/seed/photoSeed.ts';
 import { StatsService } from '../src/server/stats/stats.ts';
 import { csvToItems, parseCsv } from '../src/server/content/csv.ts';
-import { seed, seedPosters } from '../src/server/db/seed/seed.ts';
+import { applyContentRevisions, loadContentRevisions, seed, seedPosters } from '../src/server/db/seed/seed.ts';
 import { loadPosters } from '../src/server/db/seed/posters.ts';
 import { OUTSIDER_WORDS, parseWord } from '../src/server/db/seed/words.ts';
 import { randomUUID } from 'node:crypto';
@@ -167,7 +167,7 @@ describe('content system', () => {
        where c.kind = 'word' and c.category in ('cartoons','movies','tv')`,
     );
     expect(r.rows[0].n).toBeGreaterThan(200);
-    expect(r.rows[0].with_img).toBeGreaterThanOrEqual(79); // the drawn cards (89, minus 10 words removed in the word clean-up)
+    expect(r.rows[0].with_img).toBeGreaterThanOrEqual(70); // the drawn cards (89, minus the words removed in the content reviews)
     // with the real poster list, every word has a drawn card or a poster, except a few generic ones
     const real = loadPosters(new URL('../src/server/db/seed/posters.json', import.meta.url).pathname);
     const words = await db.query<{ word: string; img: boolean; poster: boolean }>(
@@ -233,6 +233,51 @@ describe('content system', () => {
     expect(await row('old-word-4')).toEqual({ status: 'active', category: 'cartoons' });
     // the renamed word is there under its new name
     expect((await db.query(`select 1 from content_items where kind = 'word' and status = 'active' and data->>'word' = 'باربي'`)).rows).toHaveLength(1);
+  });
+
+  it('content revisions: an old database gets the reviewed content (removed items off, fixed items updated), admin edits kept, once', async () => {
+    const steps = loadContentRevisions();
+    expect(steps.length).toBeGreaterThan(0);
+    const all = steps.flat();
+    const rem = all.find((r) => r.op === 'remove' && r.kind === 'trivia')!;
+    const upd = all.find((r) => r.op === 'update' && r.kind === 'taboo-card')!;
+    const upd2 = all.filter((r) => r.op === 'update' && r.kind === 'taboo-card')[1]!;
+    const pic = all.find((r) => r.op === 'update' && r.kind === 'picture-pair')!;
+    expect(rem && upd && upd2 && pic).toBeTruthy();
+    // rows as an older version seeded them (taboo rows reuse the existing row with the same key)
+    const ins = async (kind: string, key: string, data: Record<string, unknown>, cat = 'general') =>
+      (
+        await db.query<{ id: string }>(
+          `insert into content_items (kind, category, difficulty, data, dedupe_key) values ($1, $2, 'medium', $3::jsonb, $4)
+           on conflict (kind, coalesce(pack_id, '00000000-0000-0000-0000-000000000000'::uuid), dedupe_key) do update set data = excluded.data, status = 'active'
+           returning id`,
+          [kind, cat, JSON.stringify(data), key],
+        )
+      ).rows[0].id;
+    const remId = await ins('trivia', rem.key, rem.old);
+    const updId = await ins('taboo-card', upd.key, { ...upd.old, image: 'kept-extra-field' });
+    const adminId = await ins('taboo-card', upd2.key, { ...upd2.old, forbidden: ['تعديل', 'من', 'الأدمن', 'لازم', 'يضل'] });
+    const picRow = (await db.query<{ id: string; data: Record<string, unknown> }>(`select id, data from content_items where kind = 'picture-pair' and data->>'pairId' = $1`, [pic.key])).rows[0];
+    await db.query(`update content_items set data = data || $2::jsonb where id = $1`, [picRow.id, JSON.stringify(pic.old)]);
+
+    await db.query(`delete from seed_state where key = 'content_revisions'`);
+    await applyContentRevisions(db, steps);
+    const get = async (id: string) => (await db.query<{ status: string; category: string; data: Record<string, unknown> }>(`select status, category, data from content_items where id = $1`, [id])).rows[0];
+    expect((await get(remId)).status).toBe('disabled');
+    const u = await get(updId);
+    if (upd.op !== 'update') throw new Error('unreachable');
+    expect(u.category).toBe(upd.category);
+    expect(u.data).toEqual({ ...upd.data, image: 'kept-extra-field' });
+    expect((await get(adminId)).data.forbidden).toEqual(['تعديل', 'من', 'الأدمن', 'لازم', 'يضل']);
+    const p = await get(picRow.id);
+    if (pic.op !== 'update') throw new Error('unreachable');
+    expect([p.data.labelA, p.data.labelB]).toEqual([pic.data.labelA, pic.data.labelB]);
+    expect(p.data.pairId).toBe(pic.key);
+    // a second run does nothing (the step is recorded)
+    await db.query(`update content_items set status = 'active' where id = $1`, [remId]);
+    await applyContentRevisions(db, steps);
+    expect((await get(remId)).status).toBe('active');
+    await db.query(`update content_items set status = 'disabled' where id = $1`, [remId]);
   });
 
   it('مين برا الصورة؟ is real photos only: every pair has WebP photos stored in the database and their credits', async () => {
