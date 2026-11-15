@@ -82,7 +82,7 @@ function Matchmaking() {
         <div className="mb-4 flex items-center gap-3 rounded-xl bg-zing-500/15 px-4 py-3 text-sm text-zing-400" role="alert">
           {err}
           <Button size="sm" variant="secondary" icon={<RefreshCw className="size-3.5" />} onClick={() => void load()}>
-            حاول
+            حاول مرة ثانية
           </Button>
         </div>
       )}

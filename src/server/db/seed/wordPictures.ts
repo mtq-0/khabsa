@@ -64,8 +64,6 @@ export const WORD_PICTURES: Record<string, [string, string]> = {
   'أفنجرز': ['🦸', '⚡'],
   'المهمة المستحيلة': ['🕶️', '⏱️'],
   'فاست آند فيوريس': ['🏎️', '💨'],
-  'الكيف': ['☕', '🎭'],
-  'الإرهاب والكباب': ['🍢', '🏢'],
   'باربي': ['💖', '👗'],
   'كونغ فو باندا': ['🐼', '🥋'],
   'مدغشقر': ['🦓', '🏝️'],
@@ -76,7 +74,6 @@ export const WORD_PICTURES: Record<string, [string, string]> = {
   'طاش ما طاش': ['😂', '📺'],
   'شارع شيكاغو': ['🎷', '🌃'],
   'الهيبة': ['🏡', '🕶️'],
-  'جن': ['👻', '🏫'],
   'نجوم الأردن': ['🌟', '🎤'],
   'أبو عواد': ['👴', '☕'],
   'وطن ع وتر': ['🎻', '😂'],
@@ -156,7 +153,6 @@ export const TMDB_QUERIES: Record<string, string> = {
   'سيمبا': 'tv:سيمبا',
   'هاري بوتر': "Harry Potter and the Philosopher's Stone",
   'هالك': 'movie:The Incredible Hulk',
-  'جن': 'tv:جن',
   'كابتن أمريكا': 'Captain America: The First Avenger',
 };
 

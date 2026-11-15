@@ -1,4 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Db } from '../db.ts';
 import type { Storage } from '../../storage/storage.ts';
 import { ContentRepo } from '../../content/content.ts';
@@ -28,6 +31,31 @@ export const DEFAULT_PLATFORM_SETTINGS: Record<string, unknown> = {
   chatEnabled: true,
 };
 
+
+export type BuiltinItem = { kind: ContentKind; category: string; difficulty: string; data: Record<string, unknown> };
+
+/** Every built-in text content item, exactly as the seed inserts it (photo pairs excluded). */
+export function builtinContent(): BuiltinItem[] {
+  const items: BuiltinItem[] = [];
+  for (const [cat, words] of Object.entries(OUTSIDER_WORDS)) {
+    for (const w of words) {
+      const p = parseWord(w);
+      items.push({ kind: 'word', category: cat, difficulty: p.difficulty, data: { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) } });
+    }
+  }
+  for (const [cat, words] of Object.entries(DRAW_WORDS)) {
+    for (const w of words) {
+      const p = parseWord(w);
+      items.push({ kind: 'draw-word', category: cat, difficulty: p.difficulty, data: { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) } });
+    }
+  }
+  for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS]) items.push({ kind: 'question-pair', category: cat, difficulty: DIFF[d], data: { majority, outsider } });
+  for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY]) items.push({ kind: 'most-likely', category: cat, difficulty: 'medium', data: { text } });
+  for (const [cat, d, word, forbidden] of TABOO_ALL) items.push({ kind: 'taboo-card', category: cat, difficulty: DIFF[d], data: { word, forbidden } });
+  for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA]) items.push({ kind: 'trivia', category: cat, difficulty: DIFF[d], data: { question, options: opts, answer: 0 } });
+  return items;
+}
+
 /** Idempotent: safe to run on every boot. */
 export async function seed(db: Db, storage: Storage, log: (m: string) => void = () => {}) {
   for (const [i, c] of CATEGORIES.entries()) {
@@ -47,23 +75,7 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
   }
 
   const repo = new ContentRepo(db);
-  const items: { kind: ContentKind; category: string; difficulty: string; data: unknown }[] = [];
-  for (const [cat, words] of Object.entries(OUTSIDER_WORDS)) {
-    for (const w of words) {
-      const p = parseWord(w);
-      items.push({ kind: 'word', category: cat, difficulty: p.difficulty, data: { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) } });
-    }
-  }
-  for (const [cat, words] of Object.entries(DRAW_WORDS)) {
-    for (const w of words) {
-      const p = parseWord(w);
-      items.push({ kind: 'draw-word', category: cat, difficulty: p.difficulty, data: { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) } });
-    }
-  }
-  for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS]) items.push({ kind: 'question-pair', category: cat, difficulty: DIFF[d], data: { majority, outsider } });
-  for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY]) items.push({ kind: 'most-likely', category: cat, difficulty: 'medium', data: { text } });
-  for (const [cat, d, word, forbidden] of TABOO_ALL) items.push({ kind: 'taboo-card', category: cat, difficulty: DIFF[d], data: { word, forbidden } });
-  for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA]) items.push({ kind: 'trivia', category: cat, difficulty: DIFF[d], data: { question, options: opts, answer: 0 } });
+  const items = builtinContent();
   const res = await repo.bulkInsert(items, null);
   if (res.inserted) log(`seeded ${res.inserted} content items`);
   if (res.errors.length) log(`seed validation errors: ${JSON.stringify(res.errors.slice(0, 5))}`);
@@ -123,6 +135,51 @@ export async function seed(db: Db, storage: Storage, log: (m: string) => void = 
 
   await seedPhotoPairs(db, storage, repo, log);
   await seedPosters(db, loadPosters(), log);
+  await applyContentRevisions(db, loadContentRevisions(), log);
+}
+
+type ContentRevision =
+  | { op: 'remove'; kind: string; key: string; old: Record<string, unknown> }
+  | { op: 'update'; kind: string; key: string; old: Record<string, unknown>; category: string; difficulty: string; data: Record<string, unknown> };
+
+const REVISIONS_FILE = join(dirname(fileURLToPath(import.meta.url)), 'contentRevisions.json');
+export function loadContentRevisions(file = REVISIONS_FILE): ContentRevision[][] {
+  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as ContentRevision[][]) : [];
+}
+
+/**
+ * Built-in content fixes (scripts/content-revisions.ts) for databases seeded with an older version: removed or
+ * reworded items are switched off, changed ones get their new category / difficulty / text. Only built-in rows that
+ * still hold the old data are touched (an admin's edit is kept). Each step runs once (tracked in seed_state).
+ */
+export async function applyContentRevisions(db: Db, steps: ContentRevision[][], log: (m: string) => void = () => {}) {
+  const done = (await db.query<{ value: number }>(`select value from seed_state where key = 'content_revisions'`, [])).rows[0]?.value ?? 0;
+  if (done >= steps.length) return;
+  const match = `c.kind = r.kind and c.pack_id is null and c.created_by is null
+      and (case when r.kind = 'picture-pair' then c.data->>'pairId' = r.key else c.dedupe_key = r.key end) and c.data @> r.old`;
+  for (const step of steps.slice(done)) {
+    const removed = step.filter((r) => r.op === 'remove');
+    const updated = step.filter((r) => r.op === 'update');
+    const off = await db.query(
+      `update content_items c set status = 'disabled', updated_at = now()
+         from jsonb_to_recordset($1::jsonb) as r(kind text, key text, old jsonb)
+        where c.status = 'active' and ${match}`,
+      [JSON.stringify(removed)],
+    );
+    const up = await db.query(
+      `update content_items c
+          set category = r.category, difficulty = r.difficulty, updated_at = now(),
+              data = (c.data - array(select jsonb_object_keys(r.old))) || r.data
+         from jsonb_to_recordset($1::jsonb) as r(kind text, key text, old jsonb, category text, difficulty text, data jsonb)
+        where ${match} and exists (select 1 from categories k where k.slug = r.category)`,
+      [JSON.stringify(updated)],
+    );
+    log(`content revision: switched off ${off.rowCount}, updated ${up.rowCount} built-in items`);
+  }
+  await db.query(
+    `insert into seed_state (key, value) values ('content_revisions', $1) on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [steps.length],
+  );
 }
 
 /**

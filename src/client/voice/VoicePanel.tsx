@@ -72,7 +72,7 @@ export function VoicePanel({ view }: { view: RoomView }) {
           {v.muted ? 'مسكّر' : 'مايك'}
         </Button>
         <Button size="sm" variant={v.deafened ? 'danger' : 'secondary'} onClick={() => mod?.setDeafened(!v.deafened)} aria-pressed={v.deafened} icon={v.deafened ? <HeadphoneOff className="size-4" /> : <Headphones className="size-4" />}>
-          {v.deafened ? 'أطرش' : 'سماع'}
+          {v.deafened ? 'مش سامع' : 'سماع'}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => void mod?.leaveVoice()} icon={<PhoneOff className="size-4" />} aria-label="اطلع من الصوت" data-testid="voice-leave">
           اطلع

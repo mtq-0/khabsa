@@ -34,7 +34,7 @@ export const ERROR_CODES = [
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
 export const ERROR_MESSAGES_AR: Record<ErrorCode, string> = {
-  ROOM_NOT_FOUND: 'ما لقينا غرفة بهالرمز. تأكد من الرمز أو اطلب رابط جديد.',
+  ROOM_NOT_FOUND: 'ما لقينا غرفة بهالرمز. تأكّد من الرمز أو اطلب رابط جديد.',
   INVALID_CODE: 'رمز الغرفة لازم يكون 6 أحرف أو أرقام إنجليزية.',
   ROOM_FULL: 'الغرفة مليانة. جرّب غرفة ثانية أو اطلب من المضيف يكبّرها.',
   ROOM_CLOSED: 'الغرفة انسكرت.',
@@ -51,7 +51,7 @@ export const ERROR_MESSAGES_AR: Record<ErrorCode, string> = {
   NOT_ENOUGH_PLAYERS: 'عدد اللاعبين قليل لهاللعبة.',
   TOO_MANY_PLAYERS: 'عدد اللاعبين أكثر من المسموح لهاللعبة.',
   RATE_LIMITED: 'شوي شوي! استنى لحظة وجرّب.',
-  CONFLICT: 'العملية متعارضة مع حالة حالية.',
+  CONFLICT: 'ما زبطت العملية لأنها متعارضة مع الوضع الحالي. حدّث الصفحة وجرّب مرة ثانية.',
   NOT_FOUND: 'مش موجود.',
   VOICE_NOT_CONFIGURED: 'الدردشة الصوتية مش مفعّلة على هالخادم.',
   SERVER_ERROR: 'صار خطأ بالخادم. جرّب كمان شوي.',

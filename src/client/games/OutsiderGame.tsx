@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, ZoomIn } from 'lucide-react';
+import { Eye, EyeOff, ZoomIn } from 'lucide-react';
 import type { RoomView } from '../../shared/protocol.ts';
 import { Button, Modal, cx } from '../components/ui.tsx';
 import { OutsiderRoulette } from './OutsiderRoulette.tsx';
@@ -106,7 +106,7 @@ function RoleCard({ g }: { g: OutsiderView }) {
       </button>
     );
   return (
-    <div onDoubleClick={() => setHidden(true)}>
+    <div>
       {g.variant === 'word' ? (
         me.role === 'outsider' ? (
           <SecretCard tone="zing" testId="role-card">
@@ -147,7 +147,9 @@ function RoleCard({ g }: { g: OutsiderView }) {
           {me.category && <p className="mt-3 inline-block rounded-full bg-black/25 px-3 py-1 text-sm">{me.category}</p>}
         </SecretCard>
       )}
-      <p className="mt-2 text-center text-xs text-ink-500">دبل كليك على البطاقة لإخفائها عن اللي حواليك</p>
+      <button type="button" onClick={() => setHidden(true)} className="mx-auto mt-2 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-ink-400 hover:bg-white/5 hover:text-ink-200" data-testid="hide-card">
+        <EyeOff className="size-4" /> خبّي البطاقة عن اللي حواليك
+      </button>
     </div>
   );
 }
@@ -163,7 +165,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
     case 'reveal':
       return (
         <div>
-          <PhaseHeader game={g!} title="شوف بطاقتك 🤫" subtitle="محدا غيرك شايفها" total={12} />
+          <PhaseHeader game={g!} title="شوف بطاقتك 🤫" subtitle="ما حدا غيرك شايفها" total={12} />
           <RoleCard g={g} />
           <div className="mt-6 text-center">
             {me.isPlayer && (
@@ -223,7 +225,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
     case 'discuss':
       return (
         <div>
-          <PhaseHeader game={g!} title="نقاش 🔥" subtitle="مين جوابه غريب؟ احكوا بالصوت أو بالشات" total={60} />
+          <PhaseHeader game={g!} title="نقاش 🔥" subtitle="مين كلامه مش راكب؟ احكوا بالصوت أو بالشات" total={60} />
           <RoleCard g={g} />
           <div className="mt-5 text-center">
             {me.isPlayer && (
@@ -257,7 +259,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
       const iAmOutsider = outsiders.includes(view.you);
       return (
         <div>
-          <PhaseHeader game={g!} title={g.phase === 'guess' ? 'فرصة أخيرة 🎯' : r.caught.length ? 'انكشف! 😱' : 'هرب! 😎'} total={g.phase === 'guess' ? 25 : 10} />
+          <PhaseHeader game={g!} title={g.phase === 'guess' ? 'فرصة أخيرة 🎯' : r.caught.length ? 'انكشف! 😱' : 'هرب! 😎'} total={g.phase === 'guess' ? 30 : 10} />
           {g.phase === 'verdict' ? (
             <OutsiderRoulette view={view} players={g.players} outsiders={outsiders} caught={r.caught} label={isWord ? 'برا السالفة' : 'برا الصورة'} seed={`${g.phaseKey}`} />
           ) : (
@@ -335,7 +337,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
                       {name(v)} ← {name(t)} {outsiders.includes(t) && !outsiders.includes(v) ? '✅' : ''}
                     </li>
                   ))}
-                  {!Object.keys(r.votes).length && <li className="text-ink-400">محدا صوّت 🤷</li>}
+                  {!Object.keys(r.votes).length && <li className="text-ink-400">ما حدا صوّت 🤷</li>}
                 </ul>
                 <p className="mt-4 mb-2 font-bold">نقاط الجولة</p>
                 <div className="flex flex-wrap gap-2">

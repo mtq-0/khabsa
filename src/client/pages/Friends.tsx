@@ -243,7 +243,7 @@ function Friends() {
             {!data.incoming.length && <EmptyState emoji="📭" title="ما في طلبات" />}
             {!!data.outgoing.length && (
               <>
-                <p className="text-sm text-ink-400">طلبات بعتتها</p>
+                <p className="text-sm text-ink-400">طلبات بعتّها</p>
                 <ul className="space-y-2">
                   {data.outgoing.map((u) => (
                     <Row key={u.id} u={u}>

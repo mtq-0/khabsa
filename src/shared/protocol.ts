@@ -105,6 +105,8 @@ export interface GameViewBase {
   phase: string;
   phaseKey: string;
   deadline: number | null;
+  /** length of the current timed phase in seconds */
+  phaseSeconds?: number | null;
   serverNow: number;
   round: number;
   totalRounds: number;

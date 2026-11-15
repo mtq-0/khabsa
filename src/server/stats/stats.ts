@@ -10,7 +10,7 @@ export const ACHIEVEMENTS = [
   { id: 'games-50', title: 'ساكن بالخبصة', description: 'العب 50 لعبة', emoji: '🏠', xp: 200 },
   { id: 'wins-10', title: 'ما بينغلب', description: 'اربح 10 ألعاب', emoji: '💪', xp: 150 },
   { id: 'wins-25', title: 'أسطورة', description: 'اربح 25 لعبة', emoji: '🐐', xp: 300 },
-  { id: 'all-games', title: 'جرّب كل إشي', description: 'العب كل الألعاب السبعة', emoji: '🌈', xp: 150 },
+  { id: 'all-games', title: 'جرّب كل إشي', description: 'العب كل ألعاب خبصة الثمانية', emoji: '🌈', xp: 150 },
   { id: 'host-5', title: 'صاحب العزيمة', description: 'استضيف 5 ألعاب', emoji: '🎉', xp: 75 },
   { id: 'friends-5', title: 'اجتماعي', description: 'صير عندك 5 أصحاب', emoji: '🤝', xp: 75 },
   { id: 'level-5', title: 'مستوى 5', description: 'وصّل للمستوى 5', emoji: '⭐', xp: 0 },

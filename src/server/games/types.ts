@@ -45,6 +45,8 @@ export interface BaseState {
   phaseKey: string;
   seq: number;
   deadline: number | null;
+  /** length of the current timed phase in seconds (for the countdown ring) */
+  phaseSeconds?: number | null;
   round: number;
   totalRounds: number;
   players: string[];

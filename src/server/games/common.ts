@@ -39,6 +39,7 @@ export function setPhase(s: BaseState, phase: string, ctx: EngineCtx, seconds: n
   s.phase = phase;
   s.phaseKey = `${s.round}:${phase}:${s.seq}`;
   s.deadline = seconds == null ? null : ctx.now + seconds * 1000;
+  s.phaseSeconds = seconds;
 }
 
 export function requirePhase(s: BaseState, ...phases: string[]) {
@@ -81,6 +82,7 @@ export function baseView(s: BaseState, now: number) {
     phase: s.phase,
     phaseKey: s.phaseKey,
     deadline: s.deadline,
+    phaseSeconds: s.phaseSeconds ?? null,
     serverNow: now,
     round: s.round,
     totalRounds: s.totalRounds,

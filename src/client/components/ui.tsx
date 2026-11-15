@@ -289,7 +289,7 @@ export function PageTitle({ title, subtitle, emoji, action }: { title: string; s
 export async function copyText(text: string) {
   try {
     await navigator.clipboard.writeText(text);
-    toast.success('انسخ ✔');
+    toast.success('انتسخ ✔');
   } catch {
     toast.warning('ما قدرنا ننسخ تلقائياً، انسخه يدوياً.');
   }
