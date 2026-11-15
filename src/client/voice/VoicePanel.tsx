@@ -12,11 +12,21 @@ let modPromise: Promise<VoiceModule> | null = null;
  * peer-to-peer mesh that needs no server at all (also what the GitHub Pages edition uses).
  */
 const loadVoice = (p2p: boolean) => (modPromise ??= p2p ? import('./voiceP2p.ts') : import('./voiceClient.ts'));
+/** the loaded voice module, shared by every VoicePanel on the page (the room shows one per tab on phones) */
+let loadedMod: VoiceModule | null = null;
 
 /** Voice controls. Voice is optional and never blocks joining or playing. */
 export function VoicePanel({ view }: { view: RoomView }) {
   const v = useVoice();
-  const [mod, setMod] = useState<VoiceModule | null>(null);
+  // every panel uses the same voice module: the mic button works in whichever panel you press,
+  // also after the panel was re-mounted (switching tabs, the game starting)
+  const [mod, setMod] = useState<VoiceModule | null>(loadedMod);
+  useEffect(() => {
+    if (!mod && modPromise) void modPromise.then((m) => setMod((loadedMod = m)));
+  }, [mod, v.status]);
+  useEffect(() => {
+    if (mod && v.status === 'connected') void mod.listMics().then(setMics).catch(() => {});
+  }, [mod, v.status]);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [showMixer, setShowMixer] = useState(false);
   const p2p = PAGES || !view.voiceAvailable;
@@ -36,7 +46,7 @@ export function VoicePanel({ view }: { view: RoomView }) {
 
   const join = async () => {
     const m = await loadVoice(p2p);
-    setMod(m);
+    setMod((loadedMod = m));
     await (m.joinVoice as (c: string, ids?: string[], me?: string) => Promise<void>)(view.code, view.members.map((x) => x.id), view.you);
     setMics(await m.listMics());
   };

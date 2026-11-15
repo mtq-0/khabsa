@@ -104,6 +104,17 @@ export async function checkP2pVoice(browser: Browser, opts: { createUrl: string;
   await b.getByRole('tab', { name: /الشات/ }).click();
   await b.getByRole('tab', { name: /اللعبة/ }).click();
   await expect(inVoice(b, 3)).toBeVisible();
+  // the mic button works in every voice panel, not only the one used to join (B joined in the desktop side panel;
+  // on a phone the game tab shows another panel, and the players tab the first one again)
+  for (const tab of [/اللعبة/, /اللاعبين/, /اللعبة/]) {
+    await b.getByRole('tab', { name: tab }).click();
+    await b.getByRole('button', { name: 'مايك' }).locator('visible=true').first().click();
+    await expect(b.getByRole('button', { name: 'مسكّر' }).locator('visible=true').first()).toBeVisible({ timeout: 3_000 });
+    await expect(ringOf(a, names[1])).not.toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
+    await b.getByRole('button', { name: 'مسكّر' }).locator('visible=true').first().click();
+    await expect(b.getByRole('button', { name: 'مايك' }).locator('visible=true').first()).toBeVisible({ timeout: 3_000 });
+    await expect(ringOf(a, names[1])).toHaveAttribute('data-speaking', '1', { timeout: 10_000 });
+  }
   await b.setViewportSize({ width: 1366, height: 900 });
 
   // B leaves: the others drop to 2 and B's audio is gone
