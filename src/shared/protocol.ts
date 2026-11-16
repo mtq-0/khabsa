@@ -131,9 +131,21 @@ export interface RoomActionPayload {
   phaseKey?: string;
 }
 
-/** Drawing tools beyond the plain pen: styles, two-point shapes and the paint bucket. */
-export const DRAW_TOOLS = ['hl', 'dash', 'spray', 'line', 'rect', 'ellipse', 'tri', 'star', 'heart', 'fill'] as const;
+/** Drawing tools beyond the plain pen: brush styles, two-point shapes and the paint bucket. */
+export const DRAW_TOOLS = [
+  'hl', 'dash', 'spray', 'line', 'rect', 'ellipse', 'tri', 'star', 'heart', 'fill',
+  // brushes
+  'cal', 'crayon', 'soft', 'neon', 'rainbow',
+  // shapes
+  'arrow', 'diamond', 'hex', 'rrect', 'cloud',
+] as const;
 export type DrawTool = (typeof DRAW_TOOLS)[number];
+/** freehand brush styles (any number of points); every other tool except 'fill' is a two-point shape */
+export const FREEHAND_TOOLS: readonly DrawTool[] = ['hl', 'dash', 'spray', 'cal', 'crayon', 'soft', 'neon', 'rainbow'];
+/** palette entries a segment may use (the palette itself lives in the client) */
+export const DRAW_PALETTE_MAX = 63;
+/** brush size entries */
+export const DRAW_SIZE_MAX = 11;
 
 export interface DrawSegment {
   /** stroke id, unique per drawer turn */
@@ -148,6 +160,12 @@ export interface DrawSegment {
   t?: DrawTool;
   /** filled shape */
   f?: 1;
+  /** custom colour 0xRRGGBB (overrides the palette index) */
+  k?: number;
+  /** opacity in tenths, 1..9 (omitted = fully opaque) */
+  o?: number;
+  /** mirror drawing: also painted mirrored left↔right */
+  m?: 1;
   /** flattened points, each coordinate quantized to 0..1000 */
   p: number[];
 }
