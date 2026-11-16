@@ -3,7 +3,7 @@
  * size and opacity, undo / redo, mirror drawing, clear and the big board toggle.
  * The chosen tools are remembered between turns.
  */
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowUpRight,
   Brush,
@@ -181,6 +181,42 @@ export function useCustomColor(style: DrawStyle, update: (p: Partial<DrawStyle>)
 
 const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
 
+/**
+ * A toolbar row that scrolls sideways on phones. The edge that still has hidden buttons fades out,
+ * so the player can see there is more to scroll to (and the fade goes away at the end).
+ */
+function ScrollRow({ className, children, ...rest }: { className: string; children: ReactNode; role?: string; 'aria-label'?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [fade, setFade] = useState({ left: false, right: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const rtl = getComputedStyle(el).direction === 'rtl';
+      const pos = Math.abs(el.scrollLeft);
+      const max = el.scrollWidth - el.clientWidth;
+      const moreAtEnd = pos < max - 2;
+      const moreAtStart = pos > 2;
+      const next = { left: rtl ? moreAtEnd : moreAtStart, right: rtl ? moreAtStart : moreAtEnd };
+      setFade((f) => (f.left === next.left && f.right === next.right ? f : next));
+    };
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener('scroll', update);
+      ro.disconnect();
+    };
+  }, []);
+  const mask = fade.left || fade.right ? `linear-gradient(to right, ${fade.left ? 'transparent 0, #000 2rem' : '#000 0'}, ${fade.right ? '#000 calc(100% - 2rem), transparent 100%' : '#000 100%'})` : undefined;
+  return (
+    <div ref={ref} className={className} style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined} {...rest}>
+      {children}
+    </div>
+  );
+}
+
 function ToolButton({ on, label, icon, onClick, testId, hint }: { on: boolean; label: string; icon: ReactNode; onClick: () => void; testId?: string; hint?: string }) {
   return (
     <button
@@ -191,12 +227,12 @@ function ToolButton({ on, label, icon, onClick, testId, hint }: { on: boolean; l
       aria-pressed={on}
       data-testid={testId}
       className={cx(
-        'flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2 py-1.5 text-[10px] font-semibold leading-none',
+        'flex min-w-12 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[10px] font-semibold leading-none',
         on ? 'bg-volt-400 text-[#07050f]' : 'bg-white/5 text-ink-100 hover:bg-white/10',
       )}
     >
       {icon}
-      <span className="max-w-14 truncate">{label}</span>
+      <span className="whitespace-nowrap">{label}</span>
     </button>
   );
 }
@@ -240,17 +276,17 @@ export function DrawToolbar({
   return (
     <div className="space-y-2 text-sm" data-testid="draw-toolbar">
       {/* brushes */}
-      <div className={cx(row, 'rounded-xl bg-white/5 p-1')} role="toolbar" aria-label="الفراشي">
+      <ScrollRow className={cx(row, 'rounded-xl bg-white/5 p-1')} role="toolbar" aria-label="الفراشي">
         {BRUSHES.map((t) => (
           <ToolButton key={t.id} on={style.tool === t.id} label={t.label} icon={t.icon} hint={t.key} testId={`tool-${t.id}`} onClick={() => update({ tool: t.id })} />
         ))}
-      </div>
+      </ScrollRow>
       {/* shapes */}
-      <div className={cx(row, 'rounded-xl bg-white/5 p-1')} role="toolbar" aria-label="الأشكال">
+      <ScrollRow className={cx(row, 'rounded-xl bg-white/5 p-1')} role="toolbar" aria-label="الأشكال">
         {SHAPES.map((t) => (
           <ToolButton key={t.id} on={style.tool === t.id} label={t.label} icon={t.icon} testId={`tool-${t.id}`} onClick={() => update({ tool: t.id })} />
         ))}
-      </div>
+      </ScrollRow>
       {shapeOn && style.tool !== 'line' && style.tool !== 'arrow' && (
         <div className="flex gap-1 text-xs" role="group" aria-label="نوع الشكل">
           <button

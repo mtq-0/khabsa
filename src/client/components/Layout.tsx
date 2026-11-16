@@ -99,7 +99,7 @@ export function Layout() {
         <Outlet />
       </main>
       {!inRoom && (
-        <nav className="glass safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-x-0 border-b-0 md:hidden" aria-label="التنقل السفلي">
+        <nav className="glass-bar safe-bottom fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-x-0 border-b-0 md:hidden" aria-label="التنقل السفلي">
           {[...NAV, { to: '/settings', label: 'حسابي', icon: Settings }].map((n) => (
             <NavLink key={n.to} to={n.to} end={'end' in n ? n.end : false} className={({ isActive }) => cx('flex flex-col items-center gap-1 py-2 text-[11px] font-semibold', isActive ? 'text-volt-300' : 'text-ink-400')}>
               <n.icon className="size-5" />

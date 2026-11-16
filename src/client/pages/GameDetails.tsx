@@ -19,7 +19,7 @@ export default function GameDetailsPage() {
         <GameArt gameId={id} className="h-56 sm:h-72" big />
         <div className="p-6 sm:p-8">
           <h1 className="font-display text-5xl">{g.name}</h1>
-          <p className="text-sm text-ink-400">{g.nameEn}</p>
+          <p className="text-end text-sm text-ink-400" dir="ltr" lang="en">{g.nameEn}</p>
           <p className="mt-4 text-lg text-ink-200">{g.description}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="chip">👥 {g.minPlayers}-{g.maxPlayers} لاعبين</span>

@@ -39,7 +39,7 @@ export default function GamesPage() {
                   <h2 className="text-xl font-bold">{g.name}</h2>
                   {off && <span className="chip text-sun-400">متوقفة</span>}
                 </div>
-                <p className="text-xs text-ink-400">{g.nameEn}</p>
+                <p className="text-end text-xs text-ink-400" dir="ltr" lang="en">{g.nameEn}</p>
                 <p className="mt-2 text-sm text-ink-300">{g.tagline}</p>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <span className="chip">👥 {g.minPlayers}-{g.maxPlayers}</span>

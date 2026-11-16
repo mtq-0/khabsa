@@ -87,11 +87,11 @@ export default function AuthPage({ mode }: { mode: 'login' | 'register' }) {
         <p className="text-center text-sm text-ink-400">
           {mode === 'login' ? (
             <>
-              ما عندك حساب؟ <Link to="/register" className="text-volt-300">سجّل</Link> · أو <Link to="/" className="text-volt-300">العب كضيف</Link>
+              ما عندك حساب؟ <Link to="/register" className="inline-flex min-h-10 items-center px-1 text-volt-300">سجّل</Link> · أو <Link to="/" className="inline-flex min-h-10 items-center px-1 text-volt-300">العب كضيف</Link>
             </>
           ) : (
             <>
-              عندك حساب؟ <Link to="/login" className="text-volt-300">ادخل</Link>
+              عندك حساب؟ <Link to="/login" className="inline-flex min-h-10 items-center px-1 text-volt-300">ادخل</Link>
             </>
           )}
         </p>

@@ -108,7 +108,7 @@ function Matchmaking() {
                   <Avatar avatar={r.host.avatar} size={20} />
                   <span className="truncate text-ink-300">{r.host.name}</span>
                   <span className="chip ms-auto">
-                    {r.players}/{r.capacity}
+                    <bdi dir="ltr">{r.players}/{r.capacity}</bdi>
                   </span>
                   <span className={cx('chip', r.status === 'lobby' ? 'text-lime-400' : 'text-sun-400')}>{r.status === 'lobby' ? 'بالانتظار' : 'بيلعبوا'}</span>
                 </div>

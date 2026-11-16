@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { Harness, item } from './helpers/engine.ts';
-import { sanitizeSettings } from '../src/shared/games.ts';
-import { accused, tally } from '../src/server/games/common.ts';
+import { Harness, item, seededRng } from './helpers/engine.ts';
+import { sanitizeSettings, type GameId } from '../src/shared/games.ts';
+import { accused, pickTurnPlayer, tally } from '../src/server/games/common.ts';
 import { outsiderCountFor, type OutsiderState } from '../src/server/games/outsider.ts';
 import type { OddQuestionState } from '../src/server/games/oddQuestion.ts';
 import type { TabooState } from '../src/server/games/taboo.ts';
 import { scoreAnswer, type SpeedQuizState } from '../src/server/games/speedQuiz.ts';
 import { guessPoints, hintMask, type DrawGuessState } from '../src/server/games/drawGuess.ts';
 import type { MostLikelyState } from '../src/server/games/mostLikely.ts';
+import type { BaseState, ContentItem } from '../src/server/games/types.ts';
 
 const json = (v: unknown) => JSON.stringify(v);
 
@@ -185,7 +186,9 @@ describe('مين برا السالفة؟ (outsider-word)', () => {
     const draft = structuredClone(h.state);
     h.engine.playerLeft!(draft, out, h.ctx());
     h.state = draft;
-    expect(h.state.round).toBe(2);
+    // the round is voided but not used up: it is played again (new content, new outsider choice)
+    expect(h.state.round).toBe(1);
+    expect(h.state.phase).toBe('reveal');
     expect(h.state.players).not.toContain(out);
   });
 
@@ -537,5 +540,282 @@ describe('ارسم وخمّن (draw-guess)', () => {
       h.expire();
     }
     expect(turns).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Launch fixes
+// ---------------------------------------------------------------------------
+
+function reinit<S extends BaseState>(h: Harness<S>, gameId: GameId, settings: Record<string, unknown>, content: ContentItem[], decoys: ContentItem[]) {
+  h.state = h.engine.init({ players: h.players.map((id, i) => ({ id, name: `لاعب ${i}` })), settings: sanitizeSettings(gameId, settings), content, decoys, categoryNames: {} }, h.ctx());
+}
+
+/** plays the question turns until "ready to vote" opens, then everybody votes for the next player */
+function wordToVerdict(h: Harness<OutsiderState>) {
+  for (const p of h.players) h.act(p, 'seen');
+  while (!h.view(h.players[0]).canVote) h.act(h.state.asker!, 'turn:done');
+  for (const p of h.players) h.act(p, 'ready-vote');
+  h.players.forEach((p, i) => h.act(p, 'vote', { target: h.players[(i + 1) % h.players.length] }));
+  expect(h.state.phase).toBe('verdict');
+}
+
+describe('launch fix 1: time-outs are not "taking part"', () => {
+  it('pickTurnPlayer never picks the previous player twice in a row, even when they are the only minimum', () => {
+    const rng = seededRng(3);
+    for (let i = 0; i < 50; i++) expect(pickTurnPlayer(['a', 'b', 'c'], { a: 0, b: 1, c: 1 }, 'a', rng)).not.toBe('a');
+    expect(pickTurnPlayer(['solo'], {}, 'solo', rng)).toBe('solo');
+  });
+
+  it('outsider-word: four time-outs do not open the vote; an AFK player is not picked again and again but cannot block the vote', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    for (let i = 0; i < 4; i++) h.expire();
+    expect(h.view('p0').canVote).toBe(false);
+    expect(Object.values(h.state.asked).every((n) => n === 0)).toBe(true);
+    expect(() => h.act('p1', 'ready-vote')).toThrow(/بدري/);
+    // now p0 is AFK: everybody else takes part
+    const h2 = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 });
+    for (const p of h2.players) h2.act(p, 'seen');
+    let prev: string | null = null;
+    let guard = 0;
+    while (!h2.view('p1').canVote && guard++ < 40) {
+      const a = h2.state.asker!;
+      expect(a).not.toBe(prev);
+      prev = a;
+      if (a === 'p0') h2.expire();
+      else h2.act(a, 'turn:done');
+    }
+    expect(h2.view('p1').canVote).toBe(true);
+    expect(h2.state.phase).toBe('turns');
+    expect(h2.state.asked.p0).toBe(0);
+    expect(h2.state.skipped.p0).toBe(2); // picked only twice while the others asked, not over and over
+    expect(h2.state.turns).toBeLessThan(h2.view('p1').maxTurns);
+  });
+
+  it('outsider-word: an AFK player who is picked alone with the minimum is still not picked twice in a row', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 3, { rounds: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    let prev: string | null = null;
+    for (let i = 0; i < 12; i++) {
+      expect(h.state.asker).not.toBe(prev);
+      prev = h.state.asker;
+      h.expire();
+    }
+  });
+});
+
+describe('launch fix 2: host skip goes to the discussion once voting is allowed', () => {
+  it('outsider-word', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    h.act('p0', 'host:skip'); // not allowed to vote yet: only this turn is skipped
+    expect(h.state.phase).toBe('turns');
+    expect(h.state.turns).toBe(1);
+    while (!h.view('p0').canVote) h.act(h.state.asker!, 'turn:done');
+    h.act('p0', 'host:skip');
+    expect(h.state.phase).toBe('discuss');
+  });
+});
+
+describe('launch fix 3: taboo without a guesser', () => {
+  it('finishes with the current scores when a team is left with one player', () => {
+    const h = new Harness<TabooState>('taboo', 4, { turnsPerPlayer: 2, maxSkips: 1 });
+    h.act(h.state.explainer!, 'start');
+    h.act(h.state.explainer!, 'correct', { card: h.state.cardIndex });
+    const team = h.state.teams[h.state.explainer!];
+    const leaver = h.players.find((p) => h.state.teams[p] !== team)!;
+    const draft = structuredClone(h.state);
+    h.engine.playerLeft!(draft, leaver, h.ctx());
+    h.state = draft;
+    expect(h.state.finished).toBe(true);
+    expect(h.state.results!.teamScores![team].score).toBe(1);
+    expect(h.state.results!.winningTeam).toBe(team);
+  });
+});
+
+describe('launch fix 4: games for 3 players end when fewer than 3 remain', () => {
+  const leaveAndCheck = <S extends BaseState>(h: Harness<S>, who: string) => {
+    const draft = structuredClone(h.state);
+    h.engine.playerLeft!(draft, who, h.ctx());
+    h.state = draft;
+    expect(h.state.finished).toBe(true);
+    expect(h.state.results!.ranking).toHaveLength(2);
+  };
+  it('outsider-word', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 3, { rounds: 2 });
+    leaveAndCheck(h, h.players.find((p) => !h.state.outsiders.includes(p))!);
+  });
+  it('odd-question', () => {
+    const h = new Harness<OddQuestionState>('odd-question', 3, { rounds: 2 });
+    leaveAndCheck(h, h.players.find((p) => p !== h.state.outsider)!);
+  });
+  it('most-likely (with the title awards)', () => {
+    const h = new Harness<MostLikelyState>('most-likely', 3, { rounds: 2 });
+    leaveAndCheck(h, 'p2');
+  });
+});
+
+describe('launch fix 5: draw-guess keeps every drawer when a player who already drew leaves', () => {
+  it('the next drawer is not skipped', () => {
+    const h = new Harness<DrawGuessState>('draw-guess', 4, { rounds: 2 });
+    const order = [...h.state.order];
+    expect(h.state.drawer).toBe(order[0]);
+    h.expire(); // choose → draw
+    h.expire(); // draw → turnEnd
+    const draft = structuredClone(h.state);
+    h.engine.playerLeft!(draft, order[0], h.ctx());
+    h.state = draft;
+    h.expire(); // turnEnd → next turn
+    expect(h.state.drawer).toBe(order[1]);
+    for (let i = 0; i < 3; i++) h.expire();
+    expect(h.state.drawer).toBe(order[2]);
+    // a player who did not draw yet leaves: nothing shifts
+    const d2 = structuredClone(h.state);
+    h.engine.playerLeft!(d2, order[3], h.ctx());
+    h.state = d2;
+    for (let i = 0; i < 3; i++) h.expire();
+    // second lap starts with the remaining players in the same order
+    expect([...h.state.order]).toEqual([order[1], order[2]]);
+    expect(h.state.drawer).toBe(order[1]);
+  });
+});
+
+describe('launch fix 6: anonymous most-likely does not name who voted for the winner', () => {
+  it('each viewer only gets their own round points', () => {
+    const h = new Harness<MostLikelyState>('most-likely', 4, { rounds: 1, anonymous: true });
+    h.act('p0', 'vote', { target: 'p2' });
+    h.act('p1', 'vote', { target: 'p2' });
+    h.act('p2', 'vote', { target: 'p2' });
+    h.act('p3', 'vote', { target: 'p0' });
+    expect(h.view('p0').result.roundPoints).toEqual({ p0: 1 });
+    expect(h.view('p1').result.roundPoints).toEqual({ p1: 1 });
+    expect(h.view('p3').result.roundPoints).toEqual({});
+    expect(h.view('spectator').result.roundPoints).toEqual({});
+  });
+  it('public mode still shows everybody', () => {
+    const h = new Harness<MostLikelyState>('most-likely', 3, { rounds: 1, anonymous: false });
+    for (const p of h.players) h.act(p, 'vote', { target: 'p1' });
+    expect(h.view('p0').result.roundPoints).toEqual({ p0: 1, p1: 1, p2: 1 });
+  });
+});
+
+describe('launch fix 7: the outsider leaving replays the round instead of using it up', () => {
+  it('outsider-word: a 1-round game still ends with results, with new content', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 });
+    const before = h.state.secret!.itemId;
+    const out = h.state.outsiders[0];
+    for (const p of h.players) h.act(p, 'seen');
+    const draft = structuredClone(h.state);
+    h.engine.playerLeft!(draft, out, h.ctx());
+    h.state = draft;
+    expect(h.state.finished).toBe(false);
+    expect(h.state.round).toBe(1);
+    expect(h.state.phase).toBe('reveal');
+    expect(h.state.secret!.itemId).not.toBe(before);
+    expect(h.state.outsiders).toHaveLength(1);
+    expect(h.state.players).toContain(h.state.outsiders[0]);
+    let guard = 0;
+    while (!h.state.finished && guard++ < 100) h.act('p0', 'host:skip');
+    expect(h.state.finished).toBe(true);
+    expect(h.state.results!.ranking).toHaveLength(3);
+    expect(h.state.history).toHaveLength(1);
+  });
+  it('odd-question', () => {
+    const h = new Harness<OddQuestionState>('odd-question', 4, { rounds: 1 });
+    const before = h.state.pair!.majority;
+    const draft = structuredClone(h.state);
+    h.engine.playerLeft!(draft, h.state.outsider!, h.ctx());
+    h.state = draft;
+    expect(h.state.finished).toBe(false);
+    expect(h.state.round).toBe(1);
+    expect(h.state.phase).toBe('answer');
+    expect(h.state.pair!.majority).not.toBe(before);
+    expect(h.state.players).toContain(h.state.outsider);
+  });
+});
+
+describe('launch fix 8: no guess phase when the outsider left during the verdict', () => {
+  it('outsider-word', () => {
+    const h = new Harness<OutsiderState>('outsider-word', 4, { rounds: 1 });
+    wordToVerdict(h);
+    const draft = structuredClone(h.state);
+    h.engine.playerLeft!(draft, h.state.outsiders[0], h.ctx());
+    h.state = draft;
+    expect(h.state.phase).toBe('verdict');
+    h.expire();
+    expect(h.state.phase).toBe('roundEnd');
+    expect(h.state.history).toHaveLength(1);
+  });
+});
+
+describe('launch fix 9: draw-guess says when teams mode falls back to individual', () => {
+  it('adds a system line to the feed with fewer than 4 players, and not with 4', () => {
+    const h3 = new Harness<DrawGuessState>('draw-guess', 3, { rounds: 1, scoring: 'teams' });
+    expect(h3.state.teams).toBeNull();
+    const line = h3.view('p0').feed.find((f: { kind: string }) => f.kind === 'system');
+    expect(line.text).toContain('4 لاعبين');
+    const h4 = new Harness<DrawGuessState>('draw-guess', 4, { rounds: 1, scoring: 'teams' });
+    expect(h4.state.teams).not.toBeNull();
+    expect(h4.view('p0').feed).toHaveLength(0);
+    const hi = new Harness<DrawGuessState>('draw-guess', 3, { rounds: 1, scoring: 'individual' });
+    expect(hi.view('p0').feed).toHaveLength(0);
+  });
+});
+
+describe('launch fix 10: taboo buzz once per card', () => {
+  it('repeated buzzes are ignored and cost only one point', () => {
+    const h = new Harness<TabooState>('taboo', 4, { turnsPerPlayer: 1, maxSkips: 1 });
+    const explainer = h.state.explainer!;
+    const team = h.state.teams[explainer];
+    const opp = h.players.find((p) => h.state.teams[p] !== team)!;
+    h.act(explainer, 'start');
+    const first = h.state.cardIndex;
+    h.act(opp, 'buzz', { card: first });
+    expect(h.state.teamScores[team]).toBe(-1);
+    h.act(opp, 'buzz', { card: first }); // same card again
+    h.act(opp, 'buzz', { card: h.state.cardIndex }); // spam on the replacement card
+    expect(h.state.teamScores[team]).toBe(-1);
+    expect(h.state.played.filter((p) => p.result === 'buzz')).toHaveLength(1);
+    // once the explainer moved on to a new card, a new buzz is possible again
+    h.act(explainer, 'skip', { card: h.state.cardIndex });
+    h.act(opp, 'buzz', { card: h.state.cardIndex });
+    expect(h.state.teamScores[team]).toBe(-2);
+  });
+});
+
+describe('launch fix 11: مين برا الصورة؟ final guess options come from the picture category', () => {
+  const pics = (cat: string, n: number, base = 0) =>
+    Array.from({ length: n }, (_, i) => item('picture-pair', base + i, { a: `a${cat}${i}`, b: `b${cat}${i}`, labelA: `${cat}-أ${i}`, labelB: `${cat}-ب${i}`, mode: 'normal' }, cat));
+  const start = (mode: string, own: number) => {
+    const h = new Harness<OutsiderState>('outsider-picture', 4, { rounds: 1, mode }, pics('food', 1));
+    reinit(h, 'outsider-picture', { rounds: 1, mode }, [pics('food', 1)[0]], [...pics('food', own), ...pics('animals', 30, 100)]);
+    return h;
+  };
+  it('normal and hard: both labels + 4 decoys, all from the same category', () => {
+    for (const mode of ['normal', 'hard']) {
+      const h = start(mode, 20);
+      const sec = h.state.secret!;
+      expect(sec.guessOptions).toHaveLength(6);
+      expect(new Set(sec.guessOptions).size).toBe(6);
+      expect(sec.guessOptions).toContain(sec.labelA);
+      expect(sec.guessOptions).toContain(sec.labelB);
+      for (const o of sec.guessOptions) expect(o.startsWith('food-')).toBe(true);
+    }
+  });
+  it('easy: the answer + 5 decoys from the same category', () => {
+    const h = start('easy', 20);
+    const sec = h.state.secret!;
+    expect(sec.guessOptions).toHaveLength(6);
+    expect(new Set(sec.guessOptions).size).toBe(6);
+    expect(sec.guessOptions).toContain(sec.answer);
+    for (const o of sec.guessOptions) expect(o.startsWith('food-')).toBe(true);
+  });
+  it('tops up from other categories only when the category is short', () => {
+    const h = start('normal', 2); // food has 2 pairs = 4 labels, 2 of which are the answer pair
+    const opts = h.state.secret!.guessOptions;
+    expect(opts).toHaveLength(6);
+    expect(new Set(opts).size).toBe(6);
+    expect(opts.filter((o) => o.startsWith('food-'))).toHaveLength(4);
   });
 });

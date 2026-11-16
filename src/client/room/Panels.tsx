@@ -15,15 +15,23 @@ export function PlayersPanel({ view }: { view: RoomView }) {
   const isHost = view.hostId === view.you;
   const [menu, setMenu] = useState<string | null>(null);
   const [report, setReport] = useState<string | null>(null);
-  const teamGame = view.selectedGame === 'taboo' || (view.selectedGame === 'draw-guess' && view.settings.scoring === 'teams');
+  const wantsTeams = view.selectedGame === 'draw-guess' && view.settings.scoring === 'teams';
+  // teams mode in draw & guess needs 4+ players: below that there is nothing to pick
+  const teamsTooSmall = wantsTeams && view.members.length < 4;
+  const teamGame = view.selectedGame === 'taboo' || (wantsTeams && !teamsTooSmall);
   return (
     <div>
       <p className="mb-2 flex items-center justify-between text-sm font-bold">
         اللاعبين
         <span className="text-xs font-normal text-ink-400">
-          {view.members.length}/{view.capacity}
+          <bdi dir="ltr">{view.members.length}/{view.capacity}</bdi>
         </span>
       </p>
+      {teamsTooSmall && view.status !== 'playing' && (
+        <p className="mb-2 rounded-lg bg-white/5 px-3 py-2 text-xs text-ink-300" data-testid="teams-need-four">
+          وضع الفرق بده 4 لاعبين أو أكثر
+        </p>
+      )}
       <ul className="space-y-1.5" data-testid="players-list">
         {view.members.map((m) => (
           <li key={m.id} className="relative flex items-center gap-2 rounded-xl bg-white/5 p-2">
@@ -56,7 +64,7 @@ export function PlayersPanel({ view }: { view: RoomView }) {
               </select>
             )}
             {m.id !== view.you && (isHost || !PAGES) && (
-              <button className="rounded-lg p-1 text-ink-400 hover:bg-white/10" onClick={() => setMenu(menu === m.id ? null : m.id)} aria-label="خيارات اللاعب">
+              <button className="grid size-9 shrink-0 place-items-center rounded-lg text-ink-400 hover:bg-white/10" onClick={() => setMenu(menu === m.id ? null : m.id)} aria-label="خيارات اللاعب">
                 <MoreVertical className="size-4" />
               </button>
             )}

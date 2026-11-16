@@ -35,6 +35,8 @@ export interface Stroke {
 export interface OutsiderDrawState extends BaseState {
   settings: { categoryHint: boolean; laps: number; turnSeconds: number; discussSeconds: number; voteSeconds: number };
   pool: ContentItem[];
+  /** how many pool items were used up by replayed (voided) rounds */
+  poolOffset: number;
   decoyLabels: Record<string, string[]>;
   secret: Secret | null;
   outsiders: string[];
@@ -46,6 +48,8 @@ export interface OutsiderDrawState extends BaseState {
   /** finished turns this round, and how many lines each player has added */
   turns: number;
   drawn: Record<string, number>;
+  /** turns that timed out without a line (count for fairness, not for "ready to vote") */
+  skipped: Record<string, number>;
   /** palette index per player, so everybody can tell whose line is whose */
   colors: Record<string, number>;
   strokes: Stroke[];
@@ -65,6 +69,10 @@ const GUESS_POINTS = 1;
 const ROUND_END_SECONDS = 15;
 /** hard stop (lines per player) so the canvas cannot grow forever */
 const MAX_LINES_PER_PLAYER = 8;
+/** spare content items, so a round voided by the outsider leaving can be replayed with new content */
+const SPARE_ITEMS = 2;
+/** a player who timed out this many times counts as "done" for the vote (AFK players cannot block it) */
+const TIMEOUTS_AS_DONE = 2;
 
 /** one line = one stroke of at most this many points (keeps the shared drawing small) */
 export const MAX_STROKE_POINTS = 250;
@@ -93,15 +101,19 @@ export function parseStroke(raw: unknown, color: number): DrawSegment[] {
 }
 
 export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
-  /** "ready to vote" opens once everybody has added the minimum number of lines (the `laps` setting) */
+  /** shown to the players: the lines needed in total (the `laps` setting × players) */
   const minTurns = (s: OutsiderDrawState) => s.players.length * s.settings.laps;
   const maxTurns = (s: OutsiderDrawState) => s.players.length * Math.max(MAX_LINES_PER_PLAYER, s.settings.laps);
-  const canVote = (s: OutsiderDrawState) => s.turns >= minTurns(s);
+  /**
+   * "ready to vote" opens once every player added `laps` lines or timed out twice
+   * (only real lines count, so time-outs cannot open the vote, and an AFK player cannot block it)
+   */
+  const canVote = (s: OutsiderDrawState) => s.players.every((p) => (s.drawn[p] ?? 0) >= s.settings.laps || (s.skipped[p] ?? 0) >= TIMEOUTS_AS_DONE);
   const drawerOf = (s: OutsiderDrawState) => (s.phase === 'turn' ? s.drawer : null);
 
   function startRound(s: OutsiderDrawState, ctx: EngineCtx) {
     s.round += 1;
-    const item = s.pool[(s.round - 1) % s.pool.length];
+    const item = s.pool[(s.round - 1 + s.poolOffset) % s.pool.length];
     const d = item.data as unknown as DrawWordData & { categoryName?: string };
     const word = d.word;
     const same = Array.from(new Set((s.decoyLabels[item.category] ?? []).filter((w) => w !== word)));
@@ -117,6 +129,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     s.drawer = null;
     s.turns = 0;
     s.drawn = Object.fromEntries(s.players.map((p) => [p, 0]));
+    s.skipped = Object.fromEntries(s.players.map((p) => [p, 0]));
     s.strokes = [];
     s.seen = [];
     s.readyToVote = [];
@@ -127,19 +140,24 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     setPhase(s, 'reveal', ctx, REVEAL_SECONDS);
   }
 
-  /** random drawer (fair: fewest lines first, never twice in a row) */
+  /** random drawer (fair: fewest turns first — time-outs included — never twice in a row) */
   function beginTurn(s: OutsiderDrawState, ctx: EngineCtx) {
-    s.drawer = pickTurnPlayer(s.players, s.drawn, s.drawer, ctx.rng);
+    const turnsHad = Object.fromEntries(s.players.map((p) => [p, (s.drawn[p] ?? 0) + (s.skipped[p] ?? 0)]));
+    s.drawer = pickTurnPlayer(s.players, turnsHad, s.drawer, ctx.rng);
     setPhase(s, 'turn', ctx, s.settings.turnSeconds);
   }
   const startTurns = (s: OutsiderDrawState, ctx: EngineCtx) => {
     s.turns = 0;
     s.drawer = null;
     s.drawn = Object.fromEntries(s.players.map((p) => [p, 0]));
+    s.skipped = Object.fromEntries(s.players.map((p) => [p, 0]));
     beginTurn(s, ctx);
   };
   function nextTurn(s: OutsiderDrawState, ctx: EngineCtx, counted = true) {
-    if (counted && s.drawer) s.drawn[s.drawer] = (s.drawn[s.drawer] ?? 0) + 1;
+    if (s.drawer) {
+      const counter = counted ? s.drawn : s.skipped;
+      counter[s.drawer] = (counter[s.drawer] ?? 0) + 1;
+    }
     s.turns += 1;
     if (s.turns >= maxTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
     else beginTurn(s, ctx);
@@ -170,12 +188,25 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
     else startRound(s, ctx);
   }
 
+  /** the outsider left: play this round again with new content instead of using it up */
+  function replayRound(s: OutsiderDrawState, ctx: EngineCtx) {
+    s.poolOffset += 1;
+    s.round -= 1;
+    startRound(s, ctx);
+  }
+
+  /** games saved before these fields existed (a server restart mid-game) */
+  function migrate(s: OutsiderDrawState) {
+    s.poolOffset ??= 0;
+    s.skipped ??= {};
+  }
+
   const engine: GameEngine<OutsiderDrawState> = {
     id: 'outsider-draw',
     minPlayers: 3,
     maxPlayers: 11, // one colour each
     content(settings) {
-      return { kind: 'draw-word', count: Number(settings.rounds), decoys: 40 };
+      return { kind: 'draw-word', count: Number(settings.rounds) + SPARE_ITEMS, decoys: 40 };
     },
     init(input: InitInput, ctx) {
       if (!input.content.length) throw new AppError('NOT_FOUND', 'ما في محتوى كافي لهالإعدادات.');
@@ -192,6 +223,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
           voteSeconds: Number(st.voteSeconds),
         },
         pool: input.content.map((c) => ({ ...c, data: { ...c.data, categoryName: input.categoryNames[c.category] ?? c.category } })),
+        poolOffset: 0,
         decoyLabels,
         secret: null,
         outsiders: [],
@@ -200,6 +232,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         drawer: null,
         turns: 0,
         drawn: {},
+        skipped: {},
         colors: {},
         strokes: [],
         readyToVote: [],
@@ -213,7 +246,12 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       return s;
     },
     act(s, pid, type, payload, ctx) {
-      if (type === 'host:skip') return engine.tick(s, ctx);
+      migrate(s);
+      if (type === 'host:skip') {
+        // once voting is allowed, skipping goes straight to the discussion (an AFK player cannot stall the round)
+        if (s.phase === 'turn' && canVote(s)) return setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
+        return engine.tick(s, ctx);
+      }
       if (type === 'host:next') {
         requirePhase(s, 'roundEnd');
         return advanceRound(s, ctx);
@@ -262,6 +300,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       }
     },
     tick(s, ctx) {
+      migrate(s);
       switch (s.phase) {
         case 'reveal':
           return startTurns(s, ctx);
@@ -272,6 +311,8 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
         case 'vote':
           return closeVoting(s, ctx);
         case 'verdict':
+          // nobody left to guess (the outsider left): straight to the round end
+          if (!s.outsiders.some((o) => s.players.includes(o))) return closeGuess(s, ctx);
           return setPhase(s, 'guess', ctx, GUESS_SECONDS);
         case 'guess':
           return closeGuess(s, ctx);
@@ -280,17 +321,19 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       }
     },
     playerLeft(s, pid, ctx) {
+      migrate(s);
       const wasDrawer = drawerOf(s) === pid;
       s.players = s.players.filter((p) => p !== pid);
       s.order = s.order.filter((p) => p !== pid);
       delete s.drawn[pid];
+      delete s.skipped[pid];
       s.readyToVote = s.readyToVote.filter((p) => p !== pid);
       delete s.votes[pid];
       for (const [v, t] of Object.entries(s.votes)) if (t === pid && !s.outsiders.includes(pid)) delete s.votes[v];
-      if (s.players.length < 2) return finish(s, ctx);
+      if (s.players.length < 3) return finish(s, ctx); // the game needs 3 players: show the results instead of an unfair 2-player round
       if (s.outsiders.includes(pid) && ['reveal', 'turn', 'discuss', 'vote'].includes(s.phase)) {
         s.outsiders = [];
-        return advanceRound(s, ctx); // the round makes no sense without its outsider
+        return replayRound(s, ctx); // the round makes no sense without its outsider: play it again with new content
       }
       if (s.phase === 'turn') {
         if (wasDrawer) {

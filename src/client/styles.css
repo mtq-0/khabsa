@@ -14,7 +14,7 @@
   --color-ink-700: #22193f;
   --color-ink-600: #2f2456;
   --color-ink-500: #45387a;
-  --color-ink-400: #6b5fa3;
+  --color-ink-400: #8a7fc4;
   --color-ink-300: #9d93cc;
   --color-ink-200: #c9c2ea;
   --color-ink-100: #ece8ff;
@@ -130,6 +130,10 @@
 @utility glass {
   @apply border border-white/8 bg-ink-850/70 backdrop-blur-xl;
 }
+/* near-opaque bar (bottom nav, sticky action bars): content scrolling underneath never shows through the text */
+@utility glass-bar {
+  @apply border border-white/8 bg-ink-850/95 backdrop-blur-2xl backdrop-saturate-150;
+}
 @utility card {
   @apply glass rounded-[var(--radius-card)] shadow-[0_8px_30px_-12px_rgb(0_0_0/0.6)];
 }
@@ -228,7 +232,7 @@ html[data-theme='light'] .theme-dark {
   --color-ink-700: #22193f;
   --color-ink-600: #2f2456;
   --color-ink-500: #45387a;
-  --color-ink-400: #6b5fa3;
+  --color-ink-400: #8a7fc4;
   --color-ink-300: #9d93cc;
   --color-ink-200: #c9c2ea;
   --color-ink-100: #ece8ff;

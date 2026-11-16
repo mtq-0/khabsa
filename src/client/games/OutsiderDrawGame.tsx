@@ -105,7 +105,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
               </Button>
             )}
             <p className="mt-2 text-sm text-ink-400">
-              {g.seenCount}/{g.players.length} جاهزين
+              <bdi dir="ltr">{g.seenCount}/{g.players.length}</bdi> جاهزين
             </p>
           </div>
         </div>
@@ -149,7 +149,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
                       {g.readyToVote.includes(view.you) ? 'بانتظار الباقي...' : 'جاهز للتصويت 🗳'}
                     </Button>
                     <p className="mt-2 text-sm text-ink-400" data-testid="ready-count">
-                      {g.canVote ? `${g.readyToVote.length}/${g.players.length} جاهزين للتصويت · الدور عشوائي وبيضل لحد ما الكل يكبس` : `كل واحد لازم يرسم ${g.laps === 1 ? 'خط' : `${g.laps} خطوط`} على الأقل قبل التصويت`}
+                      {g.canVote ? `\u2066${g.readyToVote.length}/${g.players.length}\u2069 جاهزين للتصويت · الدور عشوائي وبيضل لحد ما الكل يكبس` : `كل واحد لازم يرسم ${g.laps === 1 ? 'خط' : `${g.laps} خطوط`} على الأقل قبل التصويت`}
                     </p>
                   </div>
                 )}
@@ -205,7 +205,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
               </Button>
             )}
             <p className="mt-2 text-sm text-ink-400">
-              {g.readyToVote.length}/{g.players.length} جاهزين للتصويت
+              <bdi dir="ltr">{g.readyToVote.length}/{g.players.length}</bdi> جاهزين للتصويت
             </p>
           </div>
         </div>
@@ -213,7 +213,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
     case 'vote':
       return (
         <div>
-          <PhaseHeader game={g} title="صوّت سراً 🗳" subtitle={`مين برا الرسمة؟ ${g.votedCount}/${g.players.length} صوّتوا`} total={30} />
+          <PhaseHeader game={g} title="صوّت سراً 🗳" subtitle={`مين برا الرسمة؟ \u2066${g.votedCount}/${g.players.length}\u2069 صوّتوا`} total={30} />
           {me.isPlayer ? (
             <VoteGrid candidates={g.players} view={view} voted={me.voted ?? null} disabledIds={[view.you]} onVote={(id) => void act('vote', { target: id })} />
           ) : (
@@ -273,7 +273,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
               </p>
               {outsiders.map((o) => (
                 <p key={o} className="mt-2 text-sm">
-                  {name(o)} خمّن: <b>{r.guesses[o] ?? '—'}</b> {r.guesses[o] === r.answer ? '✅ +1' : r.guesses[o] ? '❌' : ''}
+                  {name(o)} خمّن: <b>{r.guesses[o] ?? '—'}</b> {r.guesses[o] === r.answer ? <>✅ <bdi dir="ltr">+1</bdi></> : r.guesses[o] ? '❌' : ''}
                 </p>
               ))}
             </div>
@@ -299,7 +299,7 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
               <div className="flex flex-wrap gap-2">
                 {Object.entries(r.roundPoints).map(([p, pts]) => (
                   <span key={p} className="chip text-lime-400">
-                    {name(p)} +{pts}
+                    {name(p)} <bdi dir="ltr">+{pts}</bdi>
                   </span>
                 ))}
                 {!Object.keys(r.roundPoints).length && <span className="text-sm text-ink-400">ما حدا أخذ نقاط</span>}

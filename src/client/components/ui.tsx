@@ -253,7 +253,8 @@ export function Toggle({ checked, onChange, label, id }: { checked: boolean; onC
   );
 }
 
-export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { value: T; label: ReactNode }[]; value: T; onChange: (v: T) => void }) {
+/** `fill`: the tabs share the full width (no sideways scrolling), for tight places like the room on phones */
+export function Tabs<T extends string>({ tabs, value, onChange, fill }: { tabs: { value: T; label: ReactNode }[]; value: T; onChange: (v: T) => void; fill?: boolean }) {
   return (
     <div className="scrollbar-thin flex gap-1 overflow-x-auto rounded-2xl bg-white/5 p-1" role="tablist">
       {tabs.map((t) => (
@@ -262,7 +263,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { valu
           role="tab"
           aria-selected={value === t.value}
           onClick={() => onChange(t.value)}
-          className={cx('shrink-0 rounded-xl px-4 py-2 text-sm font-semibold transition', value === t.value ? 'bg-brand-500 text-[#fff] shadow-glow' : 'text-ink-300 hover:text-ink-100')}
+          className={cx('rounded-xl py-2 text-sm font-semibold transition', fill ? 'flex min-w-0 flex-1 justify-center px-1.5 whitespace-nowrap' : 'shrink-0 px-4', value === t.value ? 'bg-brand-500 text-[#fff] shadow-glow' : 'text-ink-300 hover:text-ink-100')}
         >
           {t.label}
         </button>

@@ -16,7 +16,7 @@ const loadVoice = (p2p: boolean) => (modPromise ??= p2p ? import('./voiceP2p.ts'
 let loadedMod: VoiceModule | null = null;
 
 /** Voice controls. Voice is optional and never blocks joining or playing. */
-export function VoicePanel({ view }: { view: RoomView }) {
+export function VoicePanel({ view, compact = false }: { view: RoomView; compact?: boolean }) {
   const v = useVoice();
   // every panel uses the same voice module: the mic button works in whichever panel you press,
   // also after the panel was re-mounted (switching tabs, the game starting)
@@ -50,6 +50,33 @@ export function VoicePanel({ view }: { view: RoomView }) {
     await (m.joinVoice as (c: string, ids?: string[], me?: string) => Promise<void>)(view.code, view.members.map((x) => x.id), view.you);
     setMics(await m.listMics());
   };
+
+  // compact: icon-only controls for the tabs row on phones while a game is running
+  if (compact) {
+    if (v.status === 'off' || v.status === 'error')
+      return (
+        <button type="button" className="grid size-10 shrink-0 place-items-center rounded-xl bg-volt-400/15 text-volt-300 transition hover:bg-volt-400/25" onClick={() => void join()} aria-label="انضم للصوت" title="انضم للصوت" data-testid="voice-join">
+          <Mic className="size-5" />
+        </button>
+      );
+    const live = v.status === 'connected';
+    return (
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          className={cx('grid size-10 place-items-center rounded-xl transition', v.muted ? 'bg-zing-500/20 text-zing-400' : live ? 'bg-lime-400/15 text-lime-400' : 'bg-sun-400/15 text-sun-400')}
+          onClick={() => void mod?.setMuted(!v.muted)}
+          aria-pressed={v.muted}
+          aria-label={v.muted ? 'شغّل المايك' : 'سكّر المايك'}
+        >
+          {v.muted ? <MicOff className="size-5" /> : <Mic className="size-5" />}
+        </button>
+        <button type="button" className="grid size-10 place-items-center rounded-xl bg-white/5 text-ink-300 hover:text-white" onClick={() => void mod?.leaveVoice()} aria-label="اطلع من الصوت" data-testid="voice-leave">
+          <PhoneOff className="size-5" />
+        </button>
+      </div>
+    );
+  }
 
   if (v.status === 'off' || v.status === 'error')
     return (

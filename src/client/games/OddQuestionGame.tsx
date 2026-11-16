@@ -70,7 +70,7 @@ export function OddQuestionGame({ view }: { view: RoomView }) {
             <p className="text-center text-ink-300">اللاعبين عم يجاوبوا...</p>
           )}
           <p className="mt-4 text-center text-sm text-ink-400">
-            {g.answeredCount}/{g.players.length} جاوبوا
+            <bdi dir="ltr">{g.answeredCount}/{g.players.length}</bdi> جاوبوا
           </p>
         </div>
       );
@@ -90,7 +90,7 @@ export function OddQuestionGame({ view }: { view: RoomView }) {
               </Button>
             )}
             <p className="mt-2 text-sm text-ink-400">
-              {g.readyToVote.length}/{g.players.length}
+              <bdi dir="ltr">{g.readyToVote.length}/{g.players.length}</bdi>
             </p>
           </div>
         </div>
@@ -98,7 +98,7 @@ export function OddQuestionGame({ view }: { view: RoomView }) {
     case 'vote':
       return (
         <div>
-          <PhaseHeader game={g} title="صوّت سراً 🗳️" subtitle={`${g.votedCount}/${g.players.length} صوّتوا`} total={30} />
+          <PhaseHeader game={g} title="صوّت سراً 🗳️" subtitle={`\u2066${g.votedCount}/${g.players.length}\u2069 صوّتوا`} total={30} />
           <div className="mb-4">{answers}</div>
           {g.me.isPlayer && <VoteGrid candidates={g.players} view={view} voted={g.me.voted} disabledIds={[view.you]} onVote={(id) => void act('vote', { target: id })} />}
         </div>
@@ -123,7 +123,7 @@ export function OddQuestionGame({ view }: { view: RoomView }) {
             <div className="flex flex-wrap gap-2">
               {Object.entries(r.roundPoints).map(([p, pts]) => (
                 <span key={p} className="chip text-lime-400">
-                  {name(p)} +{pts}
+                  {name(p)} <bdi dir="ltr">+{pts}</bdi>
                 </span>
               ))}
             </div>

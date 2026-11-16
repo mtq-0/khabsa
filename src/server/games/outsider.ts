@@ -80,6 +80,8 @@ export interface OutsiderState extends BaseState {
   mode: 'easy' | 'normal' | 'hard';
   settings: { outsiders: number; categoryHint: boolean; turnSeconds: number; discussSeconds: number; voteSeconds: number };
   pool: ContentItem[];
+  /** how many pool items were used up by replayed (voided) rounds */
+  poolOffset: number;
   decoyLabels: Record<string, string[]>;
   secret: RoundSecret | null;
   outsiders: string[];
@@ -91,6 +93,8 @@ export interface OutsiderState extends BaseState {
   /** finished turns this round, and how many times each player has asked */
   turns: number;
   asked: Record<string, number>;
+  /** turns that timed out without the player taking part (count for fairness, not for "ready to vote") */
+  skipped: Record<string, number>;
   seen: string[];
   readyToVote: string[];
   votes: Record<string, string>;
@@ -110,6 +114,10 @@ const WORD_GUESS_OPTIONS = 12;
 /** points for an outsider who guesses the secret correctly */
 const GUESS_POINTS = 1;
 const ROUND_END_SECONDS = 12;
+/** spare content items, so a round voided by the outsider leaving can be replayed with new content */
+const SPARE_ITEMS = 2;
+/** a player who timed out this many times counts as "done" for the vote (AFK players cannot block it) */
+const TIMEOUTS_AS_DONE = 2;
 
 export function outsiderCountFor(requested: number, players: number): number {
   return Math.max(1, Math.min(requested, Math.floor((players - 1) / 2)));
@@ -120,7 +128,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
 
   function startRound(s: OutsiderState, ctx: EngineCtx) {
     s.round += 1;
-    const item = s.pool[(s.round - 1) % s.pool.length];
+    const item = s.pool[(s.round - 1 + s.poolOffset) % s.pool.length];
     const categoryName = (item.data as { categoryName?: string }).categoryName ?? item.category;
     let secret: RoundSecret;
     if (s.variant === 'word') {
@@ -135,8 +143,16 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       secret = { itemId: item.id, category: item.category, categoryName, word, wordImage: poster?.path ? `tmdb:${poster.path}` : typeof image === 'string' && image ? image : undefined, answer: word, guessOptions: shuffle([word, ...decoys], ctx.rng) };
     } else {
       const d = item.data as unknown as PicturePairData;
-      const decoys = Object.values(s.decoyLabels).flat().filter((l) => l !== d.labelA && l !== d.labelB);
-      const opts = [d.labelA, ...(s.mode === 'easy' ? [] : [d.labelB]), ...pickN(Array.from(new Set(decoys)), s.mode === 'easy' ? 5 : 4, ctx.rng)];
+      // like the word game: options from the picture pair's own category first, top up from others only if it is short
+      const taken = new Set([d.labelA, d.labelB]);
+      const want = s.mode === 'easy' ? 5 : 4;
+      const same = Array.from(new Set(s.decoyLabels[item.category] ?? [])).filter((l) => !taken.has(l));
+      const decoys = pickN(same, want, ctx.rng);
+      if (decoys.length < want) {
+        const others = Array.from(new Set(Object.values(s.decoyLabels).flat())).filter((l) => !taken.has(l) && !same.includes(l));
+        decoys.push(...pickN(others, want - decoys.length, ctx.rng));
+      }
+      const opts = [d.labelA, ...(s.mode === 'easy' ? [] : [d.labelB]), ...decoys];
       secret = { itemId: item.id, category: item.category, categoryName, imageA: d.a, imageB: d.b, labelA: d.labelA, labelB: d.labelB, ...(d.credits ? { credits: d.credits } : {}), answer: d.labelA, guessOptions: shuffle(opts, ctx.rng) };
     }
     s.secret = secret;
@@ -147,6 +163,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     s.target = null;
     s.turns = 0;
     s.asked = Object.fromEntries(s.players.map((p) => [p, 0]));
+    s.skipped = Object.fromEntries(s.players.map((p) => [p, 0]));
     s.seen = [];
     s.readyToVote = [];
     s.votes = {};
@@ -157,12 +174,16 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
   }
 
   const maxTurns = (s: OutsiderState) => s.players.length * MAX_TURNS_PER_PLAYER;
-  /** everybody has asked at least once: from now on "ready to vote" is allowed */
-  const canVote = (s: OutsiderState) => s.turns >= s.players.length;
+  /**
+   * "ready to vote" opens once every player either asked a question or timed out twice
+   * (so one AFK player cannot block the vote, and a timed-out turn is never mistaken for taking part)
+   */
+  const canVote = (s: OutsiderState) => s.players.every((p) => (s.asked[p] ?? 0) >= 1 || (s.skipped[p] ?? 0) >= TIMEOUTS_AS_DONE);
 
-  /** random asker (fair: fewest turns first, never twice in a row) and a random target */
+  /** random asker (fair: fewest turns first — timeouts included — never twice in a row) and a random target */
   function beginTurn(s: OutsiderState, ctx: EngineCtx) {
-    const asker = pickTurnPlayer(s.players, s.asked, s.asker, ctx.rng);
+    const turnsHad = Object.fromEntries(s.players.map((p) => [p, (s.asked[p] ?? 0) + (s.skipped[p] ?? 0)]));
+    const asker = pickTurnPlayer(s.players, turnsHad, s.asker, ctx.rng);
     s.target = pickOther(s.players, asker, s.target, ctx.rng);
     s.asker = asker;
     setPhase(s, 'turns', ctx, s.settings.turnSeconds);
@@ -173,11 +194,15 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     s.asker = null;
     s.target = null;
     s.asked = Object.fromEntries(s.players.map((p) => [p, 0]));
+    s.skipped = Object.fromEntries(s.players.map((p) => [p, 0]));
     beginTurn(s, ctx);
   }
 
-  function nextTurn(s: OutsiderState, ctx: EngineCtx) {
-    if (s.asker) s.asked[s.asker] = (s.asked[s.asker] ?? 0) + 1;
+  function nextTurn(s: OutsiderState, ctx: EngineCtx, done = true) {
+    if (s.asker) {
+      const counter = done ? s.asked : s.skipped;
+      counter[s.asker] = (counter[s.asker] ?? 0) + 1;
+    }
     s.turns += 1;
     if (s.turns >= maxTurns(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
     else beginTurn(s, ctx);
@@ -209,12 +234,25 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     else startRound(s, ctx);
   }
 
+  /** the outsider left: play this round again with new content instead of using it up */
+  function replayRound(s: OutsiderState, ctx: EngineCtx) {
+    s.poolOffset += 1;
+    s.round -= 1;
+    startRound(s, ctx);
+  }
+
+  /** games saved before these fields existed (a server restart mid-game) */
+  function migrate(s: OutsiderState) {
+    s.poolOffset ??= 0;
+    s.skipped ??= {};
+  }
+
   const engine: GameEngine<OutsiderState> = {
     id,
     minPlayers: 3,
     maxPlayers: 12,
     content(settings) {
-      return { kind: variant === 'word' ? 'word' : 'picture-pair', count: Number(settings.rounds), decoys: 40 };
+      return { kind: variant === 'word' ? 'word' : 'picture-pair', count: Number(settings.rounds) + SPARE_ITEMS, decoys: 40 };
     },
     init(input: InitInput, ctx) {
       if (!input.content.length) throw new AppError('NOT_FOUND', 'ما في محتوى كافي لهالإعدادات.');
@@ -239,6 +277,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
           voteSeconds: Number(st.voteSeconds),
         },
         pool,
+        poolOffset: 0,
         decoyLabels,
         secret: null,
         outsiders: [],
@@ -247,6 +286,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
         target: null,
         turns: 0,
         asked: {},
+        skipped: {},
         seen: [],
         readyToVote: [],
         votes: {},
@@ -259,9 +299,12 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       return s;
     },
     act(s, pid, type, payload, ctx) {
+      migrate(s);
       if (type === 'host:skip') {
         // host-only check is done by the room manager
-        engine.tick(s, ctx);
+        // once voting is allowed, skipping goes straight to the discussion (an AFK player cannot stall the round)
+        if (s.phase === 'turns' && canVote(s)) setPhase(s, 'discuss', ctx, s.settings.discussSeconds);
+        else engine.tick(s, ctx);
         return;
       }
       if (type === 'host:next') {
@@ -312,16 +355,19 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       }
     },
     tick(s, ctx) {
+      migrate(s);
       switch (s.phase) {
         case 'reveal':
           return startTurns(s, ctx);
         case 'turns':
-          return nextTurn(s, ctx);
+          return nextTurn(s, ctx, false); // time's up: the turn passes but the player did not take part
         case 'discuss':
           return setPhase(s, 'vote', ctx, s.settings.voteSeconds);
         case 'vote':
           return closeVoting(s, ctx);
         case 'verdict':
+          // nobody left to guess (the outsider left): straight to the round end
+          if (!s.outsiders.some((o) => s.players.includes(o))) return closeGuess(s, ctx);
           return setPhase(s, 'guess', ctx, GUESS_SECONDS);
         case 'guess':
           return closeGuess(s, ctx);
@@ -330,6 +376,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       }
     },
     playerLeft(s, pid, ctx) {
+      migrate(s);
       // keep their score but stop waiting on them
       s.players = s.players.filter((p) => p !== pid);
       delete s.votes[pid];
@@ -337,12 +384,13 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
       const wasTurn = s.phase === 'turns' && (s.asker === pid || s.target === pid);
       s.order = s.order.filter((p) => p !== pid);
       delete s.asked[pid];
+      delete s.skipped[pid];
       s.readyToVote = s.readyToVote.filter((p) => p !== pid);
-      if (s.players.length < 2) return finish(s, ctx);
+      if (s.players.length < 3) return finish(s, ctx); // the game needs 3 players: show the results instead of an unfair 2-player round
       if (s.outsiders.includes(pid) && ['reveal', 'turns', 'discuss', 'vote'].includes(s.phase)) {
-        // round cannot continue without its outsider: void it and move on
+        // round cannot continue without its outsider: void it and play it again with new content
         s.outsiders = s.outsiders.filter((p) => p !== pid);
-        if (!s.outsiders.length) return advanceRound(s, ctx);
+        if (!s.outsiders.length) return replayRound(s, ctx);
       }
       if (wasTurn) {
         // the asker or the one being asked left: draw a new pair (without counting this turn)

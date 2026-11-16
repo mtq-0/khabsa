@@ -222,7 +222,7 @@ export function Lobby({ view }: { view: RoomView }) {
         </div>
       </div>
 
-      <div className="card sticky bottom-20 z-10 flex flex-wrap items-center gap-3 p-4 md:bottom-4">
+      <div className="glass-bar sticky bottom-2 z-10 flex flex-wrap items-center gap-3 rounded-[var(--radius-card)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_8px_30px_-12px_rgb(0_0_0/0.6)] md:bottom-4">
         {!isHost && (
           <Button
             size="lg"

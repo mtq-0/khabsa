@@ -81,7 +81,7 @@ function JoinForm() {
         />
         {preview && (
           <p className="text-sm text-ink-300">
-            {GAMES[preview.gameId].emoji} {preview.name} · {preview.players}/{preview.capacity}
+            {GAMES[preview.gameId].emoji} {preview.name} · <bdi dir="ltr">{preview.players}/{preview.capacity}</bdi>
           </p>
         )}
         {err && (

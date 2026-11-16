@@ -33,7 +33,7 @@ export default function AchievementsPage() {
                   <p className="font-bold">{a.title}</p>
                   <p className="text-xs text-ink-300">{a.description}</p>
                   <p className="mt-1 text-[11px] text-ink-400">
-                    {a.xp ? `+${a.xp} XP · ` : ''}
+                    {a.xp ? <><bdi dir="ltr">+{a.xp} XP</bdi> · </> : null}
                     {data.counts[a.id] ?? 0} لاعب فتحوه {got && `· فتحته ${new Date(got).toLocaleDateString('ar')}`}
                   </p>
                 </div>
