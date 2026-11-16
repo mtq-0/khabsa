@@ -1,5 +1,6 @@
 import type { DrawSegment, RoomView } from '../../shared/protocol.ts';
-import { Button, cx } from '../components/ui.tsx';
+import { Button, Countdown, cx } from '../components/ui.tsx';
+import { BigToggle, BoardFrame, useBigBoard } from './BigBoard.tsx';
 import { useRoomContext } from '../lib/room.ts';
 import { OutsiderRoulette } from './OutsiderRoulette.tsx';
 import { PhaseHeader, PlayerTag, SecretCard, VoteGrid, useGameAction, useMembers } from '../room/common.tsx';
@@ -85,7 +86,9 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
   const g = view.game as unknown as G;
   const act = useGameAction();
   const { byId, name } = useMembers(view);
-  const { code } = useRoomContext();
+  const { code, clockOffset } = useRoomContext();
+  // one line per turn and quick turns: the big board is only opened by hand here
+  const [big, setBig] = useBigBoard('watch');
   const me = g.me;
   const sendStroke = async (segs: DrawSegment[]) => (await act('stroke', { segments: segs })).ok;
 
@@ -119,34 +122,70 @@ export function OutsiderDrawGame({ view }: { view: RoomView }) {
           />
           <RoleCard g={g} compact />
           <Order g={g} view={view} />
-          <div className="mx-auto max-w-2xl">
-            <SharedCanvas
-              key={`${g.turnNumber}`}
-              strokes={g.strokes}
-              canDraw={mine}
-              color={me.color ?? 0}
-              maxPoints={g.maxStrokePoints}
-              onStroke={sendStroke}
-              live={{ code, turnKey: g.phaseKey, color: g.colors[g.drawer ?? ''] ?? 0 }}
-            />
-            {mine ? (
-              <p className="mt-2 flex items-center justify-center gap-2 text-sm text-volt-300" data-testid="your-turn">
-                لونك <span className="size-4 rounded-full ring-1 ring-white/50" style={{ background: colorOf(me.color) }} /> · خط واحد بس، فكّر قبل!
-              </p>
-            ) : (
-              <p className="mt-2 text-center text-sm text-ink-400">استنى دورك... وراقب مين خطّه غريب 👀</p>
-            )}
-            {me.isPlayer && (
-              <div className="mt-4 text-center">
-                <Button variant={g.readyToVote.includes(view.you) ? 'secondary' : 'primary'} onClick={() => void act('ready-vote')} disabled={!g.canVote || g.readyToVote.includes(view.you)} data-testid="ready-vote">
-                  {g.readyToVote.includes(view.you) ? 'بانتظار الباقي...' : 'جاهز للتصويت 🗳'}
-                </Button>
-                <p className="mt-2 text-sm text-ink-400" data-testid="ready-count">
-                  {g.canVote ? `${g.readyToVote.length}/${g.players.length} جاهزين للتصويت · الدور عشوائي وبيضل لحد ما الكل يكبس` : `كل واحد لازم يرسم ${g.laps === 1 ? 'خط' : `${g.laps} خطوط`} على الأقل قبل التصويت`}
-                </p>
+          {(() => {
+            const canvas = (
+              <SharedCanvas
+                key={`${g.turnNumber}`}
+                strokes={g.strokes}
+                canDraw={mine}
+                color={me.color ?? 0}
+                maxPoints={g.maxStrokePoints}
+                onStroke={sendStroke}
+                live={{ code, turnKey: g.phaseKey, color: g.colors[g.drawer ?? ''] ?? 0 }}
+              />
+            );
+            const info = (
+              <>
+                {mine ? (
+                  <p className="mt-2 flex items-center justify-center gap-2 text-sm text-volt-300" data-testid="your-turn">
+                    لونك <span className="size-4 rounded-full ring-1 ring-white/50" style={{ background: colorOf(me.color) }} /> · خط واحد بس، فكّر قبل!
+                  </p>
+                ) : (
+                  <p className="mt-2 text-center text-sm text-ink-400">استنى دورك... وراقب مين خطّه غريب 👀</p>
+                )}
+                {me.isPlayer && (
+                  <div className="mt-4 text-center">
+                    <Button variant={g.readyToVote.includes(view.you) ? 'secondary' : 'primary'} onClick={() => void act('ready-vote')} disabled={!g.canVote || g.readyToVote.includes(view.you)} data-testid="ready-vote">
+                      {g.readyToVote.includes(view.you) ? 'بانتظار الباقي...' : 'جاهز للتصويت 🗳'}
+                    </Button>
+                    <p className="mt-2 text-sm text-ink-400" data-testid="ready-count">
+                      {g.canVote ? `${g.readyToVote.length}/${g.players.length} جاهزين للتصويت · الدور عشوائي وبيضل لحد ما الكل يكبس` : `كل واحد لازم يرسم ${g.laps === 1 ? 'خط' : `${g.laps} خطوط`} على الأقل قبل التصويت`}
+                    </p>
+                  </div>
+                )}
+              </>
+            );
+            if (big)
+              return (
+                <BoardFrame
+                  big
+                  onClose={() => setBig(false)}
+                  header={
+                    <div className="flex items-center gap-3">
+                      <Countdown deadline={g.deadline} offset={clockOffset} total={g.phaseSeconds || g.turnSeconds} size="sm" />
+                      <p className="truncate font-display text-xl leading-tight">{mine ? 'دورك! ارسم خط واحد ✍' : <>دور {name(g.drawer)} 🖍</>}</p>
+                    </div>
+                  }
+                  side={
+                    <div>
+                      <RoleCard g={g} compact />
+                      {info}
+                    </div>
+                  }
+                >
+                  {canvas}
+                </BoardFrame>
+              );
+            return (
+              <div className="mx-auto max-w-2xl">
+                {canvas}
+                <div className="mt-2 flex justify-center">
+                  <BigToggle big={false} onToggle={() => setBig(true)} />
+                </div>
+                {info}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       );
     }
