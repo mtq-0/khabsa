@@ -88,6 +88,9 @@ export function createMostLikelyEngine(): GameEngine<MostLikelyState> {
       if (s.phase === 'vote') close(s, ctx);
       else if (s.phase === 'results') advance(s, ctx);
     },
+    shown(s) {
+      return s.pool.slice(0, s.round).map((c) => c.id);
+    },
     playerLeft(s, pid, ctx) {
       s.players = s.players.filter((p) => p !== pid);
       delete s.votes[pid];

@@ -63,6 +63,10 @@ interface GameSession {
   participants: string[];
   startedAt: number;
   recorded: boolean;
+  /** the content the game got: [id, word / question / prompt] (to remember what the players saw) */
+  content?: [string, string][];
+  /** the seen content was already saved */
+  seenSaved?: boolean;
 }
 
 export interface Room {
@@ -522,6 +526,7 @@ export class RoomManager {
         this.requireHost(room, user.id);
         if (!room.game) throw new AppError('INVALID_ACTION');
         this.clearTimer(room);
+        void this.saveSeen(room.game);
         room.game = null;
         room.status = 'lobby';
         this.system(room, 'المضيف وقّف اللعبة.');
@@ -557,10 +562,11 @@ export class RoomManager {
     const difficulty =
       gameId === 'outsider-picture' ? (settings.mode === 'hard' ? 'hard' : settings.mode === 'normal' ? 'medium' : 'mixed') : String(settings.difficulty ?? 'mixed');
     const used = room.usedContent[req.kind] ?? [];
-    let content = await this.deps.content.pick({ kind: req.kind, count: req.count, category: String(settings.category ?? 'any'), difficulty, packId, exclude: used });
+    const playerIds = players.map((p) => p.id);
+    let content = await this.deps.content.pick({ kind: req.kind, count: req.count, category: String(settings.category ?? 'any'), difficulty, packId, exclude: used, players: playerIds });
     if (!content.length && (settings.category !== 'any' || difficulty !== 'mixed')) {
       // fall back to any category/difficulty rather than failing the start
-      content = await this.deps.content.pick({ kind: req.kind, count: req.count, packId, exclude: used, difficulty: gameId === 'outsider-picture' ? difficulty : undefined });
+      content = await this.deps.content.pick({ kind: req.kind, count: req.count, packId, exclude: used, players: playerIds, difficulty: gameId === 'outsider-picture' ? difficulty : undefined });
     }
     // decoys come from the same categories as the picked rounds, so guess options are close to the answer
     const decoyCats = Array.from(new Set(content.map((c) => c.category))).filter((c) => /^[a-z0-9-]{1,40}$/.test(c));
@@ -577,7 +583,8 @@ export class RoomManager {
     room.usedContent[req.kind] = [...used, ...content.map((c) => c.id)].slice(-300);
     const matchId = await this.deps.stats.startMatch(room.id, gameId, players.length, room.hostId);
     room.matchNumber += 1;
-    room.game = { gameId, state, matchId, participants: players.map((p) => p.id), startedAt: ctx.now, recorded: false };
+    const textOf = (d: Record<string, unknown>) => String(d.word ?? d.question ?? d.text ?? d.majority ?? '');
+    room.game = { gameId, state, matchId, participants: playerIds, startedAt: ctx.now, recorded: false, content: content.map((c) => [c.id, textOf(c.data)]) };
     room.status = 'playing';
     room.awards = {};
     room.drawing = { turnKey: '', segments: [], points: 0 };
@@ -606,8 +613,26 @@ export class RoomManager {
       g.recorded = true;
       room.status = 'results';
       this.clearTimer(room);
+      void this.saveSeen(g);
       void this.record(room, g);
     } else this.schedule(room);
+  }
+
+  /** Remembers which content the players saw, so their next games pick other content first. */
+  private async saveSeen(g: GameSession | null) {
+    if (!g || g.seenSaved || !g.content?.length) return;
+    g.seenSaved = true;
+    const engine = this.deps.engines[g.gameId];
+    let ids = g.content.map(([id]) => id);
+    if (engine.shown) {
+      const keys = new Set(engine.shown(g.state));
+      ids = g.content.filter(([id, text]) => keys.has(id) || (text && keys.has(text))).map(([id]) => id);
+    }
+    try {
+      await this.deps.content.markSeen?.(g.participants, ids);
+    } catch (e) {
+      console.error('[rooms] failed to save seen content', (e as Error).message);
+    }
   }
 
   private async record(room: Room, g: GameSession) {

@@ -127,6 +127,9 @@ export function createSpeedQuizEngine(): GameEngine<SpeedQuizState> {
       else if (s.phase === 'question') reveal(s, ctx);
       else if (s.phase === 'reveal') advance(s, ctx);
     },
+    shown(s) {
+      return s.questions.slice(0, s.round).map((q) => q.question);
+    },
     playerLeft(s, pid, ctx) {
       s.players = s.players.filter((p) => p !== pid);
       if (!s.players.length) return finish(s, ctx);

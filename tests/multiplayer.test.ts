@@ -482,6 +482,46 @@ describe('every game starts and finishes end-to-end with seeded content', () => 
   }
 });
 
+describe('content does not repeat for the same players', () => {
+  it('a new game, even in a new room, gets content the players have not seen; only what was shown counts as seen', async () => {
+    const db = srv.built.ctx.db;
+    const seenCount = async (ids: string[], n: number) => {
+      for (let i = 0; i < 100 && (await seenBy(ids)).length !== n; i++) await new Promise((r) => setTimeout(r, 20));
+      expect((await seenBy(ids)).length).toBe(n);
+    };
+    const seenBy = async (ids: string[]) =>
+      (await db.query<{ content_id: string }>(`select distinct content_id from content_seen where user_id = any($1::uuid[])`, [ids])).rows.map((r) => r.content_id);
+    const { ps, code, host } = await roomWith(3, 'most-likely');
+    const userIds = [...srv.built.ctx.rooms.rooms.get(code)!.members.keys()];
+    await host.act(code, 'settings', { settings: { rounds: 10, category: 'football' } });
+    await readyAll(ps, code);
+    expect((await host.act(code, 'start')).ok).toBe(true);
+    await waitFor(() => host.last.game?.gameId === 'most-likely', 2000);
+    const first = srv.built.ctx.rooms.rooms.get(code)!.game!.content!.map(([id]) => id);
+    expect(first.length).toBe(10);
+    await skipToEnd(host, code);
+    await waitFor(() => host.last.status === 'results', 3000);
+    await seenCount(userIds, 10);
+    const seen = await seenBy(userIds);
+    // the 10 rounds that were played (a small category: without the history, the next game would surely repeat some)
+    for (const id of seen) expect(first).toContain(id);
+    // same players, brand-new room
+    const { data } = await host.http('POST', '/api/rooms', { gameId: 'most-likely' });
+    const code2 = data.code as string;
+    for (const p of ps) await p.join(code2);
+    await host.act(code2, 'settings', { settings: { rounds: 10, category: 'football' } });
+    await readyAll(ps, code2);
+    expect((await host.act(code2, 'start')).ok).toBe(true);
+    await waitFor(() => host.last.game?.gameId === 'most-likely' && host.last.code === code2, 2000);
+    const second = srv.built.ctx.rooms.rooms.get(code2)!.game!.content!.map(([id]) => id);
+    for (const id of second) expect(seen).not.toContain(id);
+    // stopping a game half-way still remembers what was shown so far
+    expect((await host.act(code2, 'end-game')).ok).toBe(true);
+    await seenCount(userIds, 11);
+    for (const p of ps) p.disconnect();
+  });
+});
+
 describe('sockets require a session', () => {
   it('rejects unauthenticated socket connections', async () => {
     const p = new Player(srv.url);

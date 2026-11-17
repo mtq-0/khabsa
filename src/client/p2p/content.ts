@@ -102,6 +102,43 @@ function shuffle<T>(a: T[]): T[] {
   return r;
 }
 
+/**
+ * What each player has seen, kept in the hosting browser: { userId: { contentId: seconds } }.
+ * Content ids of the Pages edition are stable hashes, so this survives new content being added.
+ */
+const SEEN_KEY = 'khabsa:seen:v1';
+const SEEN_MAX_AGE = 365 * 24 * 3600;
+const SEEN_MAX_PER_USER = 6000;
+type SeenMap = Record<string, Record<string, number>>;
+
+function loadSeen(): SeenMap {
+  try {
+    const v = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as unknown;
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as SeenMap) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSeen(map: SeenMap) {
+  try {
+    localStorage.setItem(SEEN_KEY, JSON.stringify(map));
+  } catch {
+    // storage full or blocked: keep only the newest half of every player's history and try once more
+    for (const u of Object.keys(map))
+      map[u] = Object.fromEntries(
+        Object.entries(map[u])
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, SEEN_MAX_PER_USER / 2),
+      );
+    try {
+      localStorage.setItem(SEEN_KEY, JSON.stringify(map));
+    } catch {
+      /* history is a nice-to-have */
+    }
+  }
+}
+
 /** Implements the part of ContentRepo that RoomManager uses. */
 export class BrowserContent {
   async categoryNames(): Promise<Record<string, string>> {
@@ -109,7 +146,26 @@ export class BrowserContent {
     return Object.fromEntries(b.categories.map((c) => [c.slug, c.name]));
   }
 
-  async pick(opts: { kind: ContentKind; count: number; category?: string; difficulty?: string; exclude?: string[] }): Promise<ContentItem[]> {
+  /** Remembers that these players saw these items, so their next games pick other content first. */
+  async markSeen(players: string[], contentIds: string[]): Promise<void> {
+    if (!players.length || !contentIds.length) return;
+    const map = loadSeen();
+    const now = Math.floor(Date.now() / 1000);
+    for (const u of new Set(players)) {
+      const mine = (map[u] ??= {});
+      for (const id of contentIds) mine[id] = now;
+      let entries = Object.entries(mine).filter(([, t]) => typeof t === 'number' && now - t < SEEN_MAX_AGE);
+      if (entries.length > SEEN_MAX_PER_USER) entries = entries.sort((a, b) => b[1] - a[1]).slice(0, SEEN_MAX_PER_USER);
+      map[u] = Object.fromEntries(entries);
+    }
+    saveSeen(map);
+  }
+
+  /**
+   * Random selection for a game. Order of preference: items none of `players` has seen (random), then the ones
+   * they saw longest ago; ids in `exclude` (used in this room lately) come last. Content only repeats once all of it was played.
+   */
+  async pick(opts: { kind: ContentKind; count: number; category?: string; difficulty?: string; exclude?: string[]; players?: string[] }): Promise<ContentItem[]> {
     const isPicture = opts.kind === 'picture-pair';
     const all = isPicture ? (await loadPictures()).items : (await loadBase()).items.filter((i) => i.kind === opts.kind);
     const cats = categoryList(opts.category);
@@ -117,23 +173,26 @@ export class BrowserContent {
     if (opts.difficulty && opts.difficulty !== 'mixed') pool = pool.filter((i) => i.difficulty === opts.difficulty);
     const count = Math.max(1, Math.min(500, opts.count));
     const excluded = new Set(opts.exclude ?? []);
+    const seenMap = opts.players?.length ? loadSeen() : {};
+    const histories = (opts.players ?? []).map((u) => seenMap[u]).filter(Boolean);
+    const lastSeen = (id: string) => histories.reduce((m, h) => Math.max(m, h[id] ?? 0), 0);
+    // shuffled first, then a stable sort: unseen (0) first, then oldest seen; room-recent last
+    const ordered = (list: ContentItem[]) =>
+      shuffle(list)
+        .map((i) => ({ i, x: excluded.has(i.id) ? 1 : 0, t: lastSeen(i.id) }))
+        .sort((a, b) => a.x - b.x || a.t - b.t)
+        .map((e) => e.i);
     let picked: typeof pool;
     if (cats.length > 1) {
       // an equal share from every chosen category, then mixed up
       const share = Math.ceil(count / cats.length);
-      const parts = cats.map((c) => {
-        const inCat = pool.filter((i) => i.category === c);
-        const fresh = shuffle(inCat.filter((i) => !excluded.has(i.id)));
-        return [...fresh, ...shuffle(inCat.filter((i) => excluded.has(i.id)))].slice(0, share);
-      });
+      const parts = cats.map((c) => ordered(pool.filter((i) => i.category === c)).slice(0, share));
       picked = [];
       for (let i = 0; picked.length < count && parts.some((p) => i < p.length); i++) for (const p of parts) if (i < p.length && picked.length < count) picked.push(p[i]);
-      if (picked.length < count) for (const i of shuffle(pool)) if (picked.length < count && !picked.includes(i)) picked.push(i);
+      if (picked.length < count) for (const i of ordered(pool)) if (picked.length < count && !picked.includes(i)) picked.push(i);
       picked = shuffle(picked);
     } else {
-      const fresh = shuffle(pool.filter((i) => !excluded.has(i.id)));
-      picked = fresh.slice(0, count);
-      if (picked.length < count) for (const i of shuffle(pool)) if (picked.length < count && !picked.includes(i)) picked.push(i);
+      picked = ordered(pool).slice(0, count);
     }
     if (isPicture) {
       const { images } = await loadPictures();

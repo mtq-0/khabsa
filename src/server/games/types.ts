@@ -74,6 +74,11 @@ export interface GameEngine<S extends BaseState = BaseState> {
   nextWake?(state: S, now: number): number | null;
   /** Secret words that must be masked in room chat while they are hidden. */
   chatSecrets?(state: S): string[];
+  /**
+   * The content this game has actually shown so far: content ids, or the item's word / question /
+   * prompt text (the room manager maps them back to ids). Defaults to everything the game got.
+   */
+  shown?(state: S): string[];
   /** Who may currently draw on the shared canvas (draw & guess only). */
   canvas?(state: S): { drawer: string; turnKey: string } | null;
 }

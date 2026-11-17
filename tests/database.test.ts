@@ -155,6 +155,34 @@ describe('content system', () => {
     const b = await repo.pick({ kind: 'word', count: 5, category: 'food', exclude: a.map((x) => x.id) });
     for (const x of b) expect(a.map((y) => y.id)).not.toContain(x.id);
   });
+  it('picks content the players have not seen first, then the one they saw longest ago', async () => {
+    const repo = new ContentRepo(db);
+    const [a, b, c] = [await user('seen_a'), await user('seen_b'), await user('seen_c')];
+    const all = await repo.pick({ kind: 'trivia', count: 500, category: 'football' });
+    expect(all.length).toBeGreaterThan(20);
+    const ids = all.map((x) => x.id);
+    const [half, threeQ] = [Math.floor(all.length / 2), Math.floor((all.length * 3) / 4)];
+    // a saw the first half, b the next quarter (in another game, another room)
+    await repo.markSeen([a], ids.slice(0, half));
+    await repo.markSeen([b, 'not-a-uuid'], [...ids.slice(half, threeQ), 'nope']);
+    const fresh = ids.slice(threeQ);
+    const next = await repo.pick({ kind: 'trivia', count: fresh.length, category: 'football', players: [a, b] });
+    expect(next.map((x) => x.id).sort()).toEqual([...fresh].sort());
+    // a player with no history still gets content
+    expect((await repo.pick({ kind: 'trivia', count: 5, category: 'football', players: [c] })).length).toBe(5);
+    // everything seen: the least recently seen comes back first
+    await repo.markSeen([a, b], fresh);
+    await db.query(`update content_seen set seen_at = now() - interval '10 days' where user_id = $1 and content_id = any($2::uuid[])`, [a, ids.slice(0, 3)]);
+    const again = await repo.pick({ kind: 'trivia', count: 3, category: 'football', players: [a, b] });
+    expect(again.map((x) => x.id).sort()).toEqual(ids.slice(0, 3).sort());
+    // seeing it again updates the time (no duplicate rows)
+    await repo.markSeen([a], ids.slice(0, 3));
+    const n = (await db.query<{ n: number }>(`select count(*)::int n from content_seen where user_id = $1`, [a])).rows[0].n;
+    expect(n).toBe(half + fresh.length);
+    // the room's recent content still comes after everything else
+    const ex = await repo.pick({ kind: 'trivia', count: 3, category: 'football', players: [a, b], exclude: ids.slice(3, 6) });
+    for (const x of ex) expect(ids.slice(3, 6)).not.toContain(x.id);
+  });
   it('parses CSV with quotes, commas and BOM', () => {
     expect(parseCsv('\uFEFFa,b\n"x, y","he said ""hi"""\n')).toEqual([['a', 'b'], ['x, y', 'he said "hi"']]);
     const items = csvToItems('taboo-card', 'category,difficulty,word,forbidden\nfood,easy,منسف,جميد|رز|لحمة');

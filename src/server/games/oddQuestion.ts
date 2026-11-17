@@ -155,6 +155,10 @@ export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
           return advance(s, ctx);
       }
     },
+    shown(s) {
+      // the rounds played so far (plus rounds replayed after the outsider left)
+      return s.pool.slice(0, Math.min(s.pool.length, s.round + (s.poolOffset ?? 0))).map((c) => c.id);
+    },
     playerLeft(s, pid, ctx) {
       migrate(s);
       s.players = s.players.filter((p) => p !== pid);

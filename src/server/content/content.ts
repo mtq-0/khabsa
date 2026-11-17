@@ -77,6 +77,21 @@ interface Row {
   data: Record<string, unknown>;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export interface PickOptions {
+  kind: ContentKind;
+  count: number;
+  category?: string;
+  difficulty?: string;
+  packId?: string | null;
+  /** ids used in this room lately: picked last */
+  exclude?: string[];
+  /** the players of the game: what they have seen before is picked last (least recently seen first) */
+  players?: string[];
+  extraWhere?: string;
+}
+
 export class ContentRepo {
   private db: Db;
   private categoryCache: { at: number; map: Record<string, string> } | null = null;
@@ -97,10 +112,11 @@ export class ContentRepo {
   }
 
   /**
-   * Random selection for a game. Official content plus, when a pack id is
-   * given, only that pack's items. Recently used ids are excluded where possible.
+   * Random selection for a game. Official content plus, when a pack id is given, only that pack's items.
+   * Order of preference: items nobody in `players` has seen yet (random), then the ones they saw longest ago;
+   * ids in `exclude` (used in this room lately) come last. So content only repeats once everything was played.
    */
-  async pick(opts: { kind: ContentKind; count: number; category?: string; difficulty?: string; packId?: string | null; exclude?: string[]; extraWhere?: string }): Promise<ContentItem[]> {
+  async pick(opts: PickOptions): Promise<ContentItem[]> {
     const cats = categoryList(opts.category);
     if (cats.length < 2) return this.pickRaw({ ...opts, categories: cats });
     // several categories: take an equal share from each so a small category is not drowned by a big one
@@ -116,7 +132,7 @@ export class ContentRepo {
       }
     if (picked.length < opts.count) {
       // some categories ran dry: fill from all selected ones
-      const more = await this.pickRaw({ ...opts, categories: cats, count: opts.count - picked.length, exclude: [...(opts.exclude ?? []), ...seen] });
+      const more = await this.pickRaw({ ...opts, categories: cats, count: opts.count - picked.length, notIn: [...seen] });
       for (const m of more) if (!seen.has(m.id) && picked.length < opts.count) picked.push(m);
     }
     // mix the categories up
@@ -127,7 +143,22 @@ export class ContentRepo {
     return picked;
   }
 
-  private async pickRaw(opts: { kind: ContentKind; count: number; categories: string[]; difficulty?: string; packId?: string | null; exclude?: string[]; extraWhere?: string }): Promise<ContentItem[]> {
+  /** Remembers that these players saw these items (old history is dropped after a while). */
+  async markSeen(players: string[], contentIds: string[]): Promise<void> {
+    const ids = [...new Set(contentIds)].filter((id) => UUID_RE.test(id));
+    const users = [...new Set(players)].filter((id) => UUID_RE.test(id));
+    if (!ids.length || !users.length) return;
+    await this.db.query(
+      `insert into content_seen (user_id, content_id)
+         select u, c from unnest($1::uuid[]) u cross join unnest($2::uuid[]) c
+           where exists (select 1 from content_items i where i.id = c)
+       on conflict (user_id, content_id) do update set seen_at = now()`,
+      [users, ids],
+    );
+    await this.db.query(`delete from content_seen where user_id = any($1::uuid[]) and seen_at < now() - interval '365 days'`, [users]);
+  }
+
+  private async pickRaw(opts: PickOptions & { categories: string[]; notIn?: string[] }): Promise<ContentItem[]> {
     const params: unknown[] = [opts.kind];
     const where = [`kind = $1`, `status = 'active'`];
     if (opts.packId) {
@@ -142,20 +173,26 @@ export class ContentRepo {
       params.push(opts.difficulty);
       where.push(`difficulty = $${params.length}`);
     }
+    if (opts.notIn?.length) {
+      params.push(opts.notIn.filter((id) => UUID_RE.test(id)));
+      where.push(`not (id = any($${params.length}::uuid[]))`);
+    }
     if (opts.extraWhere) where.push(opts.extraWhere);
-    const base = where.join(' and ');
+    const order: string[] = [];
+    const exclude = (opts.exclude ?? []).filter((id) => UUID_RE.test(id));
+    if (exclude.length) {
+      params.push(exclude.slice(-2000));
+      order.push(`(id = any($${params.length}::uuid[]))`);
+    }
+    const players = (opts.players ?? []).filter((id) => UUID_RE.test(id));
+    if (players.length) {
+      params.push(players);
+      order.push(`(select max(s.seen_at) from content_seen s where s.user_id = any($${params.length}::uuid[]) and s.content_id = content_items.id) asc nulls first`);
+    }
+    order.push('random()');
     params.push(Math.max(1, Math.min(500, opts.count)));
-    const limitIdx = params.length;
-    let rows: Row[] = [];
-    if (opts.exclude?.length) {
-      const p2 = [...params, opts.exclude.slice(-300)];
-      rows = (await this.db.query<Row>(`select id, kind, category, difficulty, data from content_items where ${base} and not (id = any($${p2.length}::uuid[])) order by random() limit $${limitIdx}`, p2)).rows;
-    }
-    if (rows.length < opts.count) {
-      const have = new Set(rows.map((r) => r.id));
-      const more = (await this.db.query<Row>(`select id, kind, category, difficulty, data from content_items where ${base} order by random() limit $${limitIdx}`, params)).rows;
-      for (const m of more) if (!have.has(m.id) && rows.length < opts.count) rows.push(m);
-    }
+    const rows = (await this.db.query<Row>(`select id, kind, category, difficulty, data from content_items where ${where.join(' and ')} order by ${order.join(', ')} limit $${params.length}`, params))
+      .rows;
     return rows.map((r) => ({ id: r.id, kind: r.kind, category: r.category, difficulty: r.difficulty, data: r.data }));
   }
 
