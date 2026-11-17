@@ -17,6 +17,7 @@ import {
   finish,
   pickN,
   pickOther,
+  pickOutsiders,
   pickTurnPlayer,
   requirePhase,
   requirePlayer,
@@ -157,7 +158,7 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
     }
     s.secret = secret;
     const n = variant === 'word' ? outsiderCountFor(s.settings.outsiders, s.players.length) : 1;
-    s.outsiders = pickN(s.players, n, ctx.rng);
+    s.outsiders = pickOutsiders(s, n, ctx.rng);
     s.order = shuffle(s.players, ctx.rng);
     s.asker = null;
     s.target = null;

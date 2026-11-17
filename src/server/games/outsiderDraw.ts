@@ -10,7 +10,7 @@
  */
 import { AppError } from '../../shared/errors.ts';
 import type { DrawSegment } from '../../shared/protocol.ts';
-import { accused, addScore, asObject, baseState, baseView, castVote, finish, pickN, pickTurnPlayer, requirePhase, requirePlayer, setPhase, shuffle, str, tally } from './common.ts';
+import { accused, addScore, asObject, baseState, baseView, castVote, finish, pickN, pickOutsiders, pickTurnPlayer, requirePhase, requirePlayer, setPhase, shuffle, str, tally } from './common.ts';
 import type { BaseState, ContentItem, EngineCtx, GameEngine, InitInput } from './types.ts';
 
 interface DrawWordData {
@@ -123,7 +123,7 @@ export function createOutsiderDrawEngine(): GameEngine<OutsiderDrawState> {
       decoys.push(...pickN(others, 5 - decoys.length, ctx.rng));
     }
     s.secret = { itemId: item.id, category: item.category, categoryName: d.categoryName ?? item.category, word, alternatives: d.alternatives ?? [], guessOptions: shuffle([word, ...decoys], ctx.rng) };
-    s.outsiders = pickN(s.players, 1, ctx.rng);
+    s.outsiders = pickOutsiders(s, 1, ctx.rng);
     s.order = shuffle(s.players, ctx.rng);
     s.colors = Object.fromEntries(s.order.map((p, i) => [p, PLAYER_COLORS[i % PLAYER_COLORS.length]]));
     s.drawer = null;

@@ -34,7 +34,8 @@ import { KIND_FOR_GAME } from '../games/kinds.ts';
 import type { StatsService } from '../stats/stats.ts';
 import type { Platform } from '../platform.ts';
 import type { EngineRegistry } from '../games/registry.ts';
-import type { BaseState, ContentKind, EngineCtx } from '../games/types.ts';
+import type { BaseState, ContentKind, EngineCtx, OutsiderHistory } from '../games/types.ts';
+import { carryOutsiderHistory } from '../games/common.ts';
 import { cleanText, maskProfanity } from '../security/text.ts';
 import { normalizeArabic } from '../../shared/arabic.ts';
 import type { UserRow } from '../auth/auth.ts';
@@ -91,6 +92,8 @@ export interface Room {
   recentActions: string[];
   recentActionSet: Set<string>;
   usedContent: Partial<Record<ContentKind, string[]>>;
+  /** who was the outsider how often in this room's games, so the next game shares the role out fairly */
+  outsiderHistory?: OutsiderHistory;
   drawing: { turnKey: string; segments: DrawSegment[]; points: number };
   awards: Record<string, { xp: number; level: number; unlocked: string[] }>;
   chatIds: Set<string>;
@@ -530,6 +533,7 @@ export class RoomManager {
         if (!room.game) throw new AppError('INVALID_ACTION');
         this.clearTimer(room);
         void this.saveSeen(room.game);
+        this.keepOutsiderHistory(room, room.game);
         room.game = null;
         room.status = 'lobby';
         this.system(room, 'المضيف وقّف اللعبة.');
@@ -582,7 +586,11 @@ export class RoomManager {
       for (const d of await this.deps.content.pick({ kind: req.kind, count: req.decoys, packId: null })) if (!have.has(d.id)) decoys.push(d);
     }
     const ctx = this.ctx();
-    const state = engine.init({ players: players.map((p) => ({ id: p.id, name: p.name, team: p.team })), settings, content, decoys, categoryNames: await this.deps.content.categoryNames() }, ctx);
+    const outsiderHistory = carryOutsiderHistory(room.outsiderHistory, room.members.keys());
+    const state = engine.init(
+      { players: players.map((p) => ({ id: p.id, name: p.name, team: p.team })), settings, content, decoys, categoryNames: await this.deps.content.categoryNames(), outsiderHistory },
+      ctx,
+    );
     room.usedContent[req.kind] = [...used, ...content.map((c) => c.id)].slice(-300);
     const matchId = await this.deps.stats.startMatch(room.id, gameId, players.length, room.hostId);
     room.matchNumber += 1;
@@ -617,8 +625,14 @@ export class RoomManager {
       room.status = 'results';
       this.clearTimer(room);
       void this.saveSeen(g);
+      this.keepOutsiderHistory(room, g);
       void this.record(room, g);
     } else this.schedule(room);
+  }
+
+  /** The next game in this room continues from this game's outsider counts (also when it was stopped half-way). */
+  private keepOutsiderHistory(room: Room, g: GameSession) {
+    if (g.state.outsiderHistory) room.outsiderHistory = g.state.outsiderHistory;
   }
 
   /** Remembers which content the players saw, so their next games pick other content first. */
@@ -1097,6 +1111,7 @@ interface SerializedRoom {
   matchNumber: number;
   chat: ChatMessage[];
   usedContent: Room['usedContent'];
+  outsiderHistory?: Room['outsiderHistory'];
   awards: Room['awards'];
 }
 
@@ -1121,6 +1136,7 @@ function serialize(r: Room): SerializedRoom {
     matchNumber: r.matchNumber,
     chat: r.chat.slice(-30),
     usedContent: r.usedContent,
+    outsiderHistory: r.outsiderHistory,
     awards: r.awards,
   };
 }

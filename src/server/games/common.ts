@@ -1,6 +1,6 @@
 import { AppError } from '../../shared/errors.ts';
 import type { FinalResults } from '../../shared/protocol.ts';
-import type { BaseState, EngineCtx, InitInput } from './types.ts';
+import type { BaseState, EngineCtx, InitInput, OutsiderHistory } from './types.ts';
 import type { GameId } from '../../shared/games.ts';
 
 export function shuffle<T>(arr: readonly T[], rng: () => number): T[] {
@@ -31,7 +31,49 @@ export function baseState(gameId: GameId, input: InitInput, totalRounds: number)
     scores: Object.fromEntries(players.map((p) => [p, 0])),
     finished: false,
     results: null,
+    ...(input.outsiderHistory ? { outsiderHistory: structuredClone(input.outsiderHistory) } : {}),
   };
+}
+
+/** a player's chance is multiplied by this for every outsider turn they had more than the least-picked player */
+const OUTSIDER_REPEAT_FACTOR = 0.5;
+/** ... and multiplied by this if they were the outsider in the previous round */
+const OUTSIDER_LAST_FACTOR = 0.4;
+
+/**
+ * Picks the round's outsider(s): random, but balanced. Players who were the outsider less often are much more
+ * likely, and last round's outsider is less likely, yet nobody is ever impossible, so the others can't work out who
+ * it is by counting. The counts live in the state (and the room carries them to the next game).
+ */
+export function pickOutsiders(s: BaseState, n: number, rng: () => number): string[] {
+  const h: OutsiderHistory = (s.outsiderHistory ??= { counts: {}, last: [] });
+  const known = s.players.filter((p) => h.counts[p] != null).map((p) => h.counts[p]);
+  // someone new to the room starts level with the least-picked player, not at zero (they'd be picked every round)
+  const floor = known.length ? Math.min(...known) : 0;
+  for (const p of s.players) h.counts[p] ??= floor;
+  const min = Math.min(...s.players.map((p) => h.counts[p]));
+  const pool = s.players.map((p) => ({ p, w: OUTSIDER_REPEAT_FACTOR ** (h.counts[p] - min) * (h.last.includes(p) ? OUTSIDER_LAST_FACTOR : 1) }));
+  const out: string[] = [];
+  while (out.length < Math.min(n, s.players.length)) {
+    const total = pool.reduce((t, e) => t + e.w, 0);
+    let r = rng() * total;
+    let i = 0;
+    while (i < pool.length - 1 && r >= pool[i].w) r -= pool[i++].w;
+    out.push(pool.splice(i, 1)[0].p);
+  }
+  for (const p of out) h.counts[p] += 1;
+  h.last = out;
+  return out;
+}
+
+/** The history to hand to the next game: only who is still around, shifted so the lowest count is 0. */
+export function carryOutsiderHistory(h: OutsiderHistory | undefined, members: Iterable<string>): OutsiderHistory | undefined {
+  if (!h) return undefined;
+  const ids = new Set(members);
+  const counts = Object.fromEntries(Object.entries(h.counts).filter(([p]) => ids.has(p)));
+  const min = Math.min(...Object.values(counts));
+  for (const p of Object.keys(counts)) counts[p] -= min;
+  return { counts, last: h.last.filter((p) => ids.has(p)) };
 }
 
 export function setPhase(s: BaseState, phase: string, ctx: EngineCtx, seconds: number | null) {

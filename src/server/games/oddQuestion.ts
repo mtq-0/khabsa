@@ -5,7 +5,7 @@
  */
 import { AppError } from '../../shared/errors.ts';
 import { cleanText, maskProfanity } from '../security/text.ts';
-import { accused, addScore, baseState, baseView, castVote, finish, pickN, requirePhase, requirePlayer, setPhase, str, tally } from './common.ts';
+import { accused, addScore, baseState, baseView, castVote, finish, pickOutsiders, requirePhase, requirePlayer, setPhase, str, tally } from './common.ts';
 import type { BaseState, ContentItem, EngineCtx, GameEngine } from './types.ts';
 
 export interface QuestionPairData {
@@ -40,7 +40,7 @@ export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
     const item = s.pool[(s.round - 1 + s.poolOffset) % s.pool.length];
     s.pair = item.data as unknown as QuestionPairData;
     s.categoryName = (item.data as { categoryName?: string }).categoryName ?? item.category;
-    s.outsider = pickN(s.players, 1, ctx.rng)[0];
+    s.outsider = pickOutsiders(s, 1, ctx.rng)[0];
     s.answers = {};
     s.readyToVote = [];
     s.votes = {};
