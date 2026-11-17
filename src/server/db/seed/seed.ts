@@ -16,6 +16,9 @@ import { MORE_MOST_LIKELY } from './more/party.ts';
 import { MORE_TRIVIA } from './more/trivia.ts';
 import { MOST_LIKELY, TABOO_ALL } from './party.ts';
 import { TRIVIA } from './trivia.ts';
+import { EXTRA_QUESTION_PAIRS } from './more2/questions.ts';
+import { EXTRA_MOST_LIKELY } from './more2/mostLikely.ts';
+import { EXTRA_TRIVIA } from './more2/trivia.ts';
 import { WORD_PICTURES, renderWordPicture } from './wordPictures.ts';
 import { itemCredit, photoPairs, readPhoto } from './photoSeed.ts';
 import { POSTER_CATEGORIES, loadPosters, type PosterEntry } from './posters.ts';
@@ -49,10 +52,10 @@ export function builtinContent(): BuiltinItem[] {
       items.push({ kind: 'draw-word', category: cat, difficulty: p.difficulty, data: { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) } });
     }
   }
-  for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS]) items.push({ kind: 'question-pair', category: cat, difficulty: DIFF[d], data: { majority, outsider } });
-  for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY]) items.push({ kind: 'most-likely', category: cat, difficulty: 'medium', data: { text } });
+  for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS, ...EXTRA_QUESTION_PAIRS]) items.push({ kind: 'question-pair', category: cat, difficulty: DIFF[d], data: { majority, outsider } });
+  for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY, ...EXTRA_MOST_LIKELY]) items.push({ kind: 'most-likely', category: cat, difficulty: 'medium', data: { text } });
   for (const [cat, d, word, forbidden] of TABOO_ALL) items.push({ kind: 'taboo-card', category: cat, difficulty: DIFF[d], data: { word, forbidden } });
-  for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA]) items.push({ kind: 'trivia', category: cat, difficulty: DIFF[d], data: { question, options: opts, answer: 0 } });
+  for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA, ...EXTRA_TRIVIA]) items.push({ kind: 'trivia', category: cat, difficulty: DIFF[d], data: { question, options: opts, answer: 0 } });
   return items;
 }
 

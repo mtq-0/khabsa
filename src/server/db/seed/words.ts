@@ -1,5 +1,7 @@
 import { DRAW_WORDS_MSA, DRAW_WORDS_MSA_2 } from './more/drawMsa.ts';
 import { MORE_OUTSIDER_WORDS } from './more/words.ts';
+import { EXTRA_OUTSIDER_WORDS } from './more2/words.ts';
+import { EXTRA_DRAW_WORDS } from './more2/draw.ts';
 
 /**
  * Word packs for مين برا السالفة and ارسم وخمّن.
@@ -47,6 +49,7 @@ function mergeWords(base: Record<string, string[]>, extra: Record<string, string
   }
 }
 mergeWords(OUTSIDER_WORDS, MORE_OUTSIDER_WORDS);
+mergeWords(OUTSIDER_WORDS, EXTRA_OUTSIDER_WORDS);
 
 /**
  * Words of مين برا السالفة that were removed, renamed or moved in the word clean-up (old spellings).
@@ -62,6 +65,7 @@ export const REVISED_OUTSIDER_WORDS: string[] = [
 ];
 mergeWords(DRAW_WORDS, DRAW_WORDS_MSA);
 mergeWords(DRAW_WORDS, DRAW_WORDS_MSA_2);
+mergeWords(DRAW_WORDS, EXTRA_DRAW_WORDS);
 
 /** Every built-in drawing word (the seed switches off built-in drawing words that are not in this set). */
 export const DRAW_WORD_SET = new Set(Object.values(DRAW_WORDS).flat().map((w) => parseWord(w).word));
