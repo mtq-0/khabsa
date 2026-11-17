@@ -1,4 +1,5 @@
 import { MORE_TMDB_QUERIES } from './more/words.ts';
+import { EXTRA_TMDB_QUERIES } from './more2/words.ts';
 /**
  * Original illustrated cards for the cartoon / movie / TV words of
  * مين برا السالفة؟. Each card hints at the title with emoji artwork
@@ -162,5 +163,5 @@ export const NO_POSTER = new Set(['دراما رمضان', 'بسيط', 'نجوم
 
 export function tmdbQueryFor(word: string): string | null {
   if (NO_POSTER.has(word)) return null;
-  return TMDB_QUERIES[word] || MORE_TMDB_QUERIES[word] || word;
+  return TMDB_QUERIES[word] || MORE_TMDB_QUERIES[word] || EXTRA_TMDB_QUERIES[word] || word;
 }

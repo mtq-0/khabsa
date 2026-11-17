@@ -14,6 +14,9 @@ import { MORE_MOST_LIKELY } from '../src/server/db/seed/more/party.ts';
 import { MORE_TRIVIA } from '../src/server/db/seed/more/trivia.ts';
 import { MOST_LIKELY, TABOO_ALL } from '../src/server/db/seed/party.ts';
 import { TRIVIA } from '../src/server/db/seed/trivia.ts';
+import { EXTRA_QUESTION_PAIRS } from '../src/server/db/seed/more2/questions.ts';
+import { EXTRA_MOST_LIKELY } from '../src/server/db/seed/more2/mostLikely.ts';
+import { EXTRA_TRIVIA } from '../src/server/db/seed/more2/trivia.ts';
 import { renderWordPicture } from '../src/server/db/seed/wordPictures.ts';
 import { PHOTOS_DIR, itemCredit, photoPairs } from '../src/server/db/seed/photoSeed.ts';
 import { POSTER_CATEGORIES, loadPosters } from '../src/server/db/seed/posters.ts';
@@ -45,10 +48,10 @@ for (const [cat, words] of Object.entries(DRAW_WORDS))
     const p = parseWord(w);
     add('draw-word', cat, p.difficulty, { word: p.word, ...(p.alternatives.length ? { alternatives: p.alternatives } : {}) });
   }
-for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS]) add('question-pair', cat, DIFF[d], { majority, outsider });
-for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY]) add('most-likely', cat, 'medium', { text });
+for (const [cat, d, majority, outsider] of [...QUESTION_PAIRS, ...MORE_QUESTION_PAIRS, ...EXTRA_QUESTION_PAIRS]) add('question-pair', cat, DIFF[d], { majority, outsider });
+for (const [cat, text] of [...MOST_LIKELY, ...MORE_MOST_LIKELY, ...EXTRA_MOST_LIKELY]) add('most-likely', cat, 'medium', { text });
 for (const [cat, d, word, forbidden] of TABOO_ALL) add('taboo-card', cat, DIFF[d], { word, forbidden });
-for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA]) add('trivia', cat, DIFF[d], { question, options: opts, answer: 0 });
+for (const [cat, d, question, ...opts] of [...TRIVIA, ...MORE_TRIVIA, ...EXTRA_TRIVIA]) add('trivia', cat, DIFF[d], { question, options: opts, answer: 0 });
 
 const pictures: ContentItem[] = [];
 const images: Record<string, string> = {};

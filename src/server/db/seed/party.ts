@@ -181,10 +181,11 @@ export const TABOO_CARDS: [string, 'e' | 'm' | 'h', string, string[]][] = [
  */
 import { MORE_TABOO_CARDS } from './more/party.ts';
 import { MORE_TABOO_2 } from './more/taboo2.ts';
+import { EXTRA_TABOO } from './more2/taboo.ts';
 export const TABOO_ALL: [string, 'e' | 'm' | 'h', string, string[]][] = (() => {
   const seen = new Set<string>();
   const out: [string, 'e' | 'm' | 'h', string, string[]][] = [];
-  for (const c of [...TABOO_CARDS, ...MORE_TABOO_CARDS, ...MORE_TABOO_2]) {
+  for (const c of [...TABOO_CARDS, ...MORE_TABOO_CARDS, ...MORE_TABOO_2, ...EXTRA_TABOO]) {
     const key = c[2].trim();
     if (seen.has(key)) continue;
     seen.add(key);
