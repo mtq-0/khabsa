@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Harness, item, seededRng } from './helpers/engine.ts';
+import { Harness, contentFor, item, seededRng } from './helpers/engine.ts';
 import { sanitizeSettings, type GameId } from '../src/shared/games.ts';
 import { accused, pickTurnPlayer, tally } from '../src/server/games/common.ts';
 import { outsiderCountFor, type OutsiderState } from '../src/server/games/outsider.ts';
@@ -817,5 +817,37 @@ describe('launch fix 11: مين برا الصورة؟ final guess options come f
     expect(opts).toHaveLength(6);
     expect(new Set(opts).size).toBe(6);
     expect(opts.filter((o) => o.startsWith('food-'))).toHaveLength(4);
+  });
+});
+
+describe('shown(): only the content a game actually showed counts as seen', () => {
+  const ROUNDS: Partial<Record<GameId, number>> = { 'outsider-word': 2, 'odd-question': 2, 'outsider-draw': 2, 'most-likely': 2 };
+  for (const gameId of ['outsider-word', 'odd-question', 'outsider-draw', 'most-likely', 'speed-quiz', 'taboo', 'draw-guess'] as GameId[]) {
+    it(gameId, () => {
+      const h = new Harness(gameId, 4, { rounds: 2, turnsPerPlayer: 1 });
+      const content = contentFor(gameId);
+      const keys = new Set(content.flatMap((c) => [c.id, String(c.data.word ?? c.data.question ?? c.data.text ?? '')]));
+      // before the first round: at most the first round (draw-guess offers the drawer 3 words to choose from)
+      expect(h.engine.shown!(h.state).length).toBeLessThanOrEqual(gameId === 'draw-guess' ? 3 : gameId === 'speed-quiz' ? 40 : 1);
+      for (let i = 0; i < 500 && !h.state.finished; i++) h.expire();
+      expect(h.state.finished).toBe(true);
+      const shown = h.engine.shown!(h.state);
+      for (const k of shown) expect(keys.has(k)).toBe(true);
+      expect(new Set(shown).size).toBe(shown.length);
+      // the room fetches exactly as many quiz questions as rounds; the other games get spares they may never show
+      if (gameId === 'speed-quiz') expect(shown).toHaveLength(h.state.totalRounds);
+      else expect(shown.length).toBeLessThan(content.length);
+      if (ROUNDS[gameId]) expect(shown).toHaveLength(ROUNDS[gameId]!);
+    });
+  }
+  it('draw-guess: once the word list started over, every word was shown', () => {
+    const h = new Harness<DrawGuessState>('draw-guess', 4, { turnsPerPlayer: 1 }, contentFor('draw-guess', 4));
+    for (let i = 0; i < 500 && !h.state.finished; i++) h.expire();
+    expect(h.state.wordsWrapped).toBe(true);
+    expect(h.engine.shown!(h.state).sort()).toEqual(
+      contentFor('draw-guess', 4)
+        .map((c) => String(c.data.word))
+        .sort(),
+    );
   });
 });

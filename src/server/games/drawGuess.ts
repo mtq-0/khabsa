@@ -29,6 +29,8 @@ export interface DrawGuessState extends BaseState {
   settings: { drawSeconds: number; scoring: 'individual' | 'teams' };
   words: DrawWordData[];
   wordIndex: number;
+  /** every word was offered at least once (the list started over) */
+  wordsWrapped?: boolean;
   order: string[];
   turnIndex: number;
   turnNumber: number;
@@ -68,7 +70,10 @@ export function createDrawGuessEngine(): GameEngine<DrawGuessState> {
   function takeWords(s: DrawGuessState, n: number): DrawWordData[] {
     const out: DrawWordData[] = [];
     for (let i = 0; i < n; i++) {
-      if (s.wordIndex >= s.words.length) s.wordIndex = 0;
+      if (s.wordIndex >= s.words.length) {
+        s.wordIndex = 0;
+        s.wordsWrapped = true;
+      }
       out.push(s.words[s.wordIndex++]);
     }
     return out;
@@ -212,6 +217,10 @@ export function createDrawGuessEngine(): GameEngine<DrawGuessState> {
         if (nextHint && s.deadline && nextHint < s.deadline) return nextHint;
       }
       return s.deadline;
+    },
+    shown(s) {
+      // every word offered to a drawer so far
+      return (s.wordsWrapped ? s.words : s.words.slice(0, s.wordIndex)).map((w) => w.word);
     },
     playerLeft(s, pid, ctx) {
       // turnIndex points at the next drawer inside `order`: keep it on the same player after removing someone

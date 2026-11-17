@@ -4,6 +4,7 @@
  * The pictures file is only downloaded by the hosting browser when a
  * picture game starts; other players only ever receive their own picture.
  */
+import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CATEGORIES } from '../src/server/db/seed/categories.ts';
@@ -26,8 +27,23 @@ const outDir = process.argv[2] ?? 'dist-pages';
 const DIFF = { e: 'easy', m: 'medium', h: 'hard' } as const;
 const items: ContentItem[] = [];
 let n = 0;
-const add = (kind: ContentItem['kind'], category: string, difficulty: ContentItem['difficulty'], data: Record<string, unknown>) =>
-  items.push({ id: `${kind}-${++n}`, kind, category, difficulty, data });
+/**
+ * Ids are a hash of what identifies the item (not its position), so they stay the same when content is added:
+ * the host's "already seen" history (see BrowserContent.markSeen) keeps pointing at the right items.
+ */
+const usedIds = new Set<string>();
+function stableId(kind: string, key: string): string {
+  const base = `${kind}-${createHash('sha1').update(`${kind}|${key}`).digest('hex').slice(0, 12)}`;
+  let id = base;
+  for (let i = 2; usedIds.has(id); i++) id = `${base}-${i}`;
+  usedIds.add(id);
+  return id;
+}
+const keyOf = (category: string, d: Record<string, unknown>) => `${category}|${String(d.word ?? d.question ?? d.text ?? `${d.majority}|${d.outsider}`)}`;
+const add = (kind: ContentItem['kind'], category: string, difficulty: ContentItem['difficulty'], data: Record<string, unknown>) => {
+  n++;
+  items.push({ id: stableId(kind, keyOf(category, data)), kind, category, difficulty, data });
+};
 
 const wordImages: Record<string, string> = {};
 const posters = loadPosters();
@@ -58,10 +74,10 @@ const images: Record<string, string> = {};
 // real photos (static files under content/photos/, fetched by the host only when picked)
 const photos = photoPairs();
 const photoKeys = new Set<string>();
-photos.forEach((p, i) => {
+photos.forEach((p) => {
   photoKeys.add(p.keyA).add(p.keyB);
   pictures.push({
-    id: `photo-pair-${i + 1}`,
+    id: stableId('photo-pair', `${p.keyA}|${p.keyB}`),
     kind: 'picture-pair',
     category: p.category,
     difficulty: p.mode === 'hard' ? 'hard' : 'medium',

@@ -375,6 +375,10 @@ export function createOutsiderEngine(variant: 'word' | 'picture', images?: Image
           return advanceRound(s, ctx);
       }
     },
+    shown(s) {
+      // the rounds played so far (plus rounds replayed after the outsider left)
+      return s.pool.slice(0, Math.min(s.pool.length, s.round + (s.poolOffset ?? 0))).map((c) => c.id);
+    },
     playerLeft(s, pid, ctx) {
       migrate(s);
       // keep their score but stop waiting on them

@@ -214,6 +214,10 @@ export function createTabooEngine(): GameEngine<TabooState> {
       else if (s.phase === 'turn') endTurn(s, ctx);
       else if (s.phase === 'turnEnd') advance(s, ctx);
     },
+    shown(s) {
+      // the cards drawn so far (all of them once the deck went round)
+      return (s.cardIndex >= s.deck.length ? s.deck : s.deck.slice(0, s.deckIndex)).map((c) => c.word);
+    },
     playerLeft(s, pid, ctx) {
       s.players = s.players.filter((p) => p !== pid);
       s.rotation = s.rotation.map((r) => r.filter((p) => p !== pid));
