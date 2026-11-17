@@ -15,6 +15,14 @@ const loadVoice = (p2p: boolean) => (modPromise ??= p2p ? import('./voiceP2p.ts'
 /** the loaded voice module, shared by every VoicePanel on the page (the room shows one per tab on phones) */
 let loadedMod: VoiceModule | null = null;
 
+/**
+ * Leaves voice (if it was ever started). Called by the room page when it goes away. Not by the panels:
+ * the room mounts and unmounts panels when the game starts or ends, and that must not drop anybody.
+ */
+export function leaveRoomVoice() {
+  void modPromise?.then((m) => m.leaveVoice());
+}
+
 /** Voice controls. Voice is optional and never blocks joining or playing. */
 export function VoicePanel({ view, compact = false }: { view: RoomView; compact?: boolean }) {
   const v = useVoice();
@@ -30,14 +38,6 @@ export function VoicePanel({ view, compact = false }: { view: RoomView; compact?
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
   const [showMixer, setShowMixer] = useState(false);
   const p2p = PAGES || !view.voiceAvailable;
-
-  // leave voice when leaving the room page
-  useEffect(
-    () => () => {
-      void modPromise?.then((m) => m.leaveVoice());
-    },
-    [view.code],
-  );
 
   const memberIds = view.members.map((m) => m.id).join(',');
   useEffect(() => {

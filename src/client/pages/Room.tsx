@@ -21,7 +21,7 @@ import { Avatar, Button, Modal, Spinner, Tabs, copyText, cx, toast } from '../co
 import { Lobby } from '../room/Lobby.tsx';
 import { ChatPanel, PlayersPanel } from '../room/Panels.tsx';
 import { Results } from '../room/Results.tsx';
-import { VoicePanel } from '../voice/VoicePanel.tsx';
+import { VoicePanel, leaveRoomVoice } from '../voice/VoicePanel.tsx';
 import { OutsiderGame } from '../games/OutsiderGame.tsx';
 import { OddQuestionGame } from '../games/OddQuestionGame.tsx';
 import { MostLikelyGame } from '../games/MostLikelyGame.tsx';
@@ -50,6 +50,11 @@ function RoomInner({ code }: { code: string }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [hdrOpen, setHdrOpen] = useState(false);
 
+  // voice belongs to the room page: leave it when leaving the room, or when the room is closed or we got kicked
+  useEffect(() => () => leaveRoomVoice(), [code]);
+  useEffect(() => {
+    if (room.status === 'kicked' || room.status === 'closed') leaveRoomVoice();
+  }, [room.status]);
   useEffect(() => {
     if (tab !== 'chat') setUnread((u) => u + 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
