@@ -285,7 +285,10 @@ export class RoomManager {
         m.sockets.add(socket.id);
         void socket.join(this.channel(room));
         (socket.data.rooms as Set<string>).add(room.code);
-        socket.emit('voice:presence', { ids: this.voiceIds(room) });
+        // back after a dropped connection while in voice (the voice client re-announces as soon as its
+        // socket reconnects, often before this rejoin): tell everybody, not just this socket
+        if (wasOffline && this.voiceIn.get(room.code)?.has(user.id)) this.broadcastVoice(room);
+        else socket.emit('voice:presence', { ids: this.voiceIds(room) });
       }
       m.disconnectedAt = null;
       if (isNew) this.system(room, `${m.name} دخل الغرفة 👋`);

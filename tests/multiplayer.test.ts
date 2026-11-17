@@ -126,6 +126,21 @@ describe('rooms', () => {
     for (const p of [a, c, late, outsider]) p.disconnect();
   });
 
+  it('a player whose connection drops while in voice is back in voice for everybody after reconnecting', async () => {
+    const { ps, code } = await roomWith(2);
+    const [a, b] = ps;
+    for (const p of ps) expect((await p.emit('voice:presence', { code, on: true })).ok).toBe(true);
+    await waitFor(() => ps.every((p) => p.voiceIds.length === 2), 2000, 'both in voice');
+    b.disconnect();
+    await waitFor(() => a.voiceIds.length === 1, 3000, 'b dropped');
+    // like the real voice client: re-announce as soon as the socket is back, then rejoin the room
+    await b.connect();
+    expect((await b.emit('voice:presence', { code, on: true })).ok).toBe(true);
+    await b.join(code);
+    await waitFor(() => a.voiceIds.length === 2 && b.voiceIds.length === 2, 2000, 'b back in voice for a');
+    for (const p of ps) p.disconnect();
+  });
+
   it('relays voice signalling and fallback audio only between members of the same room, validated', async () => {
     const { ps, code } = await roomWith(3);
     const [a, b, c] = ps;
