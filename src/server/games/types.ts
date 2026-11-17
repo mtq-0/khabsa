@@ -35,6 +35,14 @@ export interface InitInput {
   content: ContentItem[];
   decoys: ContentItem[];
   categoryNames: Record<string, string>;
+  /** how often each player was the outsider lately in this room (also in earlier games), and who was last */
+  outsiderHistory?: OutsiderHistory;
+}
+
+/** Outsider turns per player, carried from game to game in a room so the role is shared out fairly. */
+export interface OutsiderHistory {
+  counts: Record<string, number>;
+  last: string[];
 }
 
 /** Fields every engine state carries. Engine states must be JSON-serializable. */
@@ -54,6 +62,8 @@ export interface BaseState {
   scores: Record<string, number>;
   finished: boolean;
   results: FinalResults | null;
+  /** games with an outsider: who has been it how often (see pickOutsiders) */
+  outsiderHistory?: OutsiderHistory;
 }
 
 export interface GameEngine<S extends BaseState = BaseState> {

@@ -537,6 +537,34 @@ describe('content does not repeat for the same players', () => {
   });
 });
 
+describe('the outsider role is shared out fairly across games', () => {
+  it('the room keeps who was the outsider and the next game continues from it', async () => {
+    const { ps, code, host } = await roomWith(3, 'odd-question');
+    const room = () => srv.built.ctx.rooms.rooms.get(code)!;
+    await host.act(code, 'settings', { settings: { rounds: 3 } });
+    await readyAll(ps, code);
+    expect((await host.act(code, 'start')).ok).toBe(true);
+    await waitFor(() => host.last.game?.gameId === 'odd-question', 2000);
+    await skipToEnd(host, code);
+    await waitFor(() => host.last.status === 'results', 3000);
+    const after1 = room().outsiderHistory!;
+    expect(Object.values(after1.counts).reduce((a, b) => a + b, 0)).toBe(3);
+    expect(after1.last).toHaveLength(1);
+    // the rematch starts from those counts (shifted so the lowest is 0) plus its first round
+    expect((await host.act(code, 'rematch')).ok).toBe(true);
+    await waitFor(() => host.last.status === 'playing' && host.last.matchNumber === 2, 2000);
+    const min = Math.min(...Object.values(after1.counts));
+    const now = room().game!.state.outsiderHistory!.counts;
+    const outsider = room().game!.state.outsiderHistory!.last[0];
+    for (const [p, n] of Object.entries(after1.counts)) expect(now[p]).toBe(n - min + (p === outsider ? 1 : 0));
+    // stopping a game half-way also keeps its counts
+    expect((await host.act(code, 'end-game')).ok).toBe(true);
+    await waitFor(() => host.last.status === 'lobby');
+    expect(room().outsiderHistory!.last).toEqual([outsider]);
+    for (const p of ps) p.disconnect();
+  });
+});
+
 describe('sockets require a session', () => {
   it('rejects unauthenticated socket connections', async () => {
     const p = new Player(srv.url);

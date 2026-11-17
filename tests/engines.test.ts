@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Harness, contentFor, item, seededRng } from './helpers/engine.ts';
 import { sanitizeSettings, type GameId } from '../src/shared/games.ts';
-import { accused, pickTurnPlayer, tally } from '../src/server/games/common.ts';
+import { accused, carryOutsiderHistory, pickOutsiders, pickTurnPlayer, tally } from '../src/server/games/common.ts';
 import { outsiderCountFor, type OutsiderState } from '../src/server/games/outsider.ts';
 import type { OddQuestionState } from '../src/server/games/oddQuestion.ts';
 import type { TabooState } from '../src/server/games/taboo.ts';
@@ -850,4 +850,62 @@ describe('shown(): only the content a game actually showed counts as seen', () =
         .sort(),
     );
   });
+});
+
+describe('the outsider is random but shared out fairly', () => {
+  const players = ['a', 'b', 'c', 'd'];
+  const play = (rounds: number, rng: () => number, s: BaseState = { players } as BaseState) => Array.from({ length: rounds }, () => pickOutsiders(s, 1, rng)[0]);
+
+  it('over many games: far fewer repeats and much closer counts than a plain random pick, yet everybody can be it', () => {
+    const rng = seededRng(3);
+    let repeats = 0;
+    let gap = 0;
+    const firstPicks = new Set<string>();
+    for (let t = 0; t < 2000; t++) {
+      const seq = play(8, rng);
+      firstPicks.add(seq[0]);
+      for (let i = 1; i < seq.length; i++) if (seq[i] === seq[i - 1]) repeats++;
+      const counts = players.map((p) => seq.filter((x) => x === p).length);
+      gap += Math.max(...counts) - Math.min(...counts);
+    }
+    // a plain random pick repeats 25% of the time with 4 players and averages a gap of about 3
+    expect(repeats / (2000 * 7)).toBeLessThan(0.1);
+    expect(gap / 2000).toBeLessThan(2);
+    expect(firstPicks.size).toBe(4);
+  });
+
+  it('nobody is impossible: even the player picked most often can be picked again', () => {
+    const rng = seededRng(9);
+    let again = 0;
+    for (let t = 0; t < 4000; t++) {
+      const s = { players, outsiderHistory: { counts: { a: 2, b: 0, c: 0, d: 0 }, last: ['a'] } } as unknown as BaseState;
+      if (pickOutsiders(s, 1, rng)[0] === 'a') again++;
+    }
+    // weight 0.5² × 0.4 = 0.1 against 1 for the others: about 3%
+    expect(again).toBeGreaterThan(40);
+    expect(again).toBeLessThan(250);
+  });
+
+  it('several outsiders in one round are different players; a newcomer starts level with the others', () => {
+    const s = { players: ['a', 'b', 'c', 'd', 'e'], outsiderHistory: { counts: { a: 3, b: 3, c: 3, d: 3 }, last: [] } } as unknown as BaseState;
+    const two = pickOutsiders(s, 2, seededRng(1));
+    expect(new Set(two).size).toBe(2);
+    expect(s.outsiderHistory!.counts.e).toBe(3 + (two.includes('e') ? 1 : 0));
+    expect(s.outsiderHistory!.last).toEqual(two);
+  });
+
+  it('the history goes to the next game for the players still there, shifted to start at 0', () => {
+    expect(carryOutsiderHistory({ counts: { a: 3, b: 5, gone: 9 }, last: ['gone', 'b'] }, ['a', 'b', 'c'])).toEqual({ counts: { a: 0, b: 2 }, last: ['b'] });
+    expect(carryOutsiderHistory(undefined, ['a'])).toBeUndefined();
+  });
+
+  for (const gameId of ['outsider-word', 'odd-question', 'outsider-draw'] as GameId[]) {
+    it(`${gameId} counts every round's outsider for the next game`, () => {
+      const h = new Harness(gameId, 4, { rounds: 3 });
+      for (let i = 0; i < 500 && !h.state.finished; i++) h.expire();
+      const counts = h.state.outsiderHistory!.counts;
+      expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(3);
+      expect(Object.keys(counts).sort()).toEqual(h.state.players.slice().sort());
+    });
+  }
 });
