@@ -16,6 +16,8 @@ export interface QuestionPairData {
 export interface OddQuestionState extends BaseState {
   settings: { answerSeconds: number; discussSeconds: number; voteSeconds: number };
   pool: ContentItem[];
+  /** how many pool items were used up by replayed (voided) rounds */
+  poolOffset: number;
   pair: QuestionPairData | null;
   categoryName: string;
   outsider: string | null;
@@ -29,11 +31,13 @@ export interface OddQuestionState extends BaseState {
 
 const VERDICT_SECONDS = 10;
 const ROUND_END_SECONDS = 10;
+/** spare content items, so a round voided by the outsider leaving can be replayed with new content */
+const SPARE_ITEMS = 2;
 
 export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
   function startRound(s: OddQuestionState, ctx: EngineCtx) {
     s.round += 1;
-    const item = s.pool[s.round - 1];
+    const item = s.pool[(s.round - 1 + s.poolOffset) % s.pool.length];
     s.pair = item.data as unknown as QuestionPairData;
     s.categoryName = (item.data as { categoryName?: string }).categoryName ?? item.category;
     s.outsider = pickN(s.players, 1, ctx.rng)[0];
@@ -63,13 +67,24 @@ export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
     if (s.round >= s.totalRounds) finish(s, ctx);
     else startRound(s, ctx);
   }
+  /** the outsider left: play this round again with a new question pair instead of using it up */
+  function replay(s: OddQuestionState, ctx: EngineCtx) {
+    s.poolOffset += 1;
+    s.round -= 1;
+    startRound(s, ctx);
+  }
+
+  /** games saved before these fields existed (a server restart mid-game) */
+  function migrate(s: OddQuestionState) {
+    s.poolOffset ??= 0;
+  }
 
   const engine: GameEngine<OddQuestionState> = {
     id: 'odd-question',
     minPlayers: 3,
     maxPlayers: 12,
     content(settings) {
-      return { kind: 'question-pair', count: Number(settings.rounds) };
+      return { kind: 'question-pair', count: Number(settings.rounds) + SPARE_ITEMS };
     },
     init(input, ctx) {
       if (!input.content.length) throw new AppError('NOT_FOUND', 'ما في أسئلة كافية لهالإعدادات.');
@@ -78,6 +93,7 @@ export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
         ...baseState('odd-question', input, Math.min(Number(st.rounds), input.content.length)),
         settings: { answerSeconds: Number(st.answerSeconds), discussSeconds: Number(st.discussSeconds), voteSeconds: Number(st.voteSeconds) },
         pool: input.content.map((c) => ({ ...c, data: { ...c.data, categoryName: input.categoryNames[c.category] ?? c.category } })),
+        poolOffset: 0,
         pair: null,
         categoryName: '',
         outsider: null,
@@ -92,6 +108,7 @@ export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
       return s;
     },
     act(s, pid, type, payload, ctx) {
+      migrate(s);
       if (type === 'host:skip') return engine.tick(s, ctx);
       if (type === 'host:next') {
         requirePhase(s, 'roundEnd');
@@ -124,6 +141,7 @@ export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
       }
     },
     tick(s, ctx) {
+      migrate(s);
       switch (s.phase) {
         case 'answer':
           return toDiscuss(s, ctx);
@@ -138,10 +156,11 @@ export function createOddQuestionEngine(): GameEngine<OddQuestionState> {
       }
     },
     playerLeft(s, pid, ctx) {
+      migrate(s);
       s.players = s.players.filter((p) => p !== pid);
       delete s.votes[pid];
-      if (s.players.length < 2) return finish(s, ctx);
-      if (pid === s.outsider && ['answer', 'discuss', 'vote'].includes(s.phase)) return advance(s, ctx);
+      if (s.players.length < 3) return finish(s, ctx); // the game needs 3 players: show the results instead of an unfair 2-player round
+      if (pid === s.outsider && ['answer', 'discuss', 'vote'].includes(s.phase)) return replay(s, ctx);
       if (s.phase === 'answer' && s.players.every((p) => s.answers[p])) toDiscuss(s, ctx);
       else if (s.phase === 'discuss' && s.players.every((p) => s.readyToVote.includes(p))) setPhase(s, 'vote', ctx, s.settings.voteSeconds);
       else if (s.phase === 'vote' && s.players.every((p) => s.votes[p])) closeVoting(s, ctx);

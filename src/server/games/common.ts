@@ -142,14 +142,13 @@ export function castVote(votes: Record<string, string>, players: string[], voter
 
 /**
  * Next player to take a turn: random, but fair — only among the players who have had the
- * fewest turns so far, and never the same player twice in a row (when there is a choice).
+ * fewest turns so far, and never the same player twice in a row (with 2+ players, even when
+ * the previous player is the only one with the fewest turns, e.g. after a time-out).
  */
 export function pickTurnPlayer(players: readonly string[], counts: Readonly<Record<string, number>>, last: string | null, rng: () => number): string {
-  const min = Math.min(...players.map((p) => counts[p] ?? 0));
-  let pool = players.filter((p) => (counts[p] ?? 0) === min);
-  if (pool.length > 1 && last) pool = pool.filter((p) => p !== last);
-  if (pool.length === 0) pool = players.filter((p) => p !== last);
-  if (pool.length === 0) pool = [...players];
+  const candidates = last && players.length > 1 ? players.filter((p) => p !== last) : [...players];
+  const min = Math.min(...candidates.map((p) => counts[p] ?? 0));
+  const pool = candidates.filter((p) => (counts[p] ?? 0) === min);
   return pool[Math.floor(rng() * pool.length)];
 }
 

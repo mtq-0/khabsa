@@ -221,7 +221,12 @@ describe('مين برا السالفة over the network', () => {
     await waitFor(() => host.last.game!.phase === 'turns', 2000, 'turns');
     // too early: nobody has asked yet
     expect((await host.act(code, 'game:ready-vote')).ok).toBe(false);
-    for (let i = 0; i < 4; i++) await host.act(code, 'game:host:skip');
+    // time-outs do not count as taking part: every player really asks one question (the asker presses done)
+    for (let i = 0; i < 4; i++) {
+      const asker = (host.last.game as any).asker as string;
+      expect((await ps.find((p) => p.user!.id === asker)!.act(code, 'game:turn:done')).ok).toBe(true);
+      await waitFor(() => (host.last.game as any).asker !== asker, 2000, 'next asker');
+    }
     // the questions keep going (random) until everybody is ready to vote
     await waitFor(() => host.last.game!.phase === 'turns' && (host.last.game as any).canVote === true, 2000, 'can vote');
     for (const p of ps.slice(0, -1)) expect((await p.act(code, 'game:ready-vote')).ok).toBe(true);

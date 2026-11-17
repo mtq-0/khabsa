@@ -73,7 +73,7 @@ export default function ProfilePage() {
               <div className="h-full rounded-full bg-gradient-to-l from-volt-400 to-brand-500" style={{ width: `${pct}%` }} />
             </div>
             <p className="mt-1 text-xs text-ink-400">
-              {u.xp} / {next} XP
+              <bdi dir="ltr">{u.xp} / {next} XP</bdi>
             </p>
           </div>
           {me && !me.isGuest && data.relation !== 'self' && !u.isGuest && (
@@ -136,7 +136,7 @@ export default function ProfilePage() {
                   <span>{isGameId(g.game_id) ? GAMES[g.game_id].emoji : '🎲'}</span>
                   <span className="flex-1 truncate">{isGameId(g.game_id) ? GAMES[g.game_id].name : g.game_id}</span>
                   <span className="text-ink-400">
-                    {g.wins}/{g.games} فوز
+                    <bdi dir="ltr">{g.wins}/{g.games}</bdi> فوز
                   </span>
                   <span className="text-volt-300">أعلى {g.best}</span>
                 </li>

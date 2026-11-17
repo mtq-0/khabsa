@@ -91,15 +91,17 @@ export function createTabooEngine(): GameEngine<TabooState> {
     s.card = null;
     setPhase(s, 'turnEnd', ctx, TURN_END_SECONDS);
   }
+  function finishGame(s: TabooState, ctx: EngineCtx) {
+    const res = rankingFromScores(s);
+    const tr = teamResults(s.teams, s.teamScores);
+    res.teamScores = tr.teamScores;
+    res.winningTeam = tr.winningTeam;
+    res.winners = tr.winningTeam == null ? [] : tr.teamScores[tr.winningTeam].members;
+    finish(s, ctx, res);
+  }
   function advance(s: TabooState, ctx: EngineCtx) {
-    if (s.turnNumber >= s.totalTurns) {
-      const res = rankingFromScores(s);
-      const tr = teamResults(s.teams, s.teamScores);
-      res.teamScores = tr.teamScores;
-      res.winningTeam = tr.winningTeam;
-      res.winners = tr.winningTeam == null ? [] : tr.teamScores[tr.winningTeam].members;
-      finish(s, ctx, res);
-    } else prepareTurn(s, ctx);
+    if (s.turnNumber >= s.totalTurns) finishGame(s, ctx);
+    else prepareTurn(s, ctx);
   }
   function correct(s: TabooState, guesser: string | undefined, ctx: EngineCtx) {
     s.teamScores[s.turnTeam] += 1;
@@ -181,12 +183,15 @@ export function createTabooEngine(): GameEngine<TabooState> {
         case 'buzz': {
           requirePhase(s, 'turn');
           if (myTeam === s.turnTeam) throw new AppError('FORBIDDEN', 'الكبسة للفريق الثاني.');
-          checkCard(s, payload);
+          // at most one buzz per card: repeats are ignored (the replacement card counts as buzzed too,
+          // so the other team cannot chain buzzes before the explainer got a fair chance with a card)
           if (s.buzzedCard === s.cardIndex) return;
-          s.buzzedCard = s.cardIndex;
+          checkCard(s, payload);
           s.teamScores[s.turnTeam] -= 1;
           s.played.push({ word: s.card!.word, forbidden: s.card!.forbidden, result: 'buzz', by: pid });
-          return drawCard(s, ctx.rng);
+          drawCard(s, ctx.rng);
+          s.buzzedCard = s.cardIndex;
+          return;
         }
         case 'guess': {
           requirePhase(s, 'turn');
@@ -212,11 +217,8 @@ export function createTabooEngine(): GameEngine<TabooState> {
     playerLeft(s, pid, ctx) {
       s.players = s.players.filter((p) => p !== pid);
       s.rotation = s.rotation.map((r) => r.filter((p) => p !== pid));
-      if (s.rotation[0].length === 0 || s.rotation[1].length === 0) return finish(s, ctx, (() => {
-        const res = rankingFromScores(s);
-        const tr = teamResults(s.teams, s.teamScores);
-        return { ...res, ...tr, winners: tr.winningTeam == null ? [] : tr.teamScores[tr.winningTeam].members };
-      })());
+      // a team needs an explainer AND at least one guesser: with fewer than 2 players it can never score
+      if (s.rotation[0].length < 2 || s.rotation[1].length < 2) return finishGame(s, ctx);
       if (pid === s.explainer && (s.phase === 'ready' || s.phase === 'turn')) endTurn(s, ctx);
     },
     chatSecrets(s) {

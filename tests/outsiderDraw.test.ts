@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Harness } from './helpers/engine.ts';
+import { Harness, item } from './helpers/engine.ts';
 import { MAX_STROKE_POINTS, PLAYER_COLORS, parseStroke, type OutsiderDrawState } from '../src/server/games/outsiderDraw.ts';
 import { GAMES, GAME_IDS, sanitizeSettings } from '../src/shared/games.ts';
 import type { DrawSegment } from '../src/shared/protocol.ts';
@@ -170,9 +170,10 @@ describe('مين برا الرسمة؟ (outsider-draw, one shared canvas, one li
     expect(h.state.finished).toBe(true);
   });
 
-  it('players leaving mid-draw: a new drawer is picked; the outsider leaving skips the round', () => {
-    const h = new Harness<OutsiderDrawState>('outsider-draw', 4, { rounds: 2, laps: 2 });
+  it('players leaving mid-draw: a new drawer is picked; the outsider leaving replays the round (new word, round not used up)', () => {
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 5, { rounds: 2, laps: 2 });
     const out = h.state.outsiders[0];
+    const firstWord = h.state.secret!.itemId;
     for (const p of h.players) h.act(p, 'seen');
     const ctx = { now: h.now, rng: () => 0.5 };
     h.act(drawer(h), 'stroke', { segments: [line(1)] });
@@ -186,12 +187,96 @@ describe('مين برا الرسمة؟ (outsider-draw, one shared canvas, one li
     expect(h.state.players).not.toContain(leaver);
     expect(drawer(h)).not.toBe(leaver);
     expect(h.state.players).toContain(drawer(h));
-    expect(h.view(h.players[0]).minTurns).toBe(6); // 3 players left × 2 lines
+    expect(h.view(h.players[0]).minTurns).toBe(8); // 4 players left × 2 lines
     // the rest of the canvas can be finished (hard stop)
     while (h.state.phase === 'turn') h.act(drawer(h), 'stroke', { segments: [line(4)] });
     expect(h.state.phase).toBe('discuss');
     h.engine.playerLeft!(h.state, out, ctx);
-    expect(h.state.round).toBe(2);
+    expect(h.state.round).toBe(1);
     expect(h.state.phase).toBe('reveal');
+    expect(h.state.secret!.itemId).not.toBe(firstWord);
+    expect(h.state.strokes).toHaveLength(0);
+    expect(h.state.finished).toBe(false);
+  });
+
+  it('fewer than 3 players left: the game finishes with results', () => {
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 3, { rounds: 2 });
+    h.engine.playerLeft!(h.state, h.players.find((p) => !h.state.outsiders.includes(p))!, h.ctx());
+    expect(h.state.finished).toBe(true);
+    expect(h.state.results!.ranking).toHaveLength(2);
+  });
+
+  it('time-outs are not lines: they never open the vote; an AFK player is not picked again and again but cannot block it', () => {
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 4, { laps: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    for (let i = 0; i < 4; i++) h.expire();
+    expect(h.view('p0').canVote).toBe(false);
+    expect(() => h.act('p1', 'ready-vote')).toThrow(/بدري/);
+
+    const h2 = new Harness<OutsiderDrawState>('outsider-draw', 4, { laps: 2 });
+    for (const p of h2.players) h2.act(p, 'seen');
+    let prev: string | null = null;
+    let k = 0;
+    let guard = 0;
+    while (!h2.view('p1').canVote && guard++ < 60) {
+      const d = drawer(h2);
+      expect(d).not.toBe(prev);
+      prev = d;
+      if (d === 'p0') h2.expire();
+      else h2.act(d, 'stroke', { segments: [line(k++ * 10)] });
+    }
+    expect(h2.view('p1').canVote).toBe(true);
+    expect(h2.state.phase).toBe('turn');
+    expect(h2.state.drawn.p0).toBe(0);
+    expect(h2.state.skipped.p0).toBe(2);
+    expect(h2.state.turns).toBeLessThan(h2.view('p1').maxTurns);
+  });
+
+  it('a lone AFK drawer is never picked twice in a row', () => {
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 3, { laps: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    let prev: string | null = null;
+    for (let i = 0; i < 12; i++) {
+      expect(drawer(h)).not.toBe(prev);
+      prev = drawer(h);
+      h.expire();
+    }
+  });
+
+  it('host skip: one turn while voting is not allowed yet, straight to the discussion once it is', () => {
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 4, { laps: 1 });
+    for (const p of h.players) h.act(p, 'seen');
+    h.act('p0', 'host:skip');
+    expect(h.state.phase).toBe('turn');
+    expect(h.state.turns).toBe(1);
+    let k = 0;
+    while (!h.view('p0').canVote) h.act(drawer(h), 'stroke', { segments: [line(k++ * 10)] });
+    expect(h.view('p0').canVote).toBe(true);
+    h.act('p0', 'host:skip');
+    expect(h.state.phase).toBe('discuss');
+  });
+
+  it('the outsider leaving during the verdict skips the guess phase', () => {
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 4, { rounds: 1, laps: 1 });
+    drawAll(h);
+    for (const p of h.players) h.act(p, 'ready-vote');
+    h.players.forEach((p, i) => h.act(p, 'vote', { target: h.players[(i + 1) % h.players.length] }));
+    expect(h.state.phase).toBe('verdict');
+    h.engine.playerLeft!(h.state, h.state.outsiders[0], h.ctx());
+    expect(h.state.phase).toBe('verdict');
+    h.expire();
+    expect(h.state.phase).toBe('roundEnd');
+  });
+
+  it('the final guess options come from the word category (5 decoys + the word)', () => {
+    const food = Array.from({ length: 20 }, (_, i) => item('draw-word', i, { word: `أكلة${i}` }, 'food'));
+    const animals = Array.from({ length: 20 }, (_, i) => item('draw-word', 100 + i, { word: `حيوان${i}` }, 'animals'));
+    const h = new Harness<OutsiderDrawState>('outsider-draw', 4, { rounds: 1 }, [food[0]]);
+    h.state = h.engine.init({ players: h.players.map((id) => ({ id, name: id })), settings: sanitizeSettings('outsider-draw', { rounds: 1 }), content: [food[0]], decoys: [...food, ...animals], categoryNames: {} }, h.ctx());
+    const opts = h.state.secret!.guessOptions;
+    expect(opts).toHaveLength(6);
+    expect(new Set(opts).size).toBe(6);
+    expect(opts).toContain(h.state.secret!.word);
+    for (const o of opts) expect(o.startsWith('أكلة')).toBe(true);
   });
 });

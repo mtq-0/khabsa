@@ -33,12 +33,12 @@ export function SpeedQuizGame({ view }: { view: RoomView }) {
   return (
     <div>
       <PhaseHeader game={g} title={`سؤال ${g.round}`} subtitle={q.category} total={15} />
-      <div className="card mb-5 p-6 text-center">
-        <p className="text-2xl font-bold leading-relaxed sm:text-3xl" data-testid="quiz-question">
+      <div className="card mb-3 p-4 text-center sm:mb-5 sm:p-6">
+        <p className="text-xl font-bold leading-snug sm:text-3xl sm:leading-relaxed" data-testid="quiz-question">
           {q.text}
         </p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         {q.options.map((o, i) => {
           const mine = g.me.answer === i;
           const right = revealed && g.correct === i;
@@ -50,7 +50,7 @@ export function SpeedQuizGame({ view }: { view: RoomView }) {
               onClick={() => void act('answer', { choice: i })}
               data-testid={`quiz-option-${i}`}
               className={cx(
-                'theme-dark flex min-h-16 items-center gap-3 rounded-2xl bg-gradient-to-l p-4 text-start text-lg font-bold text-[#fff] transition active:scale-[0.98]',
+                'theme-dark flex min-h-14 items-center gap-2 rounded-2xl bg-gradient-to-l p-2.5 text-start text-base font-bold leading-snug text-[#fff] transition active:scale-[0.98] sm:min-h-16 sm:gap-3 sm:p-4 sm:text-lg',
                 COLORS[i],
                 mine && !revealed && 'ring-4 ring-[#fff]',
                 right && 'ring-4 ring-lime-400',
@@ -59,15 +59,15 @@ export function SpeedQuizGame({ view }: { view: RoomView }) {
                 g.me.answer != null && !mine && !revealed && 'opacity-50',
               )}
             >
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-black/25">{LETTERS[i]}</span>
-              <span>{o}</span>
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-black/25 text-sm sm:size-9 sm:rounded-xl sm:text-base">{LETTERS[i]}</span>
+              <span className="min-w-0">{o}</span>
               {right && <span className="ms-auto">✅</span>}
             </button>
           );
         })}
       </div>
       <p className="mt-4 text-center text-sm text-ink-400">
-        {g.answeredCount}/{g.players.length} جاوبوا {g.me.streak >= 2 && <span className="ms-2 text-sun-400">🔥 سلسلة {g.me.streak}</span>}
+        <bdi dir="ltr">{g.answeredCount}/{g.players.length}</bdi> جاوبوا {g.me.streak >= 2 && <span className="ms-2 text-sun-400">🔥 سلسلة {g.me.streak}</span>}
       </p>
       {revealed && g.reveal && (
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -77,7 +77,7 @@ export function SpeedQuizGame({ view }: { view: RoomView }) {
             <div className="flex flex-wrap gap-2">
               {g.players.map((p) => (
                 <span key={p} className={cx('chip', (g.reveal!.roundPoints[p] ?? 0) > 0 ? 'text-lime-400' : 'text-ink-400')}>
-                  {name(p)} +{g.reveal!.roundPoints[p] ?? 0}
+                  {name(p)} <bdi dir="ltr">+{g.reveal!.roundPoints[p] ?? 0}</bdi>
                 </span>
               ))}
             </div>

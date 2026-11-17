@@ -49,7 +49,9 @@ export function Results({ view }: { view: RoomView }) {
           {res.teamScores.map((t) => (
             <div key={t.team} className={cx('card p-4 text-center', res.winningTeam === t.team && 'border-sun-400 shadow-glow')}>
               <p className="font-bold">الفريق {TEAM[t.team]}</p>
-              <p className="font-display text-5xl">{t.score}</p>
+              <p className="font-display text-5xl">
+                <bdi dir="ltr">{t.score}</bdi>
+              </p>
               {res.winningTeam === t.team && <p className="text-sun-400">👑 الفايز</p>}
             </div>
           ))}
@@ -67,9 +69,11 @@ export function Results({ view }: { view: RoomView }) {
               {m ? <Avatar avatar={m.avatar} url={m.avatarUrl} size={i === 0 ? 64 : 52} ring={i === 0} /> : <span className="size-12 rounded-full bg-white/10" />}
               <p className="w-full truncate text-center text-sm font-bold">{name(r.playerId)}</p>
               <div className={cx('theme-dark flex w-full items-start justify-center rounded-t-2xl pt-2 font-display text-2xl', h, i === 0 ? 'bg-gradient-to-b from-sun-400 to-amber-600 text-[#07050f]' : i === 1 ? 'bg-gradient-to-b from-ink-200 to-ink-400 text-[#07050f]' : 'bg-gradient-to-b from-orange-400 to-orange-700')}>
-                {r.place}
+                <span aria-label={`المركز ${r.place}`}>{r.place}</span>
               </div>
-              <p className="-mt-1 text-sm font-bold text-volt-300">{r.score}</p>
+              <p className="-mt-1 text-sm font-bold text-volt-300">
+                <bdi dir="ltr">{r.score}</bdi> نقطة
+              </p>
             </div>
           );
         })}
@@ -79,10 +83,14 @@ export function Results({ view }: { view: RoomView }) {
         <ol className="space-y-1.5">
           {res.ranking.map((r) => (
             <li key={r.playerId} className={cx('flex items-center gap-3 rounded-xl px-3 py-2', r.playerId === view.you ? 'bg-brand-500/20' : 'bg-white/5')}>
-              <span className="w-6 text-center font-bold text-ink-400">{r.place}</span>
-              <span className="flex-1 truncate">{name(r.playerId)}</span>
+              <span className="shrink-0 whitespace-nowrap text-xs font-bold text-ink-400">
+                المركز <bdi dir="ltr">{r.place}</bdi>
+              </span>
+              <span className="min-w-0 flex-1 truncate">{name(r.playerId)}</span>
               {res.winners.includes(r.playerId) && <span>👑</span>}
-              <span className="font-bold tabular-nums text-volt-300">{r.score}</span>
+              <span className="shrink-0 whitespace-nowrap font-bold tabular-nums text-volt-300">
+                <bdi dir="ltr">{r.score}</bdi> نقطة
+              </span>
             </li>
           ))}
         </ol>
@@ -99,15 +107,19 @@ export function Results({ view }: { view: RoomView }) {
 
       {PAGES ? null : view.awards ? (
         <div className="card flex flex-wrap items-center justify-center gap-3 p-4 text-center">
-          <span className="chip text-lime-400">+{view.awards.xp} XP</span>
-          <span className="chip">المستوى {view.awards.level}</span>
+          <span className="chip text-lime-400">
+            <bdi dir="ltr">+{view.awards.xp} XP</bdi>
+          </span>
+          <span className="chip">
+            المستوى <bdi dir="ltr">{view.awards.level}</bdi>
+          </span>
           {view.awards.unlocked.map((a) => (
             <span key={a} className="chip animate-pop border-sun-400/40 text-sun-400">
               🏅 إنجاز جديد: {ACH_NAMES[a] ?? a}
             </span>
           ))}
           {user?.isGuest && (
-            <Link to="/register" className="w-full text-xs text-volt-300 underline">
+            <Link to="/register" className="flex min-h-10 w-full items-center justify-center text-xs text-volt-300 underline">
               سجّل حساب لتحفظ نقاطك وتظهر بالمتصدرين
             </Link>
           )}
@@ -117,7 +129,7 @@ export function Results({ view }: { view: RoomView }) {
       )}
 
       {isHost ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="glass-bar sticky bottom-0 z-20 -mx-4 grid grid-cols-2 gap-3 border-x-0 border-b-0 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
           <Button
             size="lg"
             icon={<RotateCcw className="size-5" />}
@@ -125,11 +137,12 @@ export function Results({ view }: { view: RoomView }) {
               const r = await room.act('rematch');
               if (!r.ok) toast.error(r.message);
             }}
+            className="whitespace-nowrap px-2 text-base sm:px-7 sm:text-lg"
             data-testid="rematch"
           >
             جولة ثانية!
           </Button>
-          <Button size="lg" variant="secondary" icon={<LayoutGrid className="size-5" />} onClick={() => void room.act('back-to-lobby')} data-testid="back-to-lobby">
+          <Button size="lg" variant="secondary" className="whitespace-nowrap px-2 text-base sm:px-7 sm:text-lg" icon={<LayoutGrid className="size-5" />} onClick={() => void room.act('back-to-lobby')} data-testid="back-to-lobby">
             غيّر اللعبة
           </Button>
         </div>

@@ -43,13 +43,15 @@ export function createMostLikelyEngine(): GameEngine<MostLikelyState> {
     s.history.push({ round: s.round, prompt: s.prompt, winners: s.winners, counts });
     setPhase(s, 'results', ctx, RESULTS_SECONDS);
   }
+  function finishGame(s: MostLikelyState, ctx: EngineCtx) {
+    const res = rankingFromScores(s);
+    const byTitles = Object.entries(s.titles).sort((a, b) => b[1].length - a[1].length);
+    res.awards = byTitles.slice(0, 3).map(([pid, t]) => ({ playerId: pid, title: `عدد الألقاب: ${t.length} — آخرها: ${t[t.length - 1]}`, emoji: '🏅' }));
+    finish(s, ctx, res);
+  }
   function advance(s: MostLikelyState, ctx: EngineCtx) {
-    if (s.round >= s.totalRounds) {
-      const res = rankingFromScores(s);
-      const byTitles = Object.entries(s.titles).sort((a, b) => b[1].length - a[1].length);
-      res.awards = byTitles.slice(0, 3).map(([pid, t]) => ({ playerId: pid, title: `عدد الألقاب: ${t.length} — آخرها: ${t[t.length - 1]}`, emoji: '🏅' }));
-      finish(s, ctx, res);
-    } else startRound(s, ctx);
+    if (s.round >= s.totalRounds) finishGame(s, ctx);
+    else startRound(s, ctx);
   }
   const engine: GameEngine<MostLikelyState> = {
     id: 'most-likely',
@@ -89,7 +91,7 @@ export function createMostLikelyEngine(): GameEngine<MostLikelyState> {
     playerLeft(s, pid, ctx) {
       s.players = s.players.filter((p) => p !== pid);
       delete s.votes[pid];
-      if (s.players.length < 2) return finish(s, ctx);
+      if (s.players.length < 3) return finishGame(s, ctx); // the game needs 3 players: show the results instead of a 2-player vote
       if (s.phase === 'vote' && s.players.every((p) => s.votes[p])) close(s, ctx);
     },
     view(s, viewer, now) {
@@ -102,7 +104,7 @@ export function createMostLikelyEngine(): GameEngine<MostLikelyState> {
         votedCount: Object.keys(s.votes).length,
         votedBy: Object.keys(s.votes),
         result: showResults
-          ? { counts: tally(s.votes, s.players), winners: s.winners, votes: s.settings.anonymous ? null : s.votes, roundPoints: s.roundPoints }
+          ? { counts: tally(s.votes, s.players), winners: s.winners, votes: s.settings.anonymous ? null : s.votes, roundPoints: s.settings.anonymous ? (viewer in s.roundPoints ? { [viewer]: s.roundPoints[viewer] } : {}) : s.roundPoints }
           : null,
         titles: Object.fromEntries(Object.entries(s.titles).map(([k, v]) => [k, v.length])),
         history: s.history,

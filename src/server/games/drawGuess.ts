@@ -43,6 +43,8 @@ export interface DrawGuessState extends BaseState {
   feed: FeedEntry[];
   feedSeq: number;
   teams: Record<string, number> | null;
+  /** teams scoring was requested but there are fewer than 4 players, so everybody plays for themselves */
+  teamsFallback: boolean;
   turnPoints: Record<string, number>;
 }
 
@@ -85,6 +87,7 @@ export function createDrawGuessEngine(): GameEngine<DrawGuessState> {
     s.guessed = [];
     s.feed = [];
     s.turnPoints = {};
+    if (s.teamsFallback && s.turnNumber === 1) push(s, { pid: s.drawer, kind: 'system', text: 'وضع الفرق بده 4 لاعبين أو أكثر، فبتلعبوا فردي هالمرة.' });
     setPhase(s, 'choose', ctx, CHOOSE_SECONDS);
   }
   function beginDrawing(s: DrawGuessState, choice: number, ctx: EngineCtx) {
@@ -154,6 +157,7 @@ export function createDrawGuessEngine(): GameEngine<DrawGuessState> {
         feed: [],
         feedSeq: 0,
         teams: scoring === 'teams' ? assignTeams(input.players, ctx.rng) : null,
+        teamsFallback: input.settings.scoring === 'teams' && scoring !== 'teams',
         turnPoints: {},
       };
       startTurn(s, ctx);
@@ -210,6 +214,13 @@ export function createDrawGuessEngine(): GameEngine<DrawGuessState> {
       return s.deadline;
     },
     playerLeft(s, pid, ctx) {
+      // turnIndex points at the next drawer inside `order`: keep it on the same player after removing someone
+      const gone = s.order.indexOf(pid);
+      if (gone >= 0) {
+        const oldLen = s.order.length;
+        const next = s.turnIndex % oldLen;
+        s.turnIndex = Math.floor(s.turnIndex / oldLen) * (oldLen - 1) + (gone < next ? next - 1 : next);
+      }
       s.players = s.players.filter((p) => p !== pid);
       s.order = s.order.filter((p) => p !== pid);
       s.totalTurns = Math.max(s.turnNumber, s.order.length * s.totalRounds);

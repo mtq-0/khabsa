@@ -56,7 +56,7 @@ export default function HomePage() {
               nav(`/join?code=${encodeURIComponent(code)}`);
             }}
           >
-            <input className="field h-12 text-center font-mono text-lg tracking-[0.3em] uppercase" placeholder="رمز الغرفة" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={6} aria-label="رمز الغرفة" dir="ltr" />
+            <input className="field h-12 text-center font-mono text-lg tracking-[0.3em] uppercase placeholder:font-sans placeholder:text-base placeholder:tracking-normal placeholder:normal-case" placeholder="رمز الغرفة" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={6} aria-label="رمز الغرفة" dir="ltr" />
             <Button type="submit" variant="secondary" className="h-12" icon={<DoorOpen className="size-4" />}>
               ادخل
             </Button>
@@ -129,7 +129,7 @@ export default function HomePage() {
             <h2 className="font-display text-4xl">ألعاب مميزة 🔥</h2>
             <p className="text-ink-300">الأكثر خبصة هالأسبوع</p>
           </div>
-          <Link to="/games" className="text-sm font-semibold text-volt-300 hover:underline">
+          <Link to="/games" className="inline-flex min-h-10 items-center text-sm font-semibold text-volt-300 hover:underline">
             كل الألعاب ←
           </Link>
         </div>

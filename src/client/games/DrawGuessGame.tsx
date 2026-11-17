@@ -516,7 +516,7 @@ export function DrawGuessGame({ view }: { view: RoomView }) {
     <div className="card p-3 text-sm">
       {Object.entries(g.turnPoints).map(([p, pts]) => (
         <p key={p} className="text-lime-400">
-          {name(p)} +{pts}
+          {name(p)} <bdi dir="ltr">+{pts}</bdi>
         </p>
       ))}
       {!Object.keys(g.turnPoints).length && <p className="text-ink-400">ما حدا عرفها 😅</p>}

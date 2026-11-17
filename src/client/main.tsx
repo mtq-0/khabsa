@@ -10,6 +10,7 @@ import { Layout } from './components/Layout.tsx';
 import { Button, Spinner } from './components/ui.tsx';
 import { useSession } from './lib/session.ts';
 import { initTheme } from './lib/theme.ts';
+import { installArabicValidation } from './lib/validation.ts';
 import HomePage from './pages/Home.tsx';
 
 const GamesPage = lazy(() => import('./pages/Games.tsx'));
@@ -29,6 +30,7 @@ const AdminPage = lazy(() => import('./pages/admin/Admin.tsx'));
 const NotFoundPage = lazy(() => import('./pages/NotFound.tsx'));
 
 initTheme();
+installArabicValidation();
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };

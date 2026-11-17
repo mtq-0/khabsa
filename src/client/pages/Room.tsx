@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Copy, LogOut, MessageCircle, Share2, SkipForward, Square, UserPlus, Users, Gamepad2 } from 'lucide-react';
+import { ChevronDown, Copy, LogOut, MessageCircle, Share2, SkipForward, Square, UserPlus, Users, Gamepad2 } from 'lucide-react';
 import { AudioToggles, ThemeToggle, useMusicMood } from '../fx/audioUi.tsx';
 import { useGameFx } from '../fx/useGameFx.ts';
 import { ShakeArea } from '../fx/visual.tsx';
@@ -48,6 +48,7 @@ function RoomInner({ code }: { code: string }) {
   const [tab, setTab] = useState<'game' | 'chat' | 'players'>('game');
   const [unread, setUnread] = useState(0);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [hdrOpen, setHdrOpen] = useState(false);
 
   useEffect(() => {
     if (tab !== 'chat') setUnread((u) => u + 1);
@@ -122,6 +123,8 @@ function RoomInner({ code }: { code: string }) {
     void copyText(`${text}\n${link}`);
   };
 
+  // phones: while a game runs the header shrinks to one row (code, expand, leave) so the game gets the screen
+  const compact = view.status === 'playing' && !hdrOpen;
   const stage =
     view.status === 'results' ? (
       <Results view={view} />
@@ -135,8 +138,8 @@ function RoomInner({ code }: { code: string }) {
     <RoomContext.Provider value={room}>
       <div className="flex min-w-0 flex-col gap-3">
         {/* header */}
-        <div className="card flex flex-wrap items-center gap-3 p-3">
-          <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
+        <div className={cx('card flex flex-wrap items-center gap-3 p-3', compact && 'max-lg:flex-nowrap max-lg:gap-2 max-lg:py-2')}>
+          <div className={cx('min-w-0 basis-full sm:basis-auto sm:flex-1', compact && 'max-lg:hidden')}>
             <p className="truncate font-bold">{view.name}</p>
             <p className="truncate text-xs text-ink-400">
               {GAMES[view.selectedGame].emoji} {GAMES[view.selectedGame].name} · {view.visibility === 'public' ? 'عامة' : 'خاصة'}
@@ -146,14 +149,28 @@ function RoomInner({ code }: { code: string }) {
             {view.code} <Copy className="size-4 text-ink-400" />
           </button>
           <div className="ms-auto flex gap-1">
-            <AudioToggles />
-            <ThemeToggle />
-            <Button size="sm" variant="secondary" icon={<Share2 className="size-4" />} onClick={() => void share()}>
-              <span className="hidden sm:inline">شارك</span>
-            </Button>
-            <Button size="sm" variant="secondary" icon={<UserPlus className="size-4" />} onClick={() => setInviteOpen(true)} data-testid="invite-btn">
-              <span className="hidden sm:inline">اعزم</span>
-            </Button>
+            <div className={cx('flex flex-wrap gap-1', compact && 'max-lg:hidden')}>
+              <AudioToggles />
+              <ThemeToggle />
+              <Button size="sm" variant="secondary" icon={<Share2 className="size-4" />} onClick={() => void share()}>
+                <span className="hidden sm:inline">شارك</span>
+              </Button>
+              <Button size="sm" variant="secondary" icon={<UserPlus className="size-4" />} onClick={() => setInviteOpen(true)} data-testid="invite-btn">
+                <span className="hidden sm:inline">اعزم</span>
+              </Button>
+            </div>
+            {view.status === 'playing' && (
+              <button
+                type="button"
+                className="grid size-9 place-items-center rounded-xl bg-white/8 text-ink-200 hover:bg-white/12 lg:hidden"
+                onClick={() => setHdrOpen((o) => !o)}
+                aria-expanded={hdrOpen}
+                aria-label={hdrOpen ? 'خبّي أدوات الغرفة' : 'أدوات الغرفة'}
+                data-testid="room-header-toggle"
+              >
+                <ChevronDown className={cx('size-5 transition', hdrOpen && 'rotate-180')} />
+              </button>
+            )}
             <Button
               size="sm"
               variant="ghost"
@@ -177,8 +194,11 @@ function RoomInner({ code }: { code: string }) {
         )}
 
         {/* mobile tabs */}
-        <div className="lg:hidden">
+        <div className="flex items-center gap-2 lg:hidden">
+          {view.status === 'playing' && <VoicePanel view={view} compact />}
+          <div className="min-w-0 flex-1">
           <Tabs
+            fill
             value={tab}
             onChange={setTab}
             tabs={[
@@ -187,6 +207,7 @@ function RoomInner({ code }: { code: string }) {
               { value: 'players', label: <span className="flex items-center gap-1.5"><Users className="size-4" /> اللاعبين ({view.members.length})</span> },
             ]}
           />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_320px]">
@@ -199,9 +220,11 @@ function RoomInner({ code }: { code: string }) {
             </div>
           </aside>
           <section className={cx('min-w-0', tab === 'game' ? 'block' : 'hidden lg:block')}>
-            <div className="lg:hidden mb-3">
-              <VoicePanel view={view} />
-            </div>
+            {view.status !== 'playing' && (
+              <div className="lg:hidden mb-3">
+                <VoicePanel view={view} />
+              </div>
+            )}
             <ShakeArea>{stage}</ShakeArea>
             {isHost && view.status === 'playing' && <HostControls />}
           </section>

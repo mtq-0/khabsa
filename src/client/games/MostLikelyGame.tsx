@@ -35,7 +35,7 @@ export function MostLikelyGame({ view }: { view: RoomView }) {
             <p className="text-center text-ink-300">عم يصوّتوا...</p>
           )}
           <p className="mt-3 text-center text-sm text-ink-400">
-            {g.votedCount}/{g.players.length} صوّتوا
+            <bdi dir="ltr">{g.votedCount}/{g.players.length}</bdi> صوّتوا
           </p>
         </>
       ) : (

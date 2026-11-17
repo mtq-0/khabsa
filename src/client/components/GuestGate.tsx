@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Shuffle } from 'lucide-react';
+import { ChevronDown, Shuffle } from 'lucide-react';
 import { AVATAR_CHARACTERS, AVATAR_PALETTES, parseAvatar, randomAvatar } from '../../shared/avatars.ts';
 import { characterUrl } from '../../shared/characters.ts';
 import { useSession } from '../lib/session.ts';
@@ -11,10 +11,14 @@ import { Avatar, Button, cx, Spinner } from './ui.tsx';
 
 export function AvatarPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [c, p] = value.split('-').map(Number);
+  // a short row first so the form below stays on screen; the rest opens with "المزيد"
+  const [more, setMore] = useState(false);
+  const SHORT = 8;
+  const shown = more ? AVATAR_CHARACTERS : AVATAR_CHARACTERS.slice(0, SHORT);
   return (
     <div>
       <div className="mb-3 flex items-center gap-3">
-        <Avatar avatar={value} size={72} />
+        <Avatar avatar={value} size={56} />
         <p className="min-w-0 flex-1 truncate font-bold" data-testid="avatar-name">
           {parseAvatar(value).name}
         </p>
@@ -22,8 +26,8 @@ export function AvatarPicker({ value, onChange }: { value: string; onChange: (v:
           عشوائي
         </Button>
       </div>
-      <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8" role="radiogroup" aria-label="الشخصية">
-        {AVATAR_CHARACTERS.map((ch, i) => (
+      <div className={cx('grid gap-1.5 sm:grid-cols-8', more ? 'grid-cols-6' : 'grid-cols-8')} role="radiogroup" aria-label="الشخصية">
+        {shown.map((ch, i) => (
           <button
             key={ch}
             type="button"
@@ -38,6 +42,12 @@ export function AvatarPicker({ value, onChange }: { value: string; onChange: (v:
           </button>
         ))}
       </div>
+      {AVATAR_CHARACTERS.length > SHORT && (
+        <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more} className="mt-2 flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-white/5 text-sm font-semibold text-ink-200 hover:bg-white/10" data-testid="avatar-more">
+          {more ? 'أقل' : 'المزيد'}
+          <ChevronDown className={cx('size-4 transition', more && 'rotate-180')} />
+        </button>
+      )}
       <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="اللون">
         {AVATAR_PALETTES.map((pal, i) => (
           <button
@@ -62,11 +72,18 @@ export function GuestForm({ onDone, cta = 'يلا نلعب!' }: { onDone?: () =>
   const [avatar, setAvatar] = useState<string>(() => randomAvatar());
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   return (
     <form
       className="space-y-5"
+      noValidate
       onSubmit={async (e) => {
         e.preventDefault();
+        if (name.trim().length < 2) {
+          setErr('اكتب اسمك (حرفين على الأقل)');
+          nameRef.current?.focus();
+          return;
+        }
         setBusy(true);
         setErr(null);
         try {
@@ -85,19 +102,19 @@ export function GuestForm({ onDone, cta = 'يلا نلعب!' }: { onDone?: () =>
         <label className="label" htmlFor="nick">
           شو اسمك بالخبصة؟
         </label>
-        <input id="nick" className="field text-lg" value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً: أبو سند" maxLength={24} required minLength={2} autoComplete="nickname" />
+        <input id="nick" ref={nameRef} className="field text-lg" value={name} onChange={(e) => { setName(e.target.value); setErr(null); }} aria-invalid={err != null && name.trim().length < 2} placeholder="مثلاً: أبو سند" maxLength={24} required minLength={2} autoComplete="nickname" />
       </div>
       <div>
         <span className="label">اختار شكلك</span>
         <AvatarPicker value={avatar} onChange={setAvatar} />
       </div>
-      {err && <p className="rounded-xl bg-zing-500/15 px-3 py-2 text-sm text-zing-400">{err}</p>}
+      {err && <p className="rounded-xl bg-zing-500/15 px-3 py-2 text-sm text-zing-400" role="alert">{err}</p>}
       <Button type="submit" size="lg" className="w-full" loading={busy}>
         {cta}
       </Button>
       <p className={cx('text-center text-xs text-ink-400', PAGES && 'hidden')}>
         بتلعب كضيف بدون تسجيل. عندك حساب؟{' '}
-        <Link to="/login" className="text-volt-300 underline">
+        <Link to="/login" className="inline-flex min-h-10 items-center px-1 text-volt-300 underline">
           سجّل دخول
         </Link>
       </p>

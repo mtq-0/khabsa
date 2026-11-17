@@ -3,6 +3,7 @@ import { Eye, EyeOff, ZoomIn } from 'lucide-react';
 import type { RoomView } from '../../shared/protocol.ts';
 import { Button, Modal, cx } from '../components/ui.tsx';
 import { OutsiderRoulette } from './OutsiderRoulette.tsx';
+import { Flag, WithFlag } from '../components/Flag.tsx';
 import { PhaseHeader, PlayerTag, SecretCard, VoteGrid, useGameAction, useMembers } from '../room/common.tsx';
 
 interface PhotoCredit {
@@ -121,6 +122,7 @@ function RoleCard({ g }: { g: OutsiderView }) {
             <p className="mt-1 font-display text-5xl" data-testid="secret-word">
               {me.word}
             </p>
+            {!me.wordImage && <Flag word={me.word} className="mx-auto mt-3 block! h-20! rounded-lg! shadow-lg" />}
             {me.wordImage && (
               <div className="mx-auto mt-3 max-w-64" data-testid="word-image">
                 <PictureCard src={me.wordImage} label={me.word} maxH="max-h-[38vh]" />
@@ -147,7 +149,7 @@ function RoleCard({ g }: { g: OutsiderView }) {
           {me.category && <p className="mt-3 inline-block rounded-full bg-black/25 px-3 py-1 text-sm">{me.category}</p>}
         </SecretCard>
       )}
-      <button type="button" onClick={() => setHidden(true)} className="mx-auto mt-2 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-ink-400 hover:bg-white/5 hover:text-ink-200" data-testid="hide-card">
+      <button type="button" onClick={() => setHidden(true)} className="mx-auto mt-2 flex min-h-10 items-center gap-1.5 rounded-full px-4 py-2 text-xs text-ink-400 hover:bg-white/5 hover:text-ink-200" data-testid="hide-card">
         <EyeOff className="size-4" /> خبّي البطاقة عن اللي حواليك
       </button>
     </div>
@@ -174,7 +176,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
               </Button>
             )}
             <p className="mt-2 text-sm text-ink-400">
-              {g.seenCount}/{g.players.length} جاهزين
+              <bdi dir="ltr">{g.seenCount}/{g.players.length}</bdi> جاهزين
             </p>
           </div>
         </div>
@@ -214,7 +216,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
                 {g.readyToVote.includes(view.you) ? 'بانتظار الباقي...' : 'جاهز للتصويت 🗳'}
               </Button>
               <p className="mt-2 text-sm text-ink-400" data-testid="ready-count">
-                {g.canVote ? `${g.readyToVote.length}/${g.players.length} جاهزين للتصويت · الأسئلة عشوائية وبتضل لحد ما الكل يكبس` : 'خلّوا كل واحد يسأل مرة على الأقل، بعدها بتقدروا تصوّتوا'}
+                {g.canVote ? `\u2066${g.readyToVote.length}/${g.players.length}\u2069 جاهزين للتصويت · الأسئلة عشوائية وبتضل لحد ما الكل يكبس` : 'خلّوا كل واحد يسأل مرة على الأقل، بعدها بتقدروا تصوّتوا'}
               </p>
             </div>
           )}
@@ -234,7 +236,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
               </Button>
             )}
             <p className="mt-2 text-sm text-ink-400">
-              {g.readyToVote.length}/{g.players.length} جاهزين للتصويت
+              <bdi dir="ltr">{g.readyToVote.length}/{g.players.length}</bdi> جاهزين للتصويت
             </p>
           </div>
         </div>
@@ -242,7 +244,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
     case 'vote':
       return (
         <div>
-          <PhaseHeader game={g!} title="صوّت سراً 🗳️" subtitle={`مين ${isWord ? 'برا السالفة' : 'برا الصورة'}؟ ${g.votedCount}/${g.players.length} صوّتوا`} total={30} />
+          <PhaseHeader game={g!} title="صوّت سراً 🗳️" subtitle={`مين ${isWord ? 'برا السالفة' : 'برا الصورة'}؟ \u2066${g.votedCount}/${g.players.length}\u2069 صوّتوا`} total={30} />
           {me.isPlayer ? (
             <VoteGrid candidates={g.players} view={view} voted={me.voted ?? null} disabledIds={[view.you]} onVote={(id) => void act('vote', { target: id })} />
           ) : (
@@ -282,7 +284,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
                 <div className={`grid gap-2 ${me.guessOptions.length > 6 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2'}`}>
                   {me.guessOptions.map((o) => (
                     <Button key={o} variant={me.guess === o ? 'volt' : 'secondary'} disabled={!!me.guess} onClick={() => void act('guess', { choice: o })} data-testid="guess-option">
-                      {o}
+                      {isWord ? <WithFlag word={o} /> : o}
                     </Button>
                   ))}
                 </div>
@@ -296,7 +298,10 @@ export function OutsiderGame({ view }: { view: RoomView }) {
                 {isWord ? (
                   <div>
                     <p>
-                      الكلمة كانت: <b className="font-display text-3xl text-volt-300">{r.word}</b>
+                      الكلمة كانت:{' '}
+                      <b className="font-display text-3xl text-volt-300">
+                        <WithFlag word={r.word} />
+                      </b>
                     </p>
                     {r.wordImage && (
                       <div className="mx-auto mt-3 max-w-xs">
@@ -325,7 +330,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
                 )}
                 {outsiders.map((o) => (
                   <p key={o} className="mt-2 text-sm">
-                    {name(o)} خمّن: <b>{r.guesses[o] ?? '—'}</b> {r.guesses[o] === r.answer ? '✅ +1' : r.guesses[o] ? '❌' : ''}
+                    {name(o)} خمّن: <b>{r.guesses[o] ? isWord ? <WithFlag word={r.guesses[o]} /> : r.guesses[o] : '—'}</b> {r.guesses[o] === r.answer ? <>✅ <bdi dir="ltr">+1</bdi></> : r.guesses[o] ? '❌' : ''}
                   </p>
                 ))}
               </div>
@@ -343,7 +348,7 @@ export function OutsiderGame({ view }: { view: RoomView }) {
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(r.roundPoints).map(([p, pts]) => (
                     <span key={p} className="chip text-lime-400">
-                      {name(p)} +{pts}
+                      {name(p)} <bdi dir="ltr">+{pts}</bdi>
                     </span>
                   ))}
                   {!Object.keys(r.roundPoints).length && <span className="text-sm text-ink-400">ما حدا أخذ نقاط</span>}

@@ -28,7 +28,7 @@ export default function LeaderboardPage() {
       .then((r) => setEntries(r.entries))
       .catch((e) => setErr(errorText(e)));
   }, [kind, game]);
-  const metric = (e: Entry) => (game ? `${e.wins} فوز` : kind === 'weekly' ? `${e.weeklyXp} XP` : `${e.xp} XP`);
+  const metric = (e: Entry) => (game ? `${e.wins} فوز` : <bdi dir="ltr">{kind === 'weekly' ? `${e.weeklyXp} XP` : `${e.xp} XP`}</bdi>);
   return (
     <div className="mx-auto max-w-3xl">
       <PageTitle title="المتصدرين" emoji="🏆" subtitle="مين ملك الخبصة؟" />
